@@ -7,62 +7,62 @@
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
     <style>
     :root {
-        --bg: #f2f3f5;
-        --card-bg: #FFFFFF;
-        --text: #333;
-    }
-    * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
-    html, body {
-        height: 100%;           /* 让高度可以继承 */
-        margin: 0;
-    }
-    body {
-        background-color: var(--bg);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 16px;
-    }
-    .chart-card {
-        background: var(--card-bg);
-        border-radius: 12px;
-        padding: 20px;
-        width: 100%;
-        max-width: 1000px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border: 1px solid #eef0f3;
-        display: flex;
-        flex-direction: column;   /* 让标题和图表纵向排列 */
-        height: 100vh;            /* 卡片占满整个窗口高度 */
-        box-sizing: border-box;
-    }
+    --bg: #f2f3f5;
+    --text: #333;
+}
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+html, body {
+    height: 100%;
+    margin: 0;
+    background: transparent;   /* 让背景在飞书中透明 */
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;                /* 去掉内边距，让图表占满整个嵌入区域 */
+}
+.chart-card {
+    /* 去掉所有卡片装饰 */
+    background: transparent;
+    border-radius: 0;
+    padding: 8px;              /* 留一点呼吸空间，但不影响整体无边框感 */
+    width: 100%;
+    height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border: none;
+    box-shadow: none;
+    max-width: none;           /* 移除宽度上限，让图表自动撑满 */
+}
+.card-title {
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+.chart-wrap {
+    flex: 1;
+    width: 100%;
+    min-height: 300px;
+}
+@media (max-width: 768px) {
     .card-title {
-        flex-shrink: 0;           /* 标题高度固定，不参与伸缩 */
-        text-align: center;
-        font-size: 18px;
-        font-weight: 600;
-        color: #1a1a2e;
-        margin-bottom: 16px;
-        letter-spacing: 0.5px;
+        font-size: 16px;
     }
     .chart-wrap {
-        flex: 1;                  /* 自动占满剩余高度 */
-        width: 100%;
-        min-height: 300px;        /* 防止窗口过小时图表被压扁 */
+        min-height: 250px;
     }
-    @media (max-width: 768px) {
-        .card-title {
-            font-size: 16px;
-        }
-        .chart-wrap {
-            min-height: 250px;    /* 移动端适当降低最小高度 */
-        }
-    }
+}
 </style>
 </head>
 <body>
