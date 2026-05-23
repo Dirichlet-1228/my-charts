@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据可视化看板</title>
+    <title>显微镜市场数据可视化</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
     </script>
     <style>
@@ -67,22 +67,14 @@
                 return 0;
             }
 
-            function fmtWan(n) {
-                if (Math.abs(n) >= 10000) {
-                    return (n / 10000).toFixed(n % 10000 === 0 ? 0 : 1) + '万';
-                }
-                return n + '';
+            function fmtLarge(n) {
+                if (n >= 10000) return (n / 10000).toFixed(n % 10000 === 0 ? 0 : 1) + '万';
+                if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+                return n.toString();
             }
 
-            function fmtK(n) {
-                if (Math.abs(n) >= 1000) {
-                    return (n / 1000).toFixed(1) + 'k';
-                }
-                return n + '';
-            }
-
-            function fmtDollar(n) {
-                return '$' + n.toFixed(2);
+            function fmtPrice(n) {
+                return '$' + parseNum(n).toFixed(2);
             }
 
             const chartTitles = [
@@ -108,1764 +100,1840 @@
                 '评分销量趋势'
             ];
 
-            // ==================== 图表1：分款销量占比-饼图 ====================
-            const pie1Data = [
-                { name: '桌面按压式显微镜', value: 29092 },
-                { name: '台式套装', value: 9185 },
-                { name: '枪式手持数码显微镜', value: 7654 },
-                { name: '手持数码放大镜', value: 6785 },
-                { name: '分体式套装', value: 2966 },
-                { name: '手持光学显微镜', value: 2685 },
-                { name: '2合1显微/望远', value: 842 },
-                { name: 'DV式手持显微镜', value: 374 }
-            ];
-            const pie1Total = pie1Data.reduce((s, d) => s + d.value, 0);
-
-            function buildPieOption(data, titleText) {
-                const n = data.length;
-                const showLegend = n <= 8;
-                const seriesData = data.map((d, i) => ({
-                    name: d.name,
-                    value: d.value,
-                    itemStyle: { color: COLORS[i % COLORS.length] }
-                }));
-                const option = {
+            function buildChart1() {
+                const data = [
+                    { name: '桌面按压式显微镜', value: 29092 },
+                    { name: '台式套装', value: 9185 },
+                    { name: '枪式手持数码显微镜', value: 7654 },
+                    { name: '手持数码放大镜', value: 6785 },
+                    { name: '分体式套装', value: 2966 },
+                    { name: '手持光学显微镜', value: 2685 },
+                    { name: '2合1显微/望远', value: 842 },
+                    { name: 'DV式手持显微镜', value: 374 }
+                ];
+                const total = data.reduce((s, d) => s + d.value, 0);
+                const nCat = data.length;
+                const showLegend = nCat <= 8;
+                return {
                     tooltip: {
                         trigger: 'item',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
                         formatter: function(p) {
-                            const pct = (p.value / pie1Total * 100).toFixed(1);
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + pct +
-                                '%';
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
                         }
                     },
                     legend: showLegend ? {
-                        type: 'scroll',
                         orient: 'vertical',
                         right: 10,
-                        top: 'middle',
-                        itemGap: 8,
+                        top: 'center',
                         textStyle: { fontSize: 12, color: '#333' },
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        type: 'scroll',
+                        scrollDataIndex: 0,
+                        pageButtonItemGap: 5,
                     } : { show: false },
+                    color: COLORS,
                     series: [{
                         type: 'pie',
                         radius: ['45%', '72%'],
                         center: ['42%', '50%'],
-                        avoidLabelOverlap: false,
-                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: '#fff', borderWidth: 1 },
                         label: {
                             show: true,
                             position: 'outside',
                             formatter: function(p) {
                                 if (!showLegend) {
-                                    const colorHex = COLORS[p.dataIndex % COLORS.length];
-                                    return '{dot|●} ' + p.name + '\n' + p.percent.toFixed(1) + '%';
+                                    const idx = p.dataIndex;
+                                    const color = COLORS[idx % COLORS.length];
+                                    return '{dot|}{name|' + p.name + '}\n{percent|' + p.percent + '%}';
                                 }
-                                return p.name + '\n' + p.percent.toFixed(1) + '%';
+                                return '{name|' + p.name + '}\n{percent|' + p.percent + '%}';
                             },
                             rich: {
                                 dot: {
-                                    fontSize: 14,
-                                    padding: [0, 4, 0, 0],
-                                    color: '#FF9D19'
-                                }
-                            },
-                            fontSize: 11,
-                            color: '#333',
-                            lineHeight: 16
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: 4,
+                                    backgroundColor: 'auto',
+                                    align: 'left',
+                                    verticalAlign: 'middle',
+                                },
+                                name: { fontSize: 11, color: '#333', lineHeight: 16 },
+                                percent: { fontSize: 10, color: '#666', lineHeight: 14 }
+                            }
                         },
-                        labelLine: {
-                            length: 28,
-                            length2: 36,
-                            lineStyle: { color: '#aaa' }
-                        },
-                        emphasis: {
-                            label: { fontSize: 14, fontWeight: 'bold' },
-                            scaleSize: 10
-                        },
-                        data: seriesData
+                        labelLine: { show: true, length: 18, length2: 28, lineStyle: { color: '#aaa' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
                     }]
                 };
-                if (!showLegend) {
-                    option.series[0].label.rich = {
-                        dot: { fontSize: 16, padding: [0, 5, 0, 0] }
-                    };
-                    option.series[0].label.formatter = function(p) {
-                        const colorHex = COLORS[p.dataIndex % COLORS.length];
-                        return '{dot|●} ' + p.name + '\n   ' + p.percent.toFixed(1) + '%';
-                    };
-                    // 动态设置dot颜色需要在rich中预设，这里使用简化方案
-                    option.series[0].label.formatter = function(p) {
-                        return p.name + '\n' + p.percent.toFixed(1) + '%';
-                    };
-                    // 使用自定义series让每个数据项有不同的label颜色
-                    option.series[0].label = {
-                        show: true,
-                        position: 'outside',
-                        fontSize: 11,
-                        color: '#333',
-                        lineHeight: 16,
-                        formatter: function(p) {
-                            return '{dot|●} ' + p.name + '\n   ' + p.percent.toFixed(1) + '%';
-                        },
-                        rich: {
-                            dot: { fontSize: 14, padding: [0, 4, 0, 0] }
-                        }
-                    };
-                    // 为每个数据项单独设置label rich颜色通过seriesData
-                    option.series[0].data = seriesData.map((d, i) => {
-                        const colorHex = COLORS[i % COLORS.length];
-                        return {
-                            ...d,
-                            label: {
-                                rich: {
-                                    dot: { fontSize: 14, padding: [0, 4, 0, 0], color: colorHex }
-                                }
-                            }
-                        };
-                    });
-                }
-                return option;
             }
 
-            // ==================== 图表2：屏幕类型销量分布-横向柱状图 ====================
-            const bar2Data = [
-                { name: '2.0"', value: 33919 }, { name: '2.1"', value: 153 }, { name: '2.4"', value: 10882 },
-                { name: '3.0"', value: 209 }, { name: '4.0"', value: 1479 }, { name: '4.3"', value: 1404 },
-                { name: '7"', value: 124 }, { name: '无', value: 11413 }
-            ];
-            bar2Data.sort((a, b) => b.value - a.value);
-
-            function buildHBarOption(data, titleText) {
-                const names = data.map(d => d.name);
-                const values = data.map(d => d.value);
+            function buildChart2() {
+                const raw = [
+                    { name: '2.0"', value: 33919 },
+                    { name: '无', value: 11413 },
+                    { name: '2.4"', value: 10882 },
+                    { name: '4.0"', value: 1479 },
+                    { name: '4.3"', value: 1404 },
+                    { name: '3.0"', value: 209 },
+                    { name: '2.1"', value: 153 },
+                    { name: '7"', value: 124 }
+                ];
+                raw.sort((a, b) => b.value - a.value);
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' },
                         formatter: function(p) { return p[0].name + '<br/>月销量: ' + p[0].value.toLocaleString(); }
                     },
-                    grid: { left: '3%', right: '8%', top: '3%', bottom: '3%', containLabel: true },
+                    grid: { left: 120, right: 60, top: 10, bottom: 20 },
                     xAxis: {
                         type: 'value',
-                        axisLabel: { formatter: fmtWan, color: '#666', fontSize: 11 },
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        name: '月销量',
                     },
                     yAxis: {
                         type: 'category',
-                        data: names,
+                        data: raw.map(d => d.name),
+                        inverse: true,
                         axisLine: { show: false },
                         axisTick: { show: false },
-                        axisLabel: { color: '#333', fontSize: 11 },
-                        inverse: true
+                        axisLabel: { fontSize: 12, color: '#333' },
                     },
                     series: [{
                         type: 'bar',
-                        data: values.map((v, i) => ({
-                            value: v,
-                            itemStyle: { color: COLORS[0], borderRadius: [0, 3, 3, 0] }
-                        })),
+                        data: raw.map(d => d.value),
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                { offset: 0, color: COLORS[0] }, { offset: 1, color: '#FFC069' }
+                            ]),
+                            borderRadius: [0, 4, 4, 0],
+                        },
                         barWidth: 18,
-                        label: { show: false }
+                        label: { show: false },
                     }]
                 };
             }
 
-            // ==================== 图表3：放大系统销量分布-横向柱状图 ====================
-            const bar3Raw = [
-                { name: '3X', value: 112 }, { name: '5X', value: 1304 }, { name: '8X', value: 164 },
-                { name: '20X', value: 611 },
-                { name: '40X', value: 90 }, { name: '50X', value: 60 }, { name: '60X', value: 289 },
-                { name: '120X', value: 1364 },
-                { name: '200X', value: 152 }, { name: '250X', value: 382 }, { name: '400X', value: 2339 },
-                { name: '500X', value: 3926 },
-                { name: '600X', value: 93 }, { name: '1000X', value: 41013 }, { name: '1200X', value: 2967 },
-                { name: '1600X', value: 2133 },
-                { name: '2000X', value: 1683 }, { name: '2500X', value: 771 }, { name: '4800X', value: 130 }
-            ];
-            bar3Raw.sort((a, b) => b.value - a.value);
+            function buildChart3() {
+                const raw = [
+                    { name: '1000X', value: 41013 }, { name: '500X', value: 3926 }, { name: '1200X', value: 2967 },
+                    { name: '400X', value: 2339 }, { name: '1600X', value: 2133 }, { name: '2000X', value: 1683 },
+                    { name: '120X', value: 1364 }, { name: '5X', value: 1304 }, { name: '2500X', value: 771 },
+                    { name: '20X', value: 611 }, { name: '250X', value: 382 }, { name: '60X', value: 289 },
+                    { name: '200X', value: 152 }, { name: '8X', value: 164 }, { name: '3X', value: 112 },
+                    { name: '4800X', value: 130 }, { name: '600X', value: 93 }, { name: '40X', value: 90 },
+                    { name: '50X', value: 60 }
+                ];
+                raw.sort((a, b) => b.value - a.value);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' },
+                        formatter: function(p) { return p[0].name + '<br/>月销量: ' + p[0].value.toLocaleString(); }
+                    },
+                    grid: { left: 100, right: 60, top: 10, bottom: 20 },
+                    xAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: '月销量',
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: raw.map(d => d.name),
+                        inverse: true,
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { fontSize: 12, color: '#333' },
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: raw.map(d => d.value),
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                { offset: 0, color: COLORS[1] }, { offset: 1, color: '#8AB8FF' }
+                            ]),
+                            borderRadius: [0, 4, 4, 0],
+                        },
+                        barWidth: 16,
+                        label: { show: false },
+                    }]
+                };
+            }
 
-            // ==================== 图表4：使用形态销量占比-饼图 ====================
-            const pie4Data = [
-                { name: '2合1显微/望远', value: 842 }, { name: 'DV式手持', value: 374 },
-                { name: '分体式(可拆卸)', value: 2813 },
-                { name: '手持一体式', value: 46369 }, { name: '台式套装', value: 9185 }
-            ];
-            const pie4Total = pie4Data.reduce((s, d) => s + d.value, 0);
-
-            function buildPieOption2(data) {
-                const n = data.length;
-                const showLegend = n <= 8;
-                const totalVal = data.reduce((s, d) => s + d.value, 0);
-                const seriesData = data.map((d, i) => ({
-                    name: d.name,
-                    value: d.value,
-                    itemStyle: { color: COLORS[i % COLORS.length] }
-                }));
-                const option = {
+            function buildChart4() {
+                const data = [
+                    { name: '手持一体式', value: 46369 },
+                    { name: '台式套装', value: 9185 },
+                    { name: '分体式(可拆卸)', value: 2813 },
+                    { name: '2合1显微/望远', value: 842 },
+                    { name: 'DV式手持', value: 374 }
+                ];
+                const nCat = data.length;
+                const showLegend = nCat <= 8;
+                return {
                     tooltip: {
                         trigger: 'item',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent.toFixed(1) + '%';
-                        }
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
                     },
                     legend: showLegend ? {
-                        type: 'scroll',
                         orient: 'vertical',
                         right: 10,
-                        top: 'middle',
-                        itemGap: 8,
+                        top: 'center',
                         textStyle: { fontSize: 12, color: '#333' },
+                        itemWidth: 12,
+                        itemHeight: 12,
                     } : { show: false },
+                    color: COLORS,
                     series: [{
                         type: 'pie',
                         radius: ['45%', '72%'],
                         center: ['42%', '50%'],
-                        avoidLabelOverlap: false,
-                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: '#fff', borderWidth: 1 },
                         label: {
                             show: true,
                             position: 'outside',
-                            fontSize: 11,
-                            color: '#333',
-                            lineHeight: 16,
                             formatter: function(p) {
                                 if (!showLegend) {
-                                    return '{dot|●} ' + p.name + '\n   ' + p.percent.toFixed(1) + '%';
+                                    return '{dot|}{name|' + p.name + '}\n{percent|' + p.percent + '%}';
                                 }
-                                return p.name + '\n' + p.percent.toFixed(1) + '%';
+                                return '{name|' + p.name + '}\n{percent|' + p.percent + '%}';
                             },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0] } }
+                            rich: {
+                                dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'auto',
+                                align: 'left', verticalAlign: 'middle' },
+                                name: { fontSize: 11, color: '#333', lineHeight: 16 },
+                                percent: { fontSize: 10, color: '#666', lineHeight: 14 }
+                            }
                         },
-                        labelLine: { length: 28, length2: 36, lineStyle: { color: '#aaa' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 10 },
-                        data: seriesData
+                        labelLine: { show: true, length: 18, length2: 28, lineStyle: { color: '#aaa' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
                     }]
                 };
-                if (!showLegend) {
-                    option.series[0].data = seriesData.map((d, i) => ({
-                        ...d,
-                        label: {
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: COLORS[i % COLORS
-                                    .length] } }
-                        }
-                    }));
-                }
-                return option;
             }
 
-            // ==================== 图表5：关键词搜索量趋势-多系列折线图 ====================
-            function buildChart5Data() {
-                const raw = [
-                    ['2026-04', 'kids microscope', 54148],
-                    ['2026-03', 'kids microscope', 57991],
-                    ['2026-02', 'kids microscope', 36653],
-                    ['2026-01', 'kids microscope', 37355],
-                    ['2025-12', 'kids microscope', 141468],
-                    ['2025-11', 'kids microscope', 112717],
-                    ['2025-10', 'kids microscope', 54686],
-                    ['2025-09', 'kids microscope', 38504],
-                    ['2025-08', 'kids microscope', 28877],
-                    ['2025-07', 'kids microscope', 26539],
-                    ['2025-06', 'kids microscope', 26579],
-                    ['2025-05', 'kids microscope', 24214],
-                    ['2025-04', 'kids microscope', 30775],
-                    ['2025-03', 'kids microscope', 32910],
-                    ['2025-02', 'kids microscope', 26866],
-                    ['2025-01', 'kids microscope', 30193],
-                    ['2024-12', 'kids microscope', 142067],
-                    ['2024-11', 'kids microscope', 126798],
-                    ['2024-10', 'kids microscope', 66951],
-                    ['2024-09', 'kids microscope', 67440],
-                    ['2024-08', 'kids microscope', 23144],
-                    ['2024-07', 'kids microscope', 27137],
-                    ['2024-06', 'kids microscope', 17879],
-                    ['2024-05', 'kids microscope', 19819],
-                    ['2024-04', 'kids microscope', 21451],
-                    ['2024-03', 'kids microscope', 20156],
-                    ['2024-02', 'kids microscope', 16344],
-                    ['2024-01', 'kids microscope', 15212],
-                    ['2023-12', 'kids microscope', 47734],
-                    ['2023-11', 'kids microscope', 56031],
-                    ['2023-10', 'kids microscope', 36191],
-                    ['2023-09', 'kids microscope', 22105],
-                    ['2023-08', 'kids microscope', 18553],
-                    ['2023-07', 'kids microscope', 11313],
-                    ['2023-06', 'kids microscope', 11908],
-                    ['2023-05', 'kids microscope', 11618],
-                    ['2023-04', 'kids microscope', 10934],
-                    ['2023-03', 'kids microscope', 11483],
-                    ['2023-02', 'kids microscope', 10679],
-                    ['2023-01', 'kids microscope', 12013],
-                    ['2022-12', 'kids microscope', 33414],
-                    ['2022-11', 'kids microscope', 33111],
-                    ['2022-10', 'kids microscope', 16698],
-                    ['2022-09', 'kids microscope', 13310],
-                    ['2022-08', 'kids microscope', 12782],
-                    ['2022-07', 'kids microscope', 12811],
-                    ['2022-06', 'kids microscope', 12842],
-                    ['2022-05', 'kids microscope', 11937],
-                    ['2022-04', 'kids microscope', 13864],
-                    ['2022-03', 'kids microscope', 14469],
-                    ['2022-02', 'kids microscope', 11966],
-                    ['2022-01', 'kids microscope', 10812],
-                    ['2021-12', 'kids microscope', 28475],
-                    ['2021-11', 'kids microscope', 34156],
-                    ['2021-10', 'kids microscope', 18475],
-                    ['2021-09', 'kids microscope', 14708],
-                    ['2021-08', 'kids microscope', 13807],
-                    ['2021-07', 'kids microscope', 12897],
-                    ['2021-06', 'kids microscope', 12184],
-                    ['2021-05', 'kids microscope', 12648],
-                    ['2021-04', 'kids microscope', 13465],
-                    ['2021-03', 'kids microscope', 14516],
-                    ['2021-02', 'kids microscope', 14024],
-                    ['2021-01', 'kids microscope', 13460],
-                    ['2020-12', 'kids microscope', 45044],
-                    ['2020-11', 'kids microscope', 40192],
-                    ['2020-10', 'kids microscope', 23545],
-                    ['2020-09', 'kids microscope', 20404],
-                    ['2020-08', 'kids microscope', 19310],
-                    ['2020-07', 'kids microscope', 15597],
-                    ['2020-06', 'kids microscope', 15060],
-                    ['2020-05', 'kids microscope', 15614],
-                    ['2020-04', 'kids microscope', 17046],
-                    ['2020-03', 'kids microscope', 16740],
-                    ['2020-02', 'kids microscope', 13929],
-                    ['2020-01', 'kids microscope', 14880],
-                    ['2019-12', 'kids microscope', 44008],
-                    ['2019-11', 'kids microscope', 36914],
-                    ['2019-10', 'kids microscope', 21138],
-                    ['2019-09', 'kids microscope', 17910],
-                    ['2019-08', 'kids microscope', 15297],
-                    ['2019-07', 'kids microscope', 14135],
-                    ['2019-06', 'kids microscope', 12097],
-                    ['2019-05', 'kids microscope', 14761],
-                    ['2019-04', 'kids microscope', 15187],
-                    ['2019-03', 'kids microscope', 14170],
-                    ['2019-02', 'kids microscope', 10882],
-                    ['2019-01', 'kids microscope', 13543],
-                    ['2018-12', 'kids microscope', 42510],
-                    ['2018-11', 'kids microscope', 37436],
-                    ['2018-10', 'kids microscope', 14996],
-                    ['2018-09', 'kids microscope', 15572],
-                    ['2018-08', 'kids microscope', 12440],
-                    ['2018-07', 'kids microscope', 12358],
-                    ['2018-06', 'kids microscope', 13578],
-                    ['2018-05', 'kids microscope', 12897],
-                    ['2018-04', 'kids microscope', 13423],
-                    ['2018-03', 'kids microscope', 14003],
-                    ['2018-02', 'kids microscope', 5801],
-                    ['2018-01', 'kids microscope', 11596],
-                    ['2017-12', 'kids microscope', 41436],
-                    ['2017-11', 'kids microscope', 37584],
-                    ['2017-10', 'kids microscope', 15301],
-                    ['2017-09', 'kids microscope', 14639],
-                    ['2017-08', 'kids microscope', 13763],
-                    ['2017-07', 'kids microscope', 13091],
-                    ['2017-06', 'kids microscope', 12551],
-                    ['2017-05', 'kids microscope', 13303],
-                    ['2017-04', 'kids microscope', 13136],
-                    ['2017-03', 'kids microscope', 13150],
-                    ['2017-02', 'kids microscope', 13873],
-                    ['2017-01', 'kids microscope', 14017],
-                    ['2026-04', 'microscope for kids', 44015],
-                    ['2026-03', 'microscope for kids', 45289],
-                    ['2026-02', 'microscope for kids', 38337],
-                    ['2026-01', 'microscope for kids', 39174],
-                    ['2025-12', 'microscope for kids', 119703],
-                    ['2025-11', 'microscope for kids', 111042],
-                    ['2025-10', 'microscope for kids', 55843],
-                    ['2025-09', 'microscope for kids', 49814],
-                    ['2025-08', 'microscope for kids', 36230],
-                    ['2025-07', 'microscope for kids', 34446],
-                    ['2025-06', 'microscope for kids', 33728],
-                    ['2025-05', 'microscope for kids', 37002],
-                    ['2025-04', 'microscope for kids', 41030],
-                    ['2025-03', 'microscope for kids', 40818],
-                    ['2025-02', 'microscope for kids', 32466],
-                    ['2025-01', 'microscope for kids', 29097],
-                    ['2024-12', 'microscope for kids', 94102],
-                    ['2024-11', 'microscope for kids', 90552],
-                    ['2024-10', 'microscope for kids', 60711],
-                    ['2024-09', 'microscope for kids', 50792],
-                    ['2024-08', 'microscope for kids', 40822],
-                    ['2024-07', 'microscope for kids', 41784],
-                    ['2024-06', 'microscope for kids', 30180],
-                    ['2024-05', 'microscope for kids', 30636],
-                    ['2024-04', 'microscope for kids', 37425],
-                    ['2024-03', 'microscope for kids', 40454],
-                    ['2024-02', 'microscope for kids', 27884],
-                    ['2024-01', 'microscope for kids', 22722],
-                    ['2023-12', 'microscope for kids', 43512],
-                    ['2023-11', 'microscope for kids', 47395],
-                    ['2023-10', 'microscope for kids', 21545],
-                    ['2023-09', 'microscope for kids', 36800],
-                    ['2023-08', 'microscope for kids', 34197],
-                    ['2023-07', 'microscope for kids', 20468],
-                    ['2023-06', 'microscope for kids', 21135],
-                    ['2023-05', 'microscope for kids', 19632],
-                    ['2023-04', 'microscope for kids', 23510],
-                    ['2023-03', 'microscope for kids', 16082],
-                    ['2023-02', 'microscope for kids', 10669],
-                    ['2023-01', 'microscope for kids', 13841],
-                    ['2022-12', 'microscope for kids', 22766],
-                    ['2022-11', 'microscope for kids', 29873],
-                    ['2022-10', 'microscope for kids', 29492],
-                    ['2022-09', 'microscope for kids', 17993],
-                    ['2022-08', 'microscope for kids', 18951],
-                    ['2022-07', 'microscope for kids', 19137],
-                    ['2022-06', 'microscope for kids', 18969],
-                    ['2022-05', 'microscope for kids', 19377],
-                    ['2022-04', 'microscope for kids', 19974],
-                    ['2022-03', 'microscope for kids', 17167],
-                    ['2022-02', 'microscope for kids', 13520],
-                    ['2022-01', 'microscope for kids', 11469],
-                    ['2021-12', 'microscope for kids', 18699],
-                    ['2021-11', 'microscope for kids', 24868],
-                    ['2021-10', 'microscope for kids', 14981],
-                    ['2021-09', 'microscope for kids', 15013],
-                    ['2021-08', 'microscope for kids', 16232],
-                    ['2021-07', 'microscope for kids', 16597],
-                    ['2021-06', 'microscope for kids', 14298],
-                    ['2021-05', 'microscope for kids', 16374],
-                    ['2021-04', 'microscope for kids', 16317],
-                    ['2021-03', 'microscope for kids', 14629],
-                    ['2021-02', 'microscope for kids', 14121],
-                    ['2021-01', 'microscope for kids', 15510],
-                    ['2020-12', 'microscope for kids', 43795],
-                    ['2020-11', 'microscope for kids', 34454],
-                    ['2020-10', 'microscope for kids', 32015],
-                    ['2020-09', 'microscope for kids', 27086],
-                    ['2020-08', 'microscope for kids', 27611],
-                    ['2020-07', 'microscope for kids', 28516],
-                    ['2020-06', 'microscope for kids', 23095],
-                    ['2020-05', 'microscope for kids', 26241],
-                    ['2020-04', 'microscope for kids', 32489],
-                    ['2020-03', 'microscope for kids', 26426],
-                    ['2020-02', 'microscope for kids', 23803],
-                    ['2020-01', 'microscope for kids', 25195],
-                    ['2019-12', 'microscope for kids', 95130],
-                    ['2019-11', 'microscope for kids', 75438],
-                    ['2019-10', 'microscope for kids', 36448],
-                    ['2019-09', 'microscope for kids', 32424],
-                    ['2019-08', 'microscope for kids', 30000],
-                    ['2019-07', 'microscope for kids', 24226],
-                    ['2019-06', 'microscope for kids', 20830],
-                    ['2019-05', 'microscope for kids', 25094],
-                    ['2019-04', 'microscope for kids', 23669],
-                    ['2019-03', 'microscope for kids', 23505],
-                    ['2019-02', 'microscope for kids', 19795],
-                    ['2019-01', 'microscope for kids', 22786],
-                    ['2018-12', 'microscope for kids', 122624],
-                    ['2018-11', 'microscope for kids', 91012],
-                    ['2018-10', 'microscope for kids', 32401],
-                    ['2018-09', 'microscope for kids', 26313],
-                    ['2018-08', 'microscope for kids', 24185],
-                    ['2018-07', 'microscope for kids', 24001],
-                    ['2018-06', 'microscope for kids', 23022],
-                    ['2018-05', 'microscope for kids', 23810],
-                    ['2018-04', 'microscope for kids', 21279],
-                    ['2018-03', 'microscope for kids', 21726],
-                    ['2018-02', 'microscope for kids', 18051],
-                    ['2018-01', 'microscope for kids', 18426],
-                    ['2017-12', 'microscope for kids', 91271],
-                    ['2017-11', 'microscope for kids', 112306],
-                    ['2017-10', 'microscope for kids', 40470],
-                    ['2017-09', 'microscope for kids', 28691],
-                    ['2017-08', 'microscope for kids', 29659],
-                    ['2017-07', 'microscope for kids', 26822],
-                    ['2017-06', 'microscope for kids', 24659],
-                    ['2017-05', 'microscope for kids', 22698],
-                    ['2017-04', 'microscope for kids', 22141],
-                    ['2017-03', 'microscope for kids', 23977],
-                    ['2017-02', 'microscope for kids', 22657],
-                    ['2017-01', 'microscope for kids', 28611],
-                    ['2026-04', 'kids microscope handheld', 16632],
-                    ['2026-03', 'kids microscope handheld', 15039],
-                    ['2026-02', 'kids microscope handheld', 3804],
-                    ['2026-01', 'kids microscope handheld', 3859],
-                    ['2025-12', 'kids microscope handheld', 26071],
-                    ['2025-11', 'kids microscope handheld', 15867],
-                    ['2025-10', 'kids microscope handheld', 5942],
-                    ['2025-09', 'kids microscope handheld', 3396],
-                    ['2025-08', 'kids microscope handheld', 2513],
-                    ['2025-07', 'kids microscope handheld', 2773],
-                    ['2025-06', 'kids microscope handheld', 3096],
-                    ['2025-05', 'kids microscope handheld', 2806],
-                    ['2025-04', 'kids microscope handheld', 5550],
-                    ['2025-03', 'kids microscope handheld', 3926],
-                    ['2025-02', 'kids microscope handheld', 2810],
-                    ['2025-01', 'kids microscope handheld', 4972],
-                    ['2024-12', 'kids microscope handheld', 63515],
-                    ['2024-11', 'kids microscope handheld', 55536],
-                    ['2024-10', 'kids microscope handheld', 20761],
-                    ['2024-09', 'kids microscope handheld', 12031],
-                    ['2024-08', 'kids microscope handheld', 488],
-                    ['2024-07', 'kids microscope handheld', 1438],
-                    ['2024-04', 'kids microscope handheld', 1290],
-                    ['2024-03', 'kids microscope handheld', 594],
-                    ['2023-12', 'kids microscope handheld', 2099],
-                    ['2023-11', 'kids microscope handheld', 2392],
-                    ['2023-04', 'kids microscope handheld', 0],
-                    ['2023-03', 'kids microscope handheld', 0],
-                    ['2023-02', 'kids microscope handheld', 0],
-                    ['2023-01', 'kids microscope handheld', 0],
-                    ['2022-12', 'kids microscope handheld', 0],
+            function buildChart5() {
+                const months = [
+                    '2017-01', '2017-02', '2017-03', '2017-04', '2017-05', '2017-06', '2017-07', '2017-08',
+                    '2017-09', '2017-10',
+                    '2017-11', '2017-12', '2018-01', '2018-02', '2018-03', '2018-04', '2018-05', '2018-06',
+                    '2018-07', '2018-08',
+                    '2018-09', '2018-10', '2018-11', '2018-12', '2019-01', '2019-02', '2019-03', '2019-04',
+                    '2019-05', '2019-06',
+                    '2019-07', '2019-08', '2019-09', '2019-10', '2019-11', '2019-12', '2020-01', '2020-02',
+                    '2020-03', '2020-04',
+                    '2020-05', '2020-06', '2020-07', '2020-08', '2020-09', '2020-10', '2020-11', '2020-12',
+                    '2021-01', '2021-02',
+                    '2021-03', '2021-04', '2021-05', '2021-06', '2021-07', '2021-08', '2021-09', '2021-10',
+                    '2021-11', '2021-12',
+                    '2022-01', '2022-02', '2022-03', '2022-04', '2022-05', '2022-06', '2022-07', '2022-08',
+                    '2022-09', '2022-10',
+                    '2022-11', '2022-12', '2023-01', '2023-02', '2023-03', '2023-04', '2023-05', '2023-06',
+                    '2023-07', '2023-08',
+                    '2023-09', '2023-10', '2023-11', '2023-12', '2024-01', '2024-02', '2024-03', '2024-04',
+                    '2024-05', '2024-06',
+                    '2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02',
+                    '2025-03', '2025-04',
+                    '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12',
+                    '2026-01', '2026-02',
+                    '2026-03', '2026-04'
                 ];
-
-                const allMonthsSet = new Set();
-                raw.forEach(r => allMonthsSet.add(r[0]));
-                const allMonths = Array.from(allMonthsSet).sort();
-                const kwMap = {};
-                raw.forEach(r => {
-                    const [month, kw, val] = r;
-                    if (!kwMap[kw]) kwMap[kw] = {};
-                    kwMap[kw][month] = val;
-                });
-                const keywords = ['kids microscope', 'microscope for kids', 'kids microscope handheld'];
-                const seriesData = keywords.map((kw, idx) => {
-                    const data = allMonths.map(m => {
-                        const v = kwMap[kw][m];
-                        return v !== undefined ? v : null;
-                    });
-                    return {
-                        name: kw,
-                        type: 'line',
-                        data: data,
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { color: COLORS[idx % COLORS.length], width: 2 },
-                        itemStyle: { color: COLORS[idx % COLORS.length] },
-                        emphasis: { focus: 'series' }
-                    };
-                });
-                return { xAxisData: allMonths, series: seriesData };
-            }
-
-            function buildLineOption(xData, seriesArr, titleText, yFormatter) {
-                const nSeries = seriesArr.length;
-                const defaultVisible = nSeries > 3 ? seriesArr.map((_, i) => i < 3) : seriesArr.map(() => true);
-                const seriesWithSelected = seriesArr.map((s, i) => ({
-                    ...s,
-                    selected: defaultVisible[i]
+                const km = { 'kids microscope': {}, 'microscope for kids': {}, 'kids microscope handheld': {} };
+                const rawData5 = [
+                    ['2017-01', 'kids microscope', 14017],
+                    ['2017-02', 'kids microscope', 13873],
+                    ['2017-03', 'kids microscope', 13150],
+                    ['2017-04', 'kids microscope', 13136],
+                    ['2017-05', 'kids microscope', 13303],
+                    ['2017-06', 'kids microscope', 12551],
+                    ['2017-07', 'kids microscope', 13091],
+                    ['2017-08', 'kids microscope', 13763],
+                    ['2017-09', 'kids microscope', 14639],
+                    ['2017-10', 'kids microscope', 15301],
+                    ['2017-11', 'kids microscope', 37584],
+                    ['2017-12', 'kids microscope', 41436],
+                    ['2018-01', 'kids microscope', 11596],
+                    ['2018-02', 'kids microscope', 5801],
+                    ['2018-03', 'kids microscope', 14003],
+                    ['2018-04', 'kids microscope', 13423],
+                    ['2018-05', 'kids microscope', 12897],
+                    ['2018-06', 'kids microscope', 13578],
+                    ['2018-07', 'kids microscope', 12358],
+                    ['2018-08', 'kids microscope', 12440],
+                    ['2018-09', 'kids microscope', 15572],
+                    ['2018-10', 'kids microscope', 14996],
+                    ['2018-11', 'kids microscope', 37436],
+                    ['2018-12', 'kids microscope', 42510],
+                    ['2019-01', 'kids microscope', 13543],
+                    ['2019-02', 'kids microscope', 10882],
+                    ['2019-03', 'kids microscope', 14170],
+                    ['2019-04', 'kids microscope', 15187],
+                    ['2019-05', 'kids microscope', 14761],
+                    ['2019-06', 'kids microscope', 12097],
+                    ['2019-07', 'kids microscope', 14135],
+                    ['2019-08', 'kids microscope', 15297],
+                    ['2019-09', 'kids microscope', 17910],
+                    ['2019-10', 'kids microscope', 21138],
+                    ['2019-11', 'kids microscope', 36914],
+                    ['2019-12', 'kids microscope', 44008],
+                    ['2020-01', 'kids microscope', 14880],
+                    ['2020-02', 'kids microscope', 13929],
+                    ['2020-03', 'kids microscope', 16740],
+                    ['2020-04', 'kids microscope', 17046],
+                    ['2020-05', 'kids microscope', 15614],
+                    ['2020-06', 'kids microscope', 15060],
+                    ['2020-07', 'kids microscope', 15597],
+                    ['2020-08', 'kids microscope', 19310],
+                    ['2020-09', 'kids microscope', 20404],
+                    ['2020-10', 'kids microscope', 23545],
+                    ['2020-11', 'kids microscope', 40192],
+                    ['2020-12', 'kids microscope', 45044],
+                    ['2021-01', 'kids microscope', 13460],
+                    ['2021-02', 'kids microscope', 14024],
+                    ['2021-03', 'kids microscope', 14516],
+                    ['2021-04', 'kids microscope', 13465],
+                    ['2021-05', 'kids microscope', 12648],
+                    ['2021-06', 'kids microscope', 12184],
+                    ['2021-07', 'kids microscope', 12897],
+                    ['2021-08', 'kids microscope', 13807],
+                    ['2021-09', 'kids microscope', 14708],
+                    ['2021-10', 'kids microscope', 18475],
+                    ['2021-11', 'kids microscope', 34156],
+                    ['2021-12', 'kids microscope', 28475],
+                    ['2022-01', 'kids microscope', 10812],
+                    ['2022-02', 'kids microscope', 11966],
+                    ['2022-03', 'kids microscope', 14469],
+                    ['2022-04', 'kids microscope', 13864],
+                    ['2022-05', 'kids microscope', 11937],
+                    ['2022-06', 'kids microscope', 12842],
+                    ['2022-07', 'kids microscope', 12811],
+                    ['2022-08', 'kids microscope', 12782],
+                    ['2022-09', 'kids microscope', 13310],
+                    ['2022-10', 'kids microscope', 16698],
+                    ['2022-11', 'kids microscope', 33111],
+                    ['2022-12', 'kids microscope', 33414],
+                    ['2023-01', 'kids microscope', 12013],
+                    ['2023-02', 'kids microscope', 10679],
+                    ['2023-03', 'kids microscope', 11483],
+                    ['2023-04', 'kids microscope', 10934],
+                    ['2023-05', 'kids microscope', 11618],
+                    ['2023-06', 'kids microscope', 11908],
+                    ['2023-07', 'kids microscope', 11313],
+                    ['2023-08', 'kids microscope', 18553],
+                    ['2023-09', 'kids microscope', 22105],
+                    ['2023-10', 'kids microscope', 36191],
+                    ['2023-11', 'kids microscope', 56031],
+                    ['2023-12', 'kids microscope', 47734],
+                    ['2024-01', 'kids microscope', 15212],
+                    ['2024-02', 'kids microscope', 16344],
+                    ['2024-03', 'kids microscope', 20156],
+                    ['2024-04', 'kids microscope', 21451],
+                    ['2024-05', 'kids microscope', 19819],
+                    ['2024-06', 'kids microscope', 17879],
+                    ['2024-07', 'kids microscope', 27137],
+                    ['2024-08', 'kids microscope', 23144],
+                    ['2024-09', 'kids microscope', 67440],
+                    ['2024-10', 'kids microscope', 66951],
+                    ['2024-11', 'kids microscope', 126798],
+                    ['2024-12', 'kids microscope', 142067],
+                    ['2025-01', 'kids microscope', 30193],
+                    ['2025-02', 'kids microscope', 26866],
+                    ['2025-03', 'kids microscope', 32910],
+                    ['2025-04', 'kids microscope', 30775],
+                    ['2025-05', 'kids microscope', 24214],
+                    ['2025-06', 'kids microscope', 26579],
+                    ['2025-07', 'kids microscope', 26539],
+                    ['2025-08', 'kids microscope', 28877],
+                    ['2025-09', 'kids microscope', 38504],
+                    ['2025-10', 'kids microscope', 54686],
+                    ['2025-11', 'kids microscope', 112717],
+                    ['2025-12', 'kids microscope', 141468],
+                    ['2026-01', 'kids microscope', 37355],
+                    ['2026-02', 'kids microscope', 36653],
+                    ['2026-03', 'kids microscope', 57991],
+                    ['2026-04', 'kids microscope', 54148],
+                    ['2017-01', 'microscope for kids', 28611],
+                    ['2017-02', 'microscope for kids', 22657],
+                    ['2017-03', 'microscope for kids', 23977],
+                    ['2017-04', 'microscope for kids', 22141],
+                    ['2017-05', 'microscope for kids', 22698],
+                    ['2017-06', 'microscope for kids', 24659],
+                    ['2017-07', 'microscope for kids', 26822],
+                    ['2017-08', 'microscope for kids', 29659],
+                    ['2017-09', 'microscope for kids', 28691],
+                    ['2017-10', 'microscope for kids', 40470],
+                    ['2017-11', 'microscope for kids', 112306],
+                    ['2017-12', 'microscope for kids', 91271],
+                    ['2018-01', 'microscope for kids', 18426],
+                    ['2018-02', 'microscope for kids', 18051],
+                    ['2018-03', 'microscope for kids', 21726],
+                    ['2018-04', 'microscope for kids', 21279],
+                    ['2018-05', 'microscope for kids', 23810],
+                    ['2018-06', 'microscope for kids', 23022],
+                    ['2018-07', 'microscope for kids', 24001],
+                    ['2018-08', 'microscope for kids', 24185],
+                    ['2018-09', 'microscope for kids', 26313],
+                    ['2018-10', 'microscope for kids', 32401],
+                    ['2018-11', 'microscope for kids', 91012],
+                    ['2018-12', 'microscope for kids', 122624],
+                    ['2019-01', 'microscope for kids', 22786],
+                    ['2019-02', 'microscope for kids', 19795],
+                    ['2019-03', 'microscope for kids', 23505],
+                    ['2019-04', 'microscope for kids', 23669],
+                    ['2019-05', 'microscope for kids', 25094],
+                    ['2019-06', 'microscope for kids', 20830],
+                    ['2019-07', 'microscope for kids', 24226],
+                    ['2019-08', 'microscope for kids', 30000],
+                    ['2019-09', 'microscope for kids', 32424],
+                    ['2019-10', 'microscope for kids', 36448],
+                    ['2019-11', 'microscope for kids', 75438],
+                    ['2019-12', 'microscope for kids', 95130],
+                    ['2020-01', 'microscope for kids', 25195],
+                    ['2020-02', 'microscope for kids', 23803],
+                    ['2020-03', 'microscope for kids', 26426],
+                    ['2020-04', 'microscope for kids', 32489],
+                    ['2020-05', 'microscope for kids', 26241],
+                    ['2020-06', 'microscope for kids', 23095],
+                    ['2020-07', 'microscope for kids', 28516],
+                    ['2020-08', 'microscope for kids', 27611],
+                    ['2020-09', 'microscope for kids', 27086],
+                    ['2020-10', 'microscope for kids', 32015],
+                    ['2020-11', 'microscope for kids', 34454],
+                    ['2020-12', 'microscope for kids', 43795],
+                    ['2021-01', 'microscope for kids', 15510],
+                    ['2021-02', 'microscope for kids', 14121],
+                    ['2021-03', 'microscope for kids', 14629],
+                    ['2021-04', 'microscope for kids', 16317],
+                    ['2021-05', 'microscope for kids', 16374],
+                    ['2021-06', 'microscope for kids', 14298],
+                    ['2021-07', 'microscope for kids', 16597],
+                    ['2021-08', 'microscope for kids', 16232],
+                    ['2021-09', 'microscope for kids', 15013],
+                    ['2021-10', 'microscope for kids', 14981],
+                    ['2021-11', 'microscope for kids', 24868],
+                    ['2021-12', 'microscope for kids', 18699],
+                    ['2022-01', 'microscope for kids', 11469],
+                    ['2022-02', 'microscope for kids', 13520],
+                    ['2022-03', 'microscope for kids', 17167],
+                    ['2022-04', 'microscope for kids', 19974],
+                    ['2022-05', 'microscope for kids', 19377],
+                    ['2022-06', 'microscope for kids', 18969],
+                    ['2022-07', 'microscope for kids', 19137],
+                    ['2022-08', 'microscope for kids', 18951],
+                    ['2022-09', 'microscope for kids', 17993],
+                    ['2022-10', 'microscope for kids', 29492],
+                    ['2022-11', 'microscope for kids', 29873],
+                    ['2022-12', 'microscope for kids', 22766],
+                    ['2023-01', 'microscope for kids', 13841],
+                    ['2023-02', 'microscope for kids', 10669],
+                    ['2023-03', 'microscope for kids', 16082],
+                    ['2023-04', 'microscope for kids', 23510],
+                    ['2023-05', 'microscope for kids', 19632],
+                    ['2023-06', 'microscope for kids', 21135],
+                    ['2023-07', 'microscope for kids', 20468],
+                    ['2023-08', 'microscope for kids', 34197],
+                    ['2023-09', 'microscope for kids', 36800],
+                    ['2023-10', 'microscope for kids', 21545],
+                    ['2023-11', 'microscope for kids', 47395],
+                    ['2023-12', 'microscope for kids', 43512],
+                    ['2024-01', 'microscope for kids', 22722],
+                    ['2024-02', 'microscope for kids', 27884],
+                    ['2024-03', 'microscope for kids', 40454],
+                    ['2024-04', 'microscope for kids', 37425],
+                    ['2024-05', 'microscope for kids', 30636],
+                    ['2024-06', 'microscope for kids', 30180],
+                    ['2024-07', 'microscope for kids', 41784],
+                    ['2024-08', 'microscope for kids', 40822],
+                    ['2024-09', 'microscope for kids', 50792],
+                    ['2024-10', 'microscope for kids', 60711],
+                    ['2024-11', 'microscope for kids', 90552],
+                    ['2024-12', 'microscope for kids', 94102],
+                    ['2025-01', 'microscope for kids', 29097],
+                    ['2025-02', 'microscope for kids', 32466],
+                    ['2025-03', 'microscope for kids', 40818],
+                    ['2025-04', 'microscope for kids', 41030],
+                    ['2025-05', 'microscope for kids', 37002],
+                    ['2025-06', 'microscope for kids', 33728],
+                    ['2025-07', 'microscope for kids', 34446],
+                    ['2025-08', 'microscope for kids', 36230],
+                    ['2025-09', 'microscope for kids', 49814],
+                    ['2025-10', 'microscope for kids', 55843],
+                    ['2025-11', 'microscope for kids', 111042],
+                    ['2025-12', 'microscope for kids', 119703],
+                    ['2026-01', 'microscope for kids', 39174],
+                    ['2026-02', 'microscope for kids', 38337],
+                    ['2026-03', 'microscope for kids', 45289],
+                    ['2026-04', 'microscope for kids', 44015],
+                    ['2017-01', 'kids microscope handheld', 0],
+                    ['2017-02', 'kids microscope handheld', 0],
+                    ['2017-03', 'kids microscope handheld', 0],
+                    ['2017-04', 'kids microscope handheld', 0],
+                    ['2017-05', 'kids microscope handheld', 0],
+                    ['2017-06', 'kids microscope handheld', 0],
+                    ['2017-07', 'kids microscope handheld', 0],
+                    ['2017-08', 'kids microscope handheld', 0],
+                    ['2017-09', 'kids microscope handheld', 0],
+                    ['2017-10', 'kids microscope handheld', 0],
+                    ['2017-11', 'kids microscope handheld', 0],
+                    ['2017-12', 'kids microscope handheld', 0],
+                    ['2018-01', 'kids microscope handheld', 0],
+                    ['2018-02', 'kids microscope handheld', 0],
+                    ['2018-03', 'kids microscope handheld', 0],
+                    ['2018-04', 'kids microscope handheld', 0],
+                    ['2018-05', 'kids microscope handheld', 0],
+                    ['2018-06', 'kids microscope handheld', 0],
+                    ['2018-07', 'kids microscope handheld', 0],
+                    ['2018-08', 'kids microscope handheld', 0],
+                    ['2018-09', 'kids microscope handheld', 0],
+                    ['2018-10', 'kids microscope handheld', 0],
+                    ['2018-11', 'kids microscope handheld', 0],
+                    ['2018-12', 'kids microscope handheld', 0],
+                    ['2019-01', 'kids microscope handheld', 0],
+                    ['2019-02', 'kids microscope handheld', 0],
+                    ['2019-03', 'kids microscope handheld', 0],
+                    ['2019-04', 'kids microscope handheld', 0],
+                    ['2019-05', 'kids microscope handheld', 0],
+                    ['2019-06', 'kids microscope handheld', 0],
+                    ['2019-07', 'kids microscope handheld', 0],
+                    ['2019-08', 'kids microscope handheld', 0],
+                    ['2019-09', 'kids microscope handheld', 0],
+                    ['2019-10', 'kids microscope handheld', 0],
+                    ['2019-11', 'kids microscope handheld', 0],
+                    ['2019-12', 'kids microscope handheld', 0],
+                    ['2020-01', 'kids microscope handheld', 0],
+                    ['2020-02', 'kids microscope handheld', 0],
+                    ['2020-03', 'kids microscope handheld', 0],
+                    ['2020-04', 'kids microscope handheld', 0],
+                    ['2020-05', 'kids microscope handheld', 0],
+                    ['2020-06', 'kids microscope handheld', 0],
+                    ['2020-07', 'kids microscope handheld', 0],
+                    ['2020-08', 'kids microscope handheld', 0],
+                    ['2020-09', 'kids microscope handheld', 0],
+                    ['2020-10', 'kids microscope handheld', 0],
+                    ['2020-11', 'kids microscope handheld', 0],
+                    ['2020-12', 'kids microscope handheld', 0],
+                    ['2021-01', 'kids microscope handheld', 0],
+                    ['2021-02', 'kids microscope handheld', 0],
+                    ['2021-03', 'kids microscope handheld', 0],
+                    ['2021-04', 'kids microscope handheld', 0],
+                    ['2021-05', 'kids microscope handheld', 0],
+                    ['2021-06', 'kids microscope handheld', 0],
+                    ['2021-07', 'kids microscope handheld', 0],
+                    ['2021-08', 'kids microscope handheld', 0],
+                    ['2021-09', 'kids microscope handheld', 0],
+                    ['2021-10', 'kids microscope handheld', 0],
+                    ['2021-11', 'kids microscope handheld', 0],
+                    ['2021-12', 'kids microscope handheld', 0],
+                    ['2022-01', 'kids microscope handheld', 0],
+                    ['2022-02', 'kids microscope handheld', 0],
+                    ['2022-03', 'kids microscope handheld', 0],
+                    ['2022-04', 'kids microscope handheld', 0],
+                    ['2022-05', 'kids microscope handheld', 0],
+                    ['2022-06', 'kids microscope handheld', 0],
+                    ['2022-07', 'kids microscope handheld', 0],
+                    ['2022-08', 'kids microscope handheld', 0],
+                    ['2022-09', 'kids microscope handheld', 0],
+                    ['2022-10', 'kids microscope handheld', 0],
+                    ['2022-11', 'kids microscope handheld', 0],
+                    ['2022-12', 'kids microscope handheld', 0],
+                    ['2023-01', 'kids microscope handheld', 0],
+                    ['2023-02', 'kids microscope handheld', 0],
+                    ['2023-03', 'kids microscope handheld', 0],
+                    ['2023-04', 'kids microscope handheld', 0],
+                    ['2023-11', 'kids microscope handheld', 2392],
+                    ['2023-12', 'kids microscope handheld', 2099],
+                    ['2024-03', 'kids microscope handheld', 594],
+                    ['2024-04', 'kids microscope handheld', 1290],
+                    ['2024-07', 'kids microscope handheld', 1438],
+                    ['2024-08', 'kids microscope handheld', 488],
+                    ['2024-09', 'kids microscope handheld', 12031],
+                    ['2024-10', 'kids microscope handheld', 20761],
+                    ['2024-11', 'kids microscope handheld', 55536],
+                    ['2024-12', 'kids microscope handheld', 63515],
+                    ['2025-01', 'kids microscope handheld', 4972],
+                    ['2025-02', 'kids microscope handheld', 2810],
+                    ['2025-03', 'kids microscope handheld', 3926],
+                    ['2025-04', 'kids microscope handheld', 5550],
+                    ['2025-05', 'kids microscope handheld', 2806],
+                    ['2025-06', 'kids microscope handheld', 3096],
+                    ['2025-07', 'kids microscope handheld', 2773],
+                    ['2025-08', 'kids microscope handheld', 2513],
+                    ['2025-09', 'kids microscope handheld', 3396],
+                    ['2025-10', 'kids microscope handheld', 5942],
+                    ['2025-11', 'kids microscope handheld', 15867],
+                    ['2025-12', 'kids microscope handheld', 26071],
+                    ['2026-01', 'kids microscope handheld', 3859],
+                    ['2026-02', 'kids microscope handheld', 3804],
+                    ['2026-03', 'kids microscope handheld', 15039],
+                    ['2026-04', 'kids microscope handheld', 16632]
+                ];
+                rawData5.forEach(r => { km[r[1]][r[0]] = parseNum(r[2]); });
+                const seriesNames5 = ['kids microscope', 'microscope for kids', 'kids microscope handheld'];
+                const seriesData5 = seriesNames5.map((sn, i) => ({
+                    name: sn,
+                    type: 'line',
+                    data: months.map(m => km[sn][m] !== undefined ? km[sn][m] : 0),
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
                 }));
-                const legendData = seriesArr.map(s => s.name);
-                const legendSelected = {};
-                legendData.forEach((name, i) => { legendSelected[name] = defaultVisible[i]; });
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                if (p.value !== null && p.value !== undefined) {
-                                    html += p.marker + ' ' + p.seriesName + ': ' + (yFormatter ? yFormatter(
-                                        p.value) : p.value.toLocaleString()) + '<br/>';
-                                }
-                            });
-                            return html;
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' + p.value
+                                    .toLocaleString() + '<br/>'; });
+                            return s;
                         }
                     },
                     legend: {
-                        data: legendData,
-                        selected: legendSelected,
+                        data: seriesNames5,
                         top: 5,
                         textStyle: { fontSize: 11, color: '#333' },
-                        type: 'scroll'
+                        selected: { 'kids microscope': true, 'microscope for kids': true,
+                            'kids microscope handheld': false },
                     },
-                    grid: { left: '3%', right: '6%', top: '40px', bottom: '3%', containLabel: true },
+                    grid: { left: 60, right: 30, top: 40, bottom: 50 },
                     xAxis: {
                         type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
+                        data: months,
+                        axisLabel: {
+                            fontSize: 10,
+                            color: '#666',
+                            rotate: 45,
+                            interval: Math.floor(months.length / 10),
+                            formatter: function(v) { return v; }
+                        },
+                        boundaryGap: false,
                     },
                     yAxis: {
                         type: 'value',
-                        axisLabel: { formatter: yFormatter || fmtWan, color: '#666', fontSize: 11 },
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        name: '月搜索量',
                     },
-                    series: seriesWithSelected
+                    dataZoom: [{ type: 'inside', start: 0, end: 100 }],
+                    series: seriesData5,
                 };
             }
 
-            // ==================== 图表6：ABA排名趋势 ====================
-            function buildChart6Data() {
-                const raw = [
-                    ['2026-04', 'kids microscope', 24144],
-                    ['2026-03', 'kids microscope', 22181],
-                    ['2026-02', 'kids microscope', 41392],
-                    ['2026-01', 'kids microscope', 40054],
-                    ['2025-12', 'kids microscope', 5216],
-                    ['2025-11', 'kids microscope', 8100],
-                    ['2025-10', 'kids microscope', 24286],
-                    ['2025-09', 'kids microscope', 38638],
-                    ['2025-08', 'kids microscope', 55756],
-                    ['2025-07', 'kids microscope', 60544],
-                    ['2025-06', 'kids microscope', 59683],
-                    ['2025-05', 'kids microscope', 65527],
-                    ['2025-04', 'kids microscope', 50443],
-                    ['2025-03', 'kids microscope', 47324],
-                    ['2025-02', 'kids microscope', 58550],
-                    ['2025-01', 'kids microscope', 53096],
-                    ['2024-12', 'kids microscope', 4657],
-                    ['2024-11', 'kids microscope', 6131],
-                    ['2024-10', 'kids microscope', 20878],
-                    ['2024-09', 'kids microscope', 20647],
-                    ['2024-08', 'kids microscope', 77516],
-                    ['2024-07', 'kids microscope', 65285],
-                    ['2024-06', 'kids microscope', 99095],
-                    ['2024-05', 'kids microscope', 91536],
-                    ['2024-04', 'kids microscope', 85058],
-                    ['2024-03', 'kids microscope', 86906],
-                    ['2024-02', 'kids microscope', 100413],
-                    ['2024-01', 'kids microscope', 106804],
-                    ['2023-12', 'kids microscope', 28856],
-                    ['2023-11', 'kids microscope', 23167],
-                    ['2023-10', 'kids microscope', 40534],
-                    ['2023-09', 'kids microscope', 70764],
-                    ['2023-08', 'kids microscope', 82695],
-                    ['2023-07', 'kids microscope', 95009],
-                    ['2023-06', 'kids microscope', 97763],
-                    ['2023-05', 'kids microscope', 99814],
-                    ['2023-04', 'kids microscope', 92589],
-                    ['2023-03', 'kids microscope', 91956],
-                    ['2023-02', 'kids microscope', 95575],
-                    ['2023-01', 'kids microscope', 95297],
-                    ['2022-12', 'kids microscope', 23098],
-                    ['2022-11', 'kids microscope', 23222],
-                    ['2022-10', 'kids microscope', 47226],
-                    ['2022-09', 'kids microscope', 69474],
-                    ['2022-08', 'kids microscope', 82964],
-                    ['2022-07', 'kids microscope', 74596],
-                    ['2022-06', 'kids microscope', 84614],
-                    ['2022-05', 'kids microscope', 80722],
-                    ['2022-04', 'kids microscope', 72498],
-                    ['2022-03', 'kids microscope', 67034],
-                    ['2022-02', 'kids microscope', 85188],
-                    ['2022-01', 'kids microscope', 94729],
-                    ['2021-12', 'kids microscope', 27071],
-                    ['2021-11', 'kids microscope', 23049],
-                    ['2021-10', 'kids microscope', 44705],
-                    ['2021-09', 'kids microscope', 59190],
-                    ['2021-08', 'kids microscope', 65977],
-                    ['2021-07', 'kids microscope', 71868],
-                    ['2021-06', 'kids microscope', 81141],
-                    ['2021-05', 'kids microscope', 74175],
-                    ['2021-04', 'kids microscope', 73901],
-                    ['2021-03', 'kids microscope', 63902],
-                    ['2021-02', 'kids microscope', 72658],
-                    ['2021-01', 'kids microscope', 66222],
-                    ['2020-12', 'kids microscope', 16819],
-                    ['2020-11', 'kids microscope', 19282],
-                    ['2020-10', 'kids microscope', 33332],
-                    ['2020-09', 'kids microscope', 38729],
-                    ['2020-08', 'kids microscope', 40384],
-                    ['2020-07', 'kids microscope', 50930],
-                    ['2020-06', 'kids microscope', 54911],
-                    ['2020-05', 'kids microscope', 53931],
-                    ['2020-04', 'kids microscope', 45952],
-                    ['2020-03', 'kids microscope', 46758],
-                    ['2020-02', 'kids microscope', 61827],
-                    ['2020-01', 'kids microscope', 60372],
-                    ['2019-12', 'kids microscope', 17215],
-                    ['2019-11', 'kids microscope', 20726],
-                    ['2019-10', 'kids microscope', 37889],
-                    ['2019-09', 'kids microscope', 46994],
-                    ['2019-08', 'kids microscope', 56057],
-                    ['2019-07', 'kids microscope', 68498],
-                    ['2019-06', 'kids microscope', 79505],
-                    ['2019-05', 'kids microscope', 59725],
-                    ['2019-04', 'kids microscope', 62508],
-                    ['2019-03', 'kids microscope', 61559],
-                    ['2019-02', 'kids microscope', 98167],
-                    ['2019-01', 'kids microscope', 75654],
-                    ['2018-12', 'kids microscope', 17800],
-                    ['2018-11', 'kids microscope', 20903],
-                    ['2018-10', 'kids microscope', 57553],
-                    ['2018-09', 'kids microscope', 57541],
-                    ['2018-08', 'kids microscope', 77760],
-                    ['2018-07', 'kids microscope', 77658],
-                    ['2018-06', 'kids microscope', 75557],
-                    ['2018-05', 'kids microscope', 81066],
-                    ['2018-04', 'kids microscope', 76931],
-                    ['2018-03', 'kids microscope', 70402],
-                    ['2018-02', 'kids microscope', 203133],
-                    ['2018-01', 'kids microscope', 87729],
-                    ['2017-12', 'kids microscope', 18375],
-                    ['2017-11', 'kids microscope', 20233],
-                    ['2017-10', 'kids microscope', 53160],
-                    ['2017-09', 'kids microscope', 61076],
-                    ['2017-08', 'kids microscope', 70484],
-                    ['2017-07', 'kids microscope', 75128],
-                    ['2017-06', 'kids microscope', 83575],
-                    ['2017-05', 'kids microscope', 79134],
-                    ['2017-04', 'kids microscope', 69139],
-                    ['2017-03', 'kids microscope', 68624],
-                    ['2017-02', 'kids microscope', 71667],
-                    ['2017-01', 'kids microscope', 71111],
-                    ['2026-04', 'microscope for kids', 32293],
-                    ['2026-03', 'microscope for kids', 30736],
-                    ['2026-02', 'microscope for kids', 38516],
-                    ['2026-01', 'microscope for kids', 37915],
-                    ['2025-12', 'microscope for kids', 6408],
-                    ['2025-11', 'microscope for kids', 8451],
-                    ['2025-10', 'microscope for kids', 23809],
-                    ['2025-09', 'microscope for kids', 27715],
-                    ['2025-08', 'microscope for kids', 42387],
-                    ['2025-07', 'microscope for kids', 45150],
-                    ['2025-06', 'microscope for kids', 46276],
-                    ['2025-05', 'microscope for kids', 41347],
-                    ['2025-04', 'microscope for kids', 35654],
-                    ['2025-03', 'microscope for kids', 36303],
-                    ['2025-02', 'microscope for kids', 47379],
-                    ['2025-01', 'microscope for kids', 53145],
-                    ['2024-12', 'microscope for kids', 10251],
-                    ['2024-11', 'microscope for kids', 10999],
-                    ['2024-10', 'microscope for kids', 24390],
-                    ['2024-09', 'microscope for kids', 30763],
-                    ['2024-08', 'microscope for kids', 39348],
-                    ['2024-07', 'microscope for kids', 38368],
-                    ['2024-06', 'microscope for kids', 55329],
-                    ['2024-05', 'microscope for kids', 54280],
-                    ['2024-04', 'microscope for kids', 43854],
-                    ['2024-03', 'microscope for kids', 41056],
-                    ['2024-02', 'microscope for kids', 55858],
-                    ['2024-01', 'microscope for kids', 69183],
-                    ['2023-12', 'microscope for kids', 31948],
-                    ['2023-11', 'microscope for kids', 28624],
-                    ['2023-10', 'microscope for kids', 71592],
-                    ['2023-09', 'microscope for kids', 39813],
-                    ['2023-08', 'microscope for kids', 43146],
-                    ['2023-07', 'microscope for kids', 38855],
-                    ['2023-06', 'microscope for kids', 39423],
-                    ['2023-05', 'microscope for kids', 41242],
-                    ['2023-04', 'microscope for kids', 35077],
-                    ['2023-03', 'microscope for kids', 51061],
-                    ['2023-02', 'microscope for kids', 99156],
-                    ['2023-01', 'microscope for kids', 72884],
-                    ['2022-12', 'microscope for kids', 35011],
-                    ['2022-11', 'microscope for kids', 27042],
-                    ['2022-10', 'microscope for kids', 26498],
-                    ['2022-09', 'microscope for kids', 43376],
-                    ['2022-08', 'microscope for kids', 44335],
-                    ['2022-07', 'microscope for kids', 40724],
-                    ['2022-06', 'microscope for kids', 41153],
-                    ['2022-05', 'microscope for kids', 40856],
-                    ['2022-04', 'microscope for kids', 41734],
-                    ['2022-03', 'microscope for kids', 47261],
-                    ['2022-02', 'microscope for kids', 71153],
-                    ['2022-01', 'microscope for kids', 90138],
-                    ['2021-12', 'microscope for kids', 42978],
-                    ['2021-11', 'microscope for kids', 31222],
-                    ['2021-10', 'microscope for kids', 61424],
-                    ['2021-09', 'microscope for kids', 55967],
-                    ['2021-08', 'microscope for kids', 52392],
-                    ['2021-07', 'microscope for kids', 52538],
-                    ['2021-06', 'microscope for kids', 64405],
-                    ['2021-05', 'microscope for kids', 48915],
-                    ['2021-04', 'microscope for kids', 48246],
-                    ['2021-03', 'microscope for kids', 59746],
-                    ['2021-02', 'microscope for kids', 71229],
-                    ['2021-01', 'microscope for kids', 58925],
-                    ['2020-12', 'microscope for kids', 17531],
-                    ['2020-11', 'microscope for kids', 22610],
-                    ['2020-10', 'microscope for kids', 24575],
-                    ['2020-09', 'microscope for kids', 29825],
-                    ['2020-08', 'microscope for kids', 28388],
-                    ['2020-07', 'microscope for kids', 28121],
-                    ['2020-06', 'microscope for kids', 33901],
-                    ['2020-05', 'microscope for kids', 29437],
-                    ['2020-04', 'microscope for kids', 24459],
-                    ['2020-03', 'microscope for kids', 29486],
-                    ['2020-02', 'microscope for kids', 32864],
-                    ['2020-01', 'microscope for kids', 30796],
-                    ['2019-12', 'microscope for kids', 6826],
-                    ['2019-11', 'microscope for kids', 9169],
-                    ['2019-10', 'microscope for kids', 21039],
-                    ['2019-09', 'microscope for kids', 23712],
-                    ['2019-08', 'microscope for kids', 25635],
-                    ['2019-07', 'microscope for kids', 32713],
-                    ['2019-06', 'microscope for kids', 37372],
-                    ['2019-05', 'microscope for kids', 31161],
-                    ['2019-04', 'microscope for kids', 32741],
-                    ['2019-03', 'microscope for kids', 33959],
-                    ['2019-02', 'microscope for kids', 40057],
-                    ['2019-01', 'microscope for kids', 35506],
-                    ['2018-12', 'microscope for kids', 5647],
-                    ['2018-11', 'microscope for kids', 7225],
-                    ['2018-10', 'microscope for kids', 24089],
-                    ['2018-09', 'microscope for kids', 30077],
-                    ['2018-08', 'microscope for kids', 32498],
-                    ['2018-07', 'microscope for kids', 33930],
-                    ['2018-06', 'microscope for kids', 34680],
-                    ['2018-05', 'microscope for kids', 33544],
-                    ['2018-04', 'microscope for kids', 37759],
-                    ['2018-03', 'microscope for kids', 37571],
-                    ['2018-02', 'microscope for kids', 43247],
-                    ['2018-01', 'microscope for kids', 45485],
-                    ['2017-12', 'microscope for kids', 7177],
-                    ['2017-11', 'microscope for kids', 5828],
-                    ['2017-10', 'microscope for kids', 19002],
-                    ['2017-09', 'microscope for kids', 27882],
-                    ['2017-08', 'microscope for kids', 26605],
-                    ['2017-07', 'microscope for kids', 30251],
-                    ['2017-06', 'microscope for kids', 32123],
-                    ['2017-05', 'microscope for kids', 34065],
-                    ['2017-04', 'microscope for kids', 35755],
-                    ['2017-03', 'microscope for kids', 32429],
-                    ['2017-02', 'microscope for kids', 36284],
-                    ['2017-01', 'microscope for kids', 27731],
-                    ['2026-04', 'kids microscope handheld', 106721],
-                    ['2026-03', 'kids microscope handheld', 114501],
-                    ['2026-02', 'kids microscope handheld', 385056],
-                    ['2026-01', 'kids microscope handheld', 381090],
-                    ['2025-12', 'kids microscope handheld', 61954],
-                    ['2025-11', 'kids microscope handheld', 104542],
-                    ['2025-10', 'kids microscope handheld', 264902],
-                    ['2025-09', 'kids microscope handheld', 424114],
-                    ['2025-08', 'kids microscope handheld', 589941],
-                    ['2025-07', 'kids microscope handheld', 506715],
-                    ['2025-06', 'kids microscope handheld', 465731],
-                    ['2025-05', 'kids microscope handheld', 528616],
-                    ['2025-04', 'kids microscope handheld', 279114],
-                    ['2025-03', 'kids microscope handheld', 371076],
-                    ['2025-02', 'kids microscope handheld', 500651],
-                    ['2025-01', 'kids microscope handheld', 310192],
-                    ['2024-12', 'kids microscope handheld', 19673],
-                    ['2024-11', 'kids microscope handheld', 23358],
-                    ['2024-10', 'kids microscope handheld', 82716],
-                    ['2024-09', 'kids microscope handheld', 146730],
-                    ['2024-08', 'kids microscope handheld', 2055168],
-                    ['2024-07', 'kids microscope handheld', 1028927],
-                    ['2024-04', 'kids microscope handheld', 1137501],
-                    ['2024-03', 'kids microscope handheld', 1831493],
-                    ['2023-12', 'kids microscope handheld', 840166],
-                    ['2023-11', 'kids microscope handheld', 775209],
-                    ['2023-04', 'kids microscope handheld', 0],
-                    ['2023-03', 'kids microscope handheld', 0],
-                    ['2023-02', 'kids microscope handheld', 0],
-                    ['2023-01', 'kids microscope handheld', 0],
-                    ['2022-12', 'kids microscope handheld', 0],
+            function buildChart6() {
+                const months = [
+                    '2017-01', '2017-02', '2017-03', '2017-04', '2017-05', '2017-06', '2017-07', '2017-08',
+                    '2017-09', '2017-10',
+                    '2017-11', '2017-12', '2018-01', '2018-02', '2018-03', '2018-04', '2018-05', '2018-06',
+                    '2018-07', '2018-08',
+                    '2018-09', '2018-10', '2018-11', '2018-12', '2019-01', '2019-02', '2019-03', '2019-04',
+                    '2019-05', '2019-06',
+                    '2019-07', '2019-08', '2019-09', '2019-10', '2019-11', '2019-12', '2020-01', '2020-02',
+                    '2020-03', '2020-04',
+                    '2020-05', '2020-06', '2020-07', '2020-08', '2020-09', '2020-10', '2020-11', '2020-12',
+                    '2021-01', '2021-02',
+                    '2021-03', '2021-04', '2021-05', '2021-06', '2021-07', '2021-08', '2021-09', '2021-10',
+                    '2021-11', '2021-12',
+                    '2022-01', '2022-02', '2022-03', '2022-04', '2022-05', '2022-06', '2022-07', '2022-08',
+                    '2022-09', '2022-10',
+                    '2022-11', '2022-12', '2023-01', '2023-02', '2023-03', '2023-04', '2023-05', '2023-06',
+                    '2023-07', '2023-08',
+                    '2023-09', '2023-10', '2023-11', '2023-12', '2024-01', '2024-02', '2024-03', '2024-04',
+                    '2024-05', '2024-06',
+                    '2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02',
+                    '2025-03', '2025-04',
+                    '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12',
+                    '2026-01', '2026-02',
+                    '2026-03', '2026-04'
                 ];
-                const allMonthsSet = new Set();
-                raw.forEach(r => allMonthsSet.add(r[0]));
-                const allMonths = Array.from(allMonthsSet).sort();
-                const kwMap = {};
-                raw.forEach(r => {
-                    const [month, kw, val] = r;
-                    if (!kwMap[kw]) kwMap[kw] = {};
-                    kwMap[kw][month] = val;
-                });
-                const keywords = ['kids microscope', 'microscope for kids', 'kids microscope handheld'];
-                const seriesData = keywords.map((kw, idx) => {
-                    const data = allMonths.map(m => {
-                        const v = kwMap[kw][m];
-                        if (v !== undefined && v !== null && v === 0 && kw === 'kids microscope handheld')
-                            return null;
-                        return v !== undefined ? v : null;
-                    });
-                    return {
-                        name: kw,
-                        type: 'line',
-                        data: data,
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { color: COLORS[idx % COLORS.length], width: 2 },
-                        itemStyle: { color: COLORS[idx % COLORS.length] },
-                        emphasis: { focus: 'series' }
-                    };
-                });
-                return { xAxisData: allMonths, series: seriesData };
-            }
-
-            // ==================== 图表7：历史销量趋势-复合图 ====================
-            const chart7Raw = [
-                ['2024-05', 16704, 489815.63, 668],
-                ['2024-06', 15476, 461765.66, 573],
-                ['2024-07', 32506, 1141384.94, 1083],
-                ['2024-08', 19867, 595418.59, 640],
-                ['2024-09', 23310, 771241.64, 666],
-                ['2024-10', 35003, 1224462.35, 921],
-                ['2024-11', 73103, 2586106.47, 1783],
-                ['2024-12', 159748, 6012915.46, 3896],
-                ['2025-01', 20121, 799257.61, 457],
-                ['2025-02', 18832, 715733.78, 418],
-                ['2025-03', 21200, 756246.12, 432],
-                ['2025-04', 22502, 794849.13, 424],
-                ['2025-05', 21137, 763091.47, 346],
-                ['2025-06', 24070, 897716.22, 376],
-                ['2025-07', 31558, 1276784.66, 426],
-                ['2025-08', 27511, 1014661.89, 319],
-                ['2025-09', 30651, 1147497.93, 336],
-                ['2025-10', 53480, 2126609.59, 562],
-                ['2025-11', 162621, 5960426.64, 1626],
-                ['2025-12', 272669, 10266272.63, 2647],
-                ['2026-01', 42285, 1597792.56, 398],
-                ['2026-02', 39070, 1476592.81, 361],
-                ['2026-03', 66741, 2405470.24, 595],
-                ['2026-04', 62495, 2304294.65, 548],
-                ['2026-05', 59489, 2311569.87, 521]
-            ];
-
-            function buildChart7Option() {
-                const xData = chart7Raw.map(r => r[0]);
-                const barData = chart7Raw.map(r => r[1]);
-                const salesData = chart7Raw.map(r => r[2]);
-                const avgData = chart7Raw.map(r => r[3]);
-                return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                if (p.seriesName === '月销售额') html += p.marker + ' ' + p.seriesName +
-                                    ': $' + p.value.toLocaleString() + '<br/>';
-                                else html += p.marker + ' ' + p.seriesName + ': ' + p.value.toLocaleString() +
-                                    '<br/>';
-                            });
-                            return html;
-                        }
-                    },
-                    legend: { data: ['月销量', '平均月销量', '月销售额'], top: 5, textStyle: { fontSize: 11,
-                            color: '#333' } },
-                    grid: { left: '3%', right: '6%', top: '40px', bottom: '3%', containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '月销量',
-                        axisLabel: { formatter: fmtWan, color: '#666', fontSize: 11 },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    }, {
-                        type: 'value',
-                        name: '月销售额($)',
-                        axisLabel: { formatter: function(v) { return '$' + fmtWan(v); }, color: '#666',
-                            fontSize: 11 },
-                        splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    }],
-                    series: [{
-                        name: '月销量',
-                        type: 'bar',
-                        data: barData,
-                        itemStyle: { color: COLORS[0], borderRadius: [3, 3, 0, 0] },
-                        barWidth: '60%',
-                        yAxisIndex: 0,
-                        label: { show: false }
-                    }, {
-                        name: '平均月销量',
-                        type: 'line',
-                        data: avgData,
-                        smooth: true,
-                        symbol: 'circle',
-                        symbolSize: 5,
-                        lineStyle: { color: COLORS[2], width: 2 },
-                        itemStyle: { color: COLORS[2] },
-                        yAxisIndex: 0,
-                        label: { show: false }
-                    }, {
-                        name: '月销售额',
-                        type: 'line',
-                        data: salesData,
-                        smooth: true,
-                        symbol: 'diamond',
-                        symbolSize: 6,
-                        lineStyle: { color: COLORS[3], width: 2.5 },
-                        itemStyle: { color: COLORS[3] },
-                        yAxisIndex: 1,
-                        label: { show: false }
-                    }]
-                };
-            }
-
-            // ==================== 图表8：价格四分位走势 ====================
-            const chart8Raw = [
-                ['2024-05', 29.05, 33.62, 21.33, 46.99],
-                ['2024-06', 29.78, 38.06, 19.99, 43.99],
-                ['2024-07', 35.02, 37.85, 20.58, 45.34],
-                ['2024-08', 29.72, 39.99, 24.24, 45.07],
-                ['2024-09', 32.79, 39.99, 24.20, 43.81],
-                ['2024-10', 34.70, 39.99, 25.44, 46.85],
-                ['2024-11', 34.67, 39.99, 27.79, 52.76],
-                ['2024-12', 37.24, 40.16, 29.52, 53.31],
-                ['2025-01', 39.34, 39.745, 26.39, 56.24],
-                ['2025-02', 37.65, 39.75, 25.21, 54.59],
-                ['2025-03', 35.32, 37.25, 22.92, 49.63],
-                ['2025-04', 34.96, 37.475, 22.39, 51.78],
-                ['2025-05', 35.41, 37.455, 27.49, 52.26],
-                ['2025-06', 36.73, 38.66, 27.02, 50.60],
-                ['2025-07', 40.05, 38.88, 26.99, 50.05],
-                ['2025-08', 36.40, 36.055, 25.77, 45.32],
-                ['2025-09', 36.98, 36.02, 28.12, 49.89],
-                ['2025-10', 39.48, 35.78, 26.99, 45.54],
-                ['2025-11', 36.48, 33.1, 26.19, 47.04],
-                ['2025-12', 37.47, 32.92, 27.07, 43.77],
-                ['2026-01', 37.52, 29.99, 25.99, 40.63],
-                ['2026-02', 37.59, 29.99, 25.36, 39.99],
-                ['2026-03', 35.84, 29.99, 23.29, 39.93],
-                ['2026-04', 36.66, 30.17, 19.99, 40.07],
-                ['2026-05', 38.65, 29.99, 22.01, 39.95]
-            ];
-
-            function buildChart8Option() {
-                const xData = chart8Raw.map(r => r[0]);
-                const names = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
-                const seriesArr = names.map((name, idx) => ({
-                    name: name,
+                const km = { 'kids microscope': {}, 'microscope for kids': {}, 'kids microscope handheld': {} };
+                const rawData6 = [
+                    ['2017-01', 'kids microscope', 71111],
+                    ['2017-02', 'kids microscope', 71667],
+                    ['2017-03', 'kids microscope', 68624],
+                    ['2017-04', 'kids microscope', 69139],
+                    ['2017-05', 'kids microscope', 79134],
+                    ['2017-06', 'kids microscope', 83575],
+                    ['2017-07', 'kids microscope', 75128],
+                    ['2017-08', 'kids microscope', 70484],
+                    ['2017-09', 'kids microscope', 61076],
+                    ['2017-10', 'kids microscope', 53160],
+                    ['2017-11', 'kids microscope', 20233],
+                    ['2017-12', 'kids microscope', 18375],
+                    ['2018-01', 'kids microscope', 87729],
+                    ['2018-02', 'kids microscope', 203133],
+                    ['2018-03', 'kids microscope', 70402],
+                    ['2018-04', 'kids microscope', 76931],
+                    ['2018-05', 'kids microscope', 81066],
+                    ['2018-06', 'kids microscope', 75557],
+                    ['2018-07', 'kids microscope', 77658],
+                    ['2018-08', 'kids microscope', 77760],
+                    ['2018-09', 'kids microscope', 57541],
+                    ['2018-10', 'kids microscope', 57553],
+                    ['2018-11', 'kids microscope', 20903],
+                    ['2018-12', 'kids microscope', 17800],
+                    ['2019-01', 'kids microscope', 75654],
+                    ['2019-02', 'kids microscope', 98167],
+                    ['2019-03', 'kids microscope', 61559],
+                    ['2019-04', 'kids microscope', 62508],
+                    ['2019-05', 'kids microscope', 59725],
+                    ['2019-06', 'kids microscope', 79505],
+                    ['2019-07', 'kids microscope', 68498],
+                    ['2019-08', 'kids microscope', 56057],
+                    ['2019-09', 'kids microscope', 46994],
+                    ['2019-10', 'kids microscope', 37889],
+                    ['2019-11', 'kids microscope', 20726],
+                    ['2019-12', 'kids microscope', 17215],
+                    ['2020-01', 'kids microscope', 60372],
+                    ['2020-02', 'kids microscope', 61827],
+                    ['2020-03', 'kids microscope', 46758],
+                    ['2020-04', 'kids microscope', 45952],
+                    ['2020-05', 'kids microscope', 53931],
+                    ['2020-06', 'kids microscope', 54911],
+                    ['2020-07', 'kids microscope', 50930],
+                    ['2020-08', 'kids microscope', 40384],
+                    ['2020-09', 'kids microscope', 38729],
+                    ['2020-10', 'kids microscope', 33332],
+                    ['2020-11', 'kids microscope', 19282],
+                    ['2020-12', 'kids microscope', 16819],
+                    ['2021-01', 'kids microscope', 66222],
+                    ['2021-02', 'kids microscope', 72658],
+                    ['2021-03', 'kids microscope', 63902],
+                    ['2021-04', 'kids microscope', 73901],
+                    ['2021-05', 'kids microscope', 74175],
+                    ['2021-06', 'kids microscope', 81141],
+                    ['2021-07', 'kids microscope', 71868],
+                    ['2021-08', 'kids microscope', 65977],
+                    ['2021-09', 'kids microscope', 59190],
+                    ['2021-10', 'kids microscope', 44705],
+                    ['2021-11', 'kids microscope', 23049],
+                    ['2021-12', 'kids microscope', 27071],
+                    ['2022-01', 'kids microscope', 94729],
+                    ['2022-02', 'kids microscope', 85188],
+                    ['2022-03', 'kids microscope', 67034],
+                    ['2022-04', 'kids microscope', 72498],
+                    ['2022-05', 'kids microscope', 80722],
+                    ['2022-06', 'kids microscope', 84614],
+                    ['2022-07', 'kids microscope', 74596],
+                    ['2022-08', 'kids microscope', 82964],
+                    ['2022-09', 'kids microscope', 69474],
+                    ['2022-10', 'kids microscope', 47226],
+                    ['2022-11', 'kids microscope', 23222],
+                    ['2022-12', 'kids microscope', 23098],
+                    ['2023-01', 'kids microscope', 95297],
+                    ['2023-02', 'kids microscope', 95575],
+                    ['2023-03', 'kids microscope', 91956],
+                    ['2023-04', 'kids microscope', 92589],
+                    ['2023-05', 'kids microscope', 99814],
+                    ['2023-06', 'kids microscope', 97763],
+                    ['2023-07', 'kids microscope', 95009],
+                    ['2023-08', 'kids microscope', 82695],
+                    ['2023-09', 'kids microscope', 70764],
+                    ['2023-10', 'kids microscope', 40534],
+                    ['2023-11', 'kids microscope', 23167],
+                    ['2023-12', 'kids microscope', 28856],
+                    ['2024-01', 'kids microscope', 106804],
+                    ['2024-02', 'kids microscope', 100413],
+                    ['2024-03', 'kids microscope', 86906],
+                    ['2024-04', 'kids microscope', 85058],
+                    ['2024-05', 'kids microscope', 91536],
+                    ['2024-06', 'kids microscope', 99095],
+                    ['2024-07', 'kids microscope', 65285],
+                    ['2024-08', 'kids microscope', 77516],
+                    ['2024-09', 'kids microscope', 20647],
+                    ['2024-10', 'kids microscope', 20878],
+                    ['2024-11', 'kids microscope', 6131],
+                    ['2024-12', 'kids microscope', 4657],
+                    ['2025-01', 'kids microscope', 53096],
+                    ['2025-02', 'kids microscope', 58550],
+                    ['2025-03', 'kids microscope', 47324],
+                    ['2025-04', 'kids microscope', 50443],
+                    ['2025-05', 'kids microscope', 65527],
+                    ['2025-06', 'kids microscope', 59683],
+                    ['2025-07', 'kids microscope', 60544],
+                    ['2025-08', 'kids microscope', 55756],
+                    ['2025-09', 'kids microscope', 38638],
+                    ['2025-10', 'kids microscope', 24286],
+                    ['2025-11', 'kids microscope', 8100],
+                    ['2025-12', 'kids microscope', 5216],
+                    ['2026-01', 'kids microscope', 40054],
+                    ['2026-02', 'kids microscope', 41392],
+                    ['2026-03', 'kids microscope', 22181],
+                    ['2026-04', 'kids microscope', 24144],
+                    ['2017-01', 'microscope for kids', 27731],
+                    ['2017-02', 'microscope for kids', 36284],
+                    ['2017-03', 'microscope for kids', 32429],
+                    ['2017-04', 'microscope for kids', 35755],
+                    ['2017-05', 'microscope for kids', 34065],
+                    ['2017-06', 'microscope for kids', 32123],
+                    ['2017-07', 'microscope for kids', 30251],
+                    ['2017-08', 'microscope for kids', 26605],
+                    ['2017-09', 'microscope for kids', 27882],
+                    ['2017-10', 'microscope for kids', 19002],
+                    ['2017-11', 'microscope for kids', 5828],
+                    ['2017-12', 'microscope for kids', 7177],
+                    ['2018-01', 'microscope for kids', 45485],
+                    ['2018-02', 'microscope for kids', 43247],
+                    ['2018-03', 'microscope for kids', 37571],
+                    ['2018-04', 'microscope for kids', 37759],
+                    ['2018-05', 'microscope for kids', 33544],
+                    ['2018-06', 'microscope for kids', 34680],
+                    ['2018-07', 'microscope for kids', 33930],
+                    ['2018-08', 'microscope for kids', 32498],
+                    ['2018-09', 'microscope for kids', 30077],
+                    ['2018-10', 'microscope for kids', 24089],
+                    ['2018-11', 'microscope for kids', 7225],
+                    ['2018-12', 'microscope for kids', 5647],
+                    ['2019-01', 'microscope for kids', 35506],
+                    ['2019-02', 'microscope for kids', 40057],
+                    ['2019-03', 'microscope for kids', 33959],
+                    ['2019-04', 'microscope for kids', 32741],
+                    ['2019-05', 'microscope for kids', 31161],
+                    ['2019-06', 'microscope for kids', 37372],
+                    ['2019-07', 'microscope for kids', 32713],
+                    ['2019-08', 'microscope for kids', 25635],
+                    ['2019-09', 'microscope for kids', 23712],
+                    ['2019-10', 'microscope for kids', 21039],
+                    ['2019-11', 'microscope for kids', 9169],
+                    ['2019-12', 'microscope for kids', 6826],
+                    ['2020-01', 'microscope for kids', 30796],
+                    ['2020-02', 'microscope for kids', 32864],
+                    ['2020-03', 'microscope for kids', 29486],
+                    ['2020-04', 'microscope for kids', 24459],
+                    ['2020-05', 'microscope for kids', 29437],
+                    ['2020-06', 'microscope for kids', 33901],
+                    ['2020-07', 'microscope for kids', 28121],
+                    ['2020-08', 'microscope for kids', 28388],
+                    ['2020-09', 'microscope for kids', 29825],
+                    ['2020-10', 'microscope for kids', 24575],
+                    ['2020-11', 'microscope for kids', 22610],
+                    ['2020-12', 'microscope for kids', 17531],
+                    ['2021-01', 'microscope for kids', 58925],
+                    ['2021-02', 'microscope for kids', 71229],
+                    ['2021-03', 'microscope for kids', 59746],
+                    ['2021-04', 'microscope for kids', 48246],
+                    ['2021-05', 'microscope for kids', 48915],
+                    ['2021-06', 'microscope for kids', 64405],
+                    ['2021-07', 'microscope for kids', 52538],
+                    ['2021-08', 'microscope for kids', 52392],
+                    ['2021-09', 'microscope for kids', 55967],
+                    ['2021-10', 'microscope for kids', 61424],
+                    ['2021-11', 'microscope for kids', 31222],
+                    ['2021-12', 'microscope for kids', 42978],
+                    ['2022-01', 'microscope for kids', 90138],
+                    ['2022-02', 'microscope for kids', 71153],
+                    ['2022-03', 'microscope for kids', 47261],
+                    ['2022-04', 'microscope for kids', 41734],
+                    ['2022-05', 'microscope for kids', 40856],
+                    ['2022-06', 'microscope for kids', 41153],
+                    ['2022-07', 'microscope for kids', 40724],
+                    ['2022-08', 'microscope for kids', 44335],
+                    ['2022-09', 'microscope for kids', 43376],
+                    ['2022-10', 'microscope for kids', 26498],
+                    ['2022-11', 'microscope for kids', 27042],
+                    ['2022-12', 'microscope for kids', 35011],
+                    ['2023-01', 'microscope for kids', 72884],
+                    ['2023-02', 'microscope for kids', 99156],
+                    ['2023-03', 'microscope for kids', 51061],
+                    ['2023-04', 'microscope for kids', 35077],
+                    ['2023-05', 'microscope for kids', 41242],
+                    ['2023-06', 'microscope for kids', 39423],
+                    ['2023-07', 'microscope for kids', 38855],
+                    ['2023-08', 'microscope for kids', 43146],
+                    ['2023-09', 'microscope for kids', 39813],
+                    ['2023-10', 'microscope for kids', 71592],
+                    ['2023-11', 'microscope for kids', 28624],
+                    ['2023-12', 'microscope for kids', 31948],
+                    ['2024-01', 'microscope for kids', 69183],
+                    ['2024-02', 'microscope for kids', 55858],
+                    ['2024-03', 'microscope for kids', 41056],
+                    ['2024-04', 'microscope for kids', 43854],
+                    ['2024-05', 'microscope for kids', 54280],
+                    ['2024-06', 'microscope for kids', 55329],
+                    ['2024-07', 'microscope for kids', 38368],
+                    ['2024-08', 'microscope for kids', 39348],
+                    ['2024-09', 'microscope for kids', 30763],
+                    ['2024-10', 'microscope for kids', 24390],
+                    ['2024-11', 'microscope for kids', 10999],
+                    ['2024-12', 'microscope for kids', 10251],
+                    ['2025-01', 'microscope for kids', 53145],
+                    ['2025-02', 'microscope for kids', 47379],
+                    ['2025-03', 'microscope for kids', 36303],
+                    ['2025-04', 'microscope for kids', 35654],
+                    ['2025-05', 'microscope for kids', 41347],
+                    ['2025-06', 'microscope for kids', 46276],
+                    ['2025-07', 'microscope for kids', 45150],
+                    ['2025-08', 'microscope for kids', 42387],
+                    ['2025-09', 'microscope for kids', 27715],
+                    ['2025-10', 'microscope for kids', 23809],
+                    ['2025-11', 'microscope for kids', 8451],
+                    ['2025-12', 'microscope for kids', 6408],
+                    ['2026-01', 'microscope for kids', 37915],
+                    ['2026-02', 'microscope for kids', 38516],
+                    ['2026-03', 'microscope for kids', 30736],
+                    ['2026-04', 'microscope for kids', 32293],
+                    ['2017-01', 'kids microscope handheld', 0],
+                    ['2017-02', 'kids microscope handheld', 0],
+                    ['2017-03', 'kids microscope handheld', 0],
+                    ['2017-04', 'kids microscope handheld', 0],
+                    ['2017-05', 'kids microscope handheld', 0],
+                    ['2017-06', 'kids microscope handheld', 0],
+                    ['2017-07', 'kids microscope handheld', 0],
+                    ['2017-08', 'kids microscope handheld', 0],
+                    ['2017-09', 'kids microscope handheld', 0],
+                    ['2017-10', 'kids microscope handheld', 0],
+                    ['2017-11', 'kids microscope handheld', 0],
+                    ['2017-12', 'kids microscope handheld', 0],
+                    ['2018-01', 'kids microscope handheld', 0],
+                    ['2018-02', 'kids microscope handheld', 0],
+                    ['2018-03', 'kids microscope handheld', 0],
+                    ['2018-04', 'kids microscope handheld', 0],
+                    ['2018-05', 'kids microscope handheld', 0],
+                    ['2018-06', 'kids microscope handheld', 0],
+                    ['2018-07', 'kids microscope handheld', 0],
+                    ['2018-08', 'kids microscope handheld', 0],
+                    ['2018-09', 'kids microscope handheld', 0],
+                    ['2018-10', 'kids microscope handheld', 0],
+                    ['2018-11', 'kids microscope handheld', 0],
+                    ['2018-12', 'kids microscope handheld', 0],
+                    ['2019-01', 'kids microscope handheld', 0],
+                    ['2019-02', 'kids microscope handheld', 0],
+                    ['2019-03', 'kids microscope handheld', 0],
+                    ['2019-04', 'kids microscope handheld', 0],
+                    ['2019-05', 'kids microscope handheld', 0],
+                    ['2019-06', 'kids microscope handheld', 0],
+                    ['2019-07', 'kids microscope handheld', 0],
+                    ['2019-08', 'kids microscope handheld', 0],
+                    ['2019-09', 'kids microscope handheld', 0],
+                    ['2019-10', 'kids microscope handheld', 0],
+                    ['2019-11', 'kids microscope handheld', 0],
+                    ['2019-12', 'kids microscope handheld', 0],
+                    ['2020-01', 'kids microscope handheld', 0],
+                    ['2020-02', 'kids microscope handheld', 0],
+                    ['2020-03', 'kids microscope handheld', 0],
+                    ['2020-04', 'kids microscope handheld', 0],
+                    ['2020-05', 'kids microscope handheld', 0],
+                    ['2020-06', 'kids microscope handheld', 0],
+                    ['2020-07', 'kids microscope handheld', 0],
+                    ['2020-08', 'kids microscope handheld', 0],
+                    ['2020-09', 'kids microscope handheld', 0],
+                    ['2020-10', 'kids microscope handheld', 0],
+                    ['2020-11', 'kids microscope handheld', 0],
+                    ['2020-12', 'kids microscope handheld', 0],
+                    ['2021-01', 'kids microscope handheld', 0],
+                    ['2021-02', 'kids microscope handheld', 0],
+                    ['2021-03', 'kids microscope handheld', 0],
+                    ['2021-04', 'kids microscope handheld', 0],
+                    ['2021-05', 'kids microscope handheld', 0],
+                    ['2021-06', 'kids microscope handheld', 0],
+                    ['2021-07', 'kids microscope handheld', 0],
+                    ['2021-08', 'kids microscope handheld', 0],
+                    ['2021-09', 'kids microscope handheld', 0],
+                    ['2021-10', 'kids microscope handheld', 0],
+                    ['2021-11', 'kids microscope handheld', 0],
+                    ['2021-12', 'kids microscope handheld', 0],
+                    ['2022-01', 'kids microscope handheld', 0],
+                    ['2022-02', 'kids microscope handheld', 0],
+                    ['2022-03', 'kids microscope handheld', 0],
+                    ['2022-04', 'kids microscope handheld', 0],
+                    ['2022-05', 'kids microscope handheld', 0],
+                    ['2022-06', 'kids microscope handheld', 0],
+                    ['2022-07', 'kids microscope handheld', 0],
+                    ['2022-08', 'kids microscope handheld', 0],
+                    ['2022-09', 'kids microscope handheld', 0],
+                    ['2022-10', 'kids microscope handheld', 0],
+                    ['2022-11', 'kids microscope handheld', 0],
+                    ['2022-12', 'kids microscope handheld', 0],
+                    ['2023-01', 'kids microscope handheld', 0],
+                    ['2023-02', 'kids microscope handheld', 0],
+                    ['2023-03', 'kids microscope handheld', 0],
+                    ['2023-04', 'kids microscope handheld', 0],
+                    ['2023-11', 'kids microscope handheld', 775209],
+                    ['2023-12', 'kids microscope handheld', 840166],
+                    ['2024-03', 'kids microscope handheld', 1831493],
+                    ['2024-04', 'kids microscope handheld', 1137501],
+                    ['2024-07', 'kids microscope handheld', 1028927],
+                    ['2024-08', 'kids microscope handheld', 2055168],
+                    ['2024-09', 'kids microscope handheld', 146730],
+                    ['2024-10', 'kids microscope handheld', 82716],
+                    ['2024-11', 'kids microscope handheld', 23358],
+                    ['2024-12', 'kids microscope handheld', 19673],
+                    ['2025-01', 'kids microscope handheld', 310192],
+                    ['2025-02', 'kids microscope handheld', 500651],
+                    ['2025-03', 'kids microscope handheld', 371076],
+                    ['2025-04', 'kids microscope handheld', 279114],
+                    ['2025-05', 'kids microscope handheld', 528616],
+                    ['2025-06', 'kids microscope handheld', 465731],
+                    ['2025-07', 'kids microscope handheld', 506715],
+                    ['2025-08', 'kids microscope handheld', 589941],
+                    ['2025-09', 'kids microscope handheld', 424114],
+                    ['2025-10', 'kids microscope handheld', 264902],
+                    ['2025-11', 'kids microscope handheld', 104542],
+                    ['2025-12', 'kids microscope handheld', 61954],
+                    ['2026-01', 'kids microscope handheld', 381090],
+                    ['2026-02', 'kids microscope handheld', 385056],
+                    ['2026-03', 'kids microscope handheld', 114501],
+                    ['2026-04', 'kids microscope handheld', 106721]
+                ];
+                rawData6.forEach(r => { km[r[1]][r[0]] = parseNum(r[2]); });
+                const seriesNames6 = ['kids microscope', 'microscope for kids', 'kids microscope handheld'];
+                const seriesData6 = seriesNames6.map((sn, i) => ({
+                    name: sn,
                     type: 'line',
-                    data: chart8Raw.map(r => r[idx + 1]),
+                    data: months.map(m => km[sn][m] !== undefined ? km[sn][m] : 0),
                     smooth: true,
                     symbol: 'none',
-                    lineStyle: { color: COLORS[idx % COLORS.length], width: 2 },
-                    itemStyle: { color: COLORS[idx % COLORS.length] },
-                    emphasis: { focus: 'series' }
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
                 }));
-                const legendSelected = { '销量加权均价': true, '月价格中位数': true, 'Q1分位数': true,
-                    'Q3分位数': false };
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = params[0].axisValue + '<br/>';
-                            params.forEach(p => { html += p.marker + ' ' + p.seriesName + ': $' + p.value
-                                    .toFixed(2) + '<br/>'; });
-                            return html;
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' + p.value
+                                    .toLocaleString() + '<br/>'; });
+                            return s;
                         }
                     },
-                    legend: { data: names, selected: legendSelected, top: 5, textStyle: { fontSize: 11,
-                            color: '#333' }, type: 'scroll' },
-                    grid: { left: '3%', right: '6%', top: '40px', bottom: '3%', containLabel: true },
+                    legend: {
+                        data: seriesNames6,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        selected: { 'kids microscope': true, 'microscope for kids': true,
+                            'kids microscope handheld': false },
+                    },
+                    grid: { left: 60, right: 30, top: 40, bottom: 50 },
                     xAxis: {
                         type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
+                        data: months,
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 45, interval: Math.floor(months
+                                .length / 10) },
+                        boundaryGap: false,
                     },
                     yAxis: {
                         type: 'value',
-                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(0); }, color: '#666',
-                            fontSize: 11 },
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        name: 'ABA排名',
+                        inverse: true,
                     },
-                    series: seriesArr
+                    dataZoom: [{ type: 'inside', start: 0, end: 100 }],
+                    series: seriesData6,
                 };
             }
 
-            // ==================== 图表9：品牌垄断-饼图 ====================
-            const pie9Data = [
-                { name: 'BEBANG', value: 10137 }, { name: 'BMDSAE', value: 5719 }, { name: 'Ashfly', value: 5620 },
-                { name: 'Odatay', value: 4588 }, { name: 'Vorth', value: 2805 }, { name: 'Carson', value: 2587 },
-                { name: 'Acoath', value: 2187 }, { name: 'PalliPartners', value: 2111 },
-                { name: 'Blue Marble', value: 2034 },
-                { name: 'Trigowalt', value: 1628 }, { name: '其余', value: 20167 }
-            ];
-
-            // ==================== 图表10：排名垄断-复合图 ====================
-            const chart10Raw = [
-                ['1~10', 10, 3191, 0, 0],
-                ['11~20', 10, 1150, 0, 0],
-                ['21~30', 8, 525, 2, 411],
-                ['31~40', 9, 320, 1, 366],
-                ['41~50', 9, 240, 1, 230],
-                ['51~60', 9, 165, 1, 171],
-                ['61~70', 9, 136, 1, 135],
-                ['71~80', 8, 95, 2, 94],
-                ['81~90', 9, 65, 1, 58],
-                ['91~100', 8, 44, 2, 52],
-                ['101~110', 7, 35, 3, 32],
-                ['111~120', 5, 20, 1, 19]
-            ];
-            chart10Raw.sort((a, b) => {
-                const na = parseInt(a[0].split('~')[0]);
-                const nb = parseInt(b[0].split('~')[0]);
-                return na - nb;
-            });
-
-            function buildChart10Option() {
-                const xData = chart10Raw.map(r => r[0]);
-                const oldAsin = chart10Raw.map(r => r[1]);
-                const oldAvg = chart10Raw.map(r => r[2]);
-                const newAsin = chart10Raw.map(r => r[3]);
-                const newAvg = chart10Raw.map(r => r[4]);
+            function buildChart7() {
+                const raw = [
+                    ['2024-05', 16704, 489815.63, 668],
+                    ['2024-06', 15476, 461765.66, 573],
+                    ['2024-07', 32506, 1141384.94, 1083],
+                    ['2024-08', 19867, 595418.59, 640],
+                    ['2024-09', 23310, 771241.64, 666],
+                    ['2024-10', 35003, 1224462.35, 921],
+                    ['2024-11', 73103, 2586106.47, 1783],
+                    ['2024-12', 159748, 6012915.46, 3896],
+                    ['2025-01', 20121, 799257.61, 457],
+                    ['2025-02', 18832, 715733.78, 418],
+                    ['2025-03', 21200, 756246.12, 432],
+                    ['2025-04', 22502, 794849.13, 424],
+                    ['2025-05', 21137, 763091.47, 346],
+                    ['2025-06', 24070, 897716.22, 376],
+                    ['2025-07', 31558, 1276784.66, 426],
+                    ['2025-08', 27511, 1014661.89, 319],
+                    ['2025-09', 30651, 1147497.93, 336],
+                    ['2025-10', 53480, 2126609.59, 562],
+                    ['2025-11', 162621, 5960426.64, 1626],
+                    ['2025-12', 272669, 10266272.63, 2647],
+                    ['2026-01', 42285, 1597792.56, 398],
+                    ['2026-02', 39070, 1476592.81, 361],
+                    ['2026-03', 66741, 2405470.24, 595],
+                    ['2026-04', 62495, 2304294.65, 548],
+                    ['2026-05', 59489, 2311569.87, 521]
+                ];
+                const xData = raw.map(r => r[0]);
+                const salesVol = raw.map(r => parseNum(r[1]));
+                const salesAmt = raw.map(r => parseNum(r[2]));
+                const avgVol = raw.map(r => parseNum(r[3]));
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = '排名: ' + params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                if (p.seriesName.includes('ASIN')) html += p.marker + ' ' + p.seriesName +
-                                    ': ' + p.value + '<br/>';
-                                else html += p.marker + ' ' + p.seriesName + ': ' + p.value.toLocaleString() +
-                                    '<br/>';
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => {
+                                s += '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' +
+                                    (p.seriesName === '月销售额' ? fmtPrice(p.value) : p.value
+                                        .toLocaleString()) + '<br/>';
                             });
-                            return html;
+                            return s;
                         }
                     },
-                    legend: { data: ['老品ASIN数', '新品ASIN数', '老品平均销量', '新品平均销量'], top: 5,
-                        textStyle: { fontSize: 11, color: '#333' }, type: 'scroll' },
-                    grid: { left: '3%', right: '6%', top: '40px', bottom: '3%', containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 10 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
-                    },
+                    legend: { data: ['月销量', '平均月销量', '月销售额'], top: 5,
+                    textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 60, right: 70, top: 40, bottom: 40 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 10, color: '#666',
+                            rotate: 30 } },
                     yAxis: [{
                         type: 'value',
-                        name: 'ASIN计数',
-                        axisLabel: { color: '#666', fontSize: 11 },
+                        name: '销量',
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
                     }, {
                         type: 'value',
-                        name: '平均月销量',
-                        axisLabel: { formatter: fmtWan, color: '#666', fontSize: 11 },
+                        name: '销售额($)',
+                        axisLabel: { formatter: function(v) { return fmtLarge(v); }, fontSize: 11,
+                            color: '#666' },
                         splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
                     }],
-                    series: [{
-                        name: '老品ASIN数',
-                        type: 'bar',
-                        data: oldAsin,
-                        stack: 'asin',
-                        itemStyle: { color: COLORS[0] },
-                        barWidth: '50%',
-                        yAxisIndex: 0,
-                        label: { show: false }
-                    }, {
-                        name: '新品ASIN数',
-                        type: 'bar',
-                        data: newAsin,
-                        stack: 'asin',
-                        itemStyle: { color: COLORS[1] },
-                        yAxisIndex: 0,
-                        label: { show: false }
-                    }, {
-                        name: '老品平均销量',
-                        type: 'line',
-                        data: oldAvg,
-                        smooth: true,
-                        symbol: 'circle',
-                        symbolSize: 6,
-                        lineStyle: { color: COLORS[2], width: 2 },
-                        itemStyle: { color: COLORS[2] },
-                        yAxisIndex: 1,
-                        label: { show: false }
-                    }, {
-                        name: '新品平均销量',
-                        type: 'line',
-                        data: newAvg,
-                        smooth: true,
-                        symbol: 'diamond',
-                        symbolSize: 6,
-                        lineStyle: { color: COLORS[3], width: 2 },
-                        itemStyle: { color: COLORS[3] },
-                        yAxisIndex: 1,
-                        label: { show: false }
-                    }]
+                    series: [
+                        { name: '月销量', type: 'bar', data: salesVol, itemStyle: { color: COLORS[0] },
+                            barWidth: 14, yAxisIndex: 0 },
+                        { name: '平均月销量', type: 'line', data: avgVol, smooth: true, symbol: 'circle',
+                            symbolSize: 4, lineStyle: { width: 2, color: COLORS[1] },
+                        itemStyle: { color: COLORS[1] }, yAxisIndex: 0 },
+                        { name: '月销售额', type: 'line', data: salesAmt, smooth: true, symbol: 'diamond',
+                            symbolSize: 5, lineStyle: { width: 2, color: COLORS[3] },
+                        itemStyle: { color: COLORS[3] }, yAxisIndex: 1 },
+                    ],
                 };
             }
 
-            // ==================== 图表11/12/13：简单饼图 ====================
-            const pie11Data = [
-                { name: 'CN', value: 49945 }, { name: 'AMZ', value: 5685 }, { name: 'CN(HK)', value: 2837 },
-                { name: 'US', value: 1116 }
-            ];
-            const pie12Data = [
-                { name: 'AMZ', value: 5775 }, { name: 'FBA', value: 53533 }, { name: 'NA', value: 242 },
-                { name: 'FBM', value: 33 }
-            ];
-            const pie13Data = [
-                { name: '3个月内新品', value: 1483 }, { name: '3~6个月内新品', value: 705 }, { name: '老品', value: 57395 }
-            ];
-
-            function buildSimplePieOption(data) {
-                const n = data.length;
-                const showLegend = n <= 8;
-                const totalVal = data.reduce((s, d) => s + d.value, 0);
-                const seriesData = data.map((d, i) => ({
-                    name: d.name,
-                    value: d.value,
-                    itemStyle: { color: COLORS[i % COLORS.length] }
+            function buildChart8() {
+                const raw = [
+                    ['2024-05', 29.05, 33.62, 21.33, 46.99],
+                    ['2024-06', 29.78, 38.06, 19.99, 43.99],
+                    ['2024-07', 35.02, 37.85, 20.58, 45.34],
+                    ['2024-08', 29.72, 39.99, 24.24, 45.07],
+                    ['2024-09', 32.79, 39.99, 24.20, 43.81],
+                    ['2024-10', 34.70, 39.99, 25.44, 46.85],
+                    ['2024-11', 34.67, 39.99, 27.79, 52.76],
+                    ['2024-12', 37.24, 40.16, 29.52, 53.31],
+                    ['2025-01', 39.34, 39.745, 26.39, 56.24],
+                    ['2025-02', 37.65, 39.75, 25.21, 54.59],
+                    ['2025-03', 35.32, 37.25, 22.92, 49.63],
+                    ['2025-04', 34.96, 37.475, 22.39, 51.78],
+                    ['2025-05', 35.41, 37.455, 27.49, 52.26],
+                    ['2025-06', 36.73, 38.66, 27.02, 50.60],
+                    ['2025-07', 40.05, 38.88, 26.99, 50.05],
+                    ['2025-08', 36.40, 36.055, 25.77, 45.32],
+                    ['2025-09', 36.98, 36.02, 28.12, 49.89],
+                    ['2025-10', 39.48, 35.78, 26.99, 45.54],
+                    ['2025-11', 36.48, 33.10, 26.19, 47.04],
+                    ['2025-12', 37.47, 32.92, 27.07, 43.77],
+                    ['2026-01', 37.52, 29.99, 25.99, 40.63],
+                    ['2026-02', 37.59, 29.99, 25.36, 39.99],
+                    ['2026-03', 35.84, 29.99, 23.29, 39.93],
+                    ['2026-04', 36.66, 30.17, 19.99, 40.07],
+                    ['2026-05', 38.65, 29.99, 22.01, 39.95]
+                ];
+                const xData = raw.map(r => r[0]);
+                const sNames = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
+                const sData = sNames.map((sn, i) => ({
+                    name: sn,
+                    type: 'line',
+                    data: raw.map(r => parseNum(r[i + 1])),
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
                 }));
-                const option = {
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': $' + p
+                                    .value.toFixed(2) + '<br/>'; });
+                            return s;
+                        }
+                    },
+                    legend: { data: sNames, top: 5, textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 60, right: 30, top: 40, bottom: 40 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 10, color: '#666',
+                            rotate: 30 }, boundaryGap: false },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(0); },
+                        fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: '价格($)',
+                    },
+                    series: sData,
+                };
+            }
+
+            function buildChart9() {
+                const data = [
+                    { name: 'BEBANG', value: 10137 }, { name: 'BMDSAE', value: 5719 }, { name: 'Ashfly',
+                    value: 5620 },
+                    { name: 'Odatay', value: 4588 }, { name: 'Vorth', value: 2805 }, { name: 'Carson',
+                    value: 2587 },
+                    { name: 'Acoath', value: 2187 }, { name: 'PalliPartners', value: 2111 },
+                    { name: 'Blue Marble', value: 2034 },
+                    { name: 'Trigowalt', value: 1628 }, { name: '其余', value: 20167 }
+                ];
+                const nCat = data.length;
+                const showLegend = nCat <= 8;
+                return {
                     tooltip: {
                         trigger: 'item',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent.toFixed(1) + '%';
-                        }
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
                     },
-                    legend: showLegend ? {
-                        type: 'scroll',
-                        orient: 'vertical',
-                        right: 10,
-                        top: 'middle',
-                        itemGap: 8,
-                        textStyle: { fontSize: 12, color: '#333' },
-                    } : { show: false },
+                    legend: showLegend ? { orient: 'vertical', right: 10, top: 'center',
+                        textStyle: { fontSize: 11, color: '#333' }, itemWidth: 12,
+                    itemHeight: 12, type: 'scroll' } : { show: false },
+                    color: COLORS,
                     series: [{
                         type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: false,
-                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        radius: ['40%', '70%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: '#fff', borderWidth: 1 },
                         label: {
                             show: true,
                             position: 'outside',
-                            fontSize: 11,
-                            color: '#333',
-                            lineHeight: 16,
-                            formatter: '{b}\n{d}%'
+                            formatter: function(p) {
+                                if (!showLegend) return '{dot|}{name|' + p.name +
+                                    '}\n{percent|' + p.percent + '%}';
+                                return '{name|' + p.name + '}\n{percent|' + p.percent + '%}';
+                            },
+                            rich: {
+                                dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'auto',
+                                    align: 'left', verticalAlign: 'middle' },
+                                name: { fontSize: 10, color: '#333', lineHeight: 15 },
+                                percent: { fontSize: 9, color: '#666', lineHeight: 13 }
+                            }
                         },
-                        labelLine: { length: 28, length2: 36, lineStyle: { color: '#aaa' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 10 },
-                        data: seriesData
+                        labelLine: { show: true, length: 15, length2: 22, lineStyle: { color: '#aaa' } },
+                        emphasis: { label: { fontSize: 13, fontWeight: 'bold' } },
+                        data: data
                     }]
                 };
-                if (!showLegend) {
-                    option.series[0].label.formatter = function(p) {
-                        return '{dot|●} ' + p.name + '\n   ' + p.percent.toFixed(1) + '%';
-                    };
-                    option.series[0].label.rich = { dot: { fontSize: 14, padding: [0, 4, 0, 0] } };
-                    option.series[0].data = seriesData.map((d, i) => ({
-                        ...d,
-                        label: {
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: COLORS[i % COLORS
-                                    .length] } }
-                        }
-                    }));
-                }
-                return option;
             }
 
-            // ==================== 图表14：review数分布-堆积柱状图 ====================
-            const chart14Raw = [
-                ['0~10', 84, 115],
-                ['10~30', 740, 792],
-                ['30~50', 576, 730],
-                ['50~100', 2062, 185],
-                ['100~200', 5102, 366],
-                ['200~300', 4100, 0],
-                ['300~400', 1133, 0],
-                ['400~500', 8444, 0],
-                ['500~800', 9829, 0],
-                ['800~1200', 4298, 0],
-                ['1200~2000', 10749, 0],
-                ['2000+', 10278, 0]
-            ];
-
-            function buildStackedBarOption(data, seriesNames, titleText) {
-                const xData = data.map(r => r[0]);
-                const seriesArr = seriesNames.map((name, idx) => ({
-                    name: name,
-                    type: 'bar',
-                    stack: 'total',
-                    data: data.map(r => r[idx + 1]),
-                    itemStyle: { color: COLORS[idx % COLORS.length] },
-                    barWidth: '60%',
-                    label: { show: false },
-                    emphasis: { focus: 'series' }
-                }));
+            function buildChart10() {
+                const raw = [
+                    ['1~10', 10, 3191, 0, 0],
+                    ['11~20', 10, 1150, 0, 0],
+                    ['21~30', 8, 525, 2, 411],
+                    ['31~40', 9, 320, 1, 366],
+                    ['41~50', 9, 240, 1, 230],
+                    ['51~60', 9, 165, 1, 171],
+                    ['61~70', 9, 136, 1, 135],
+                    ['71~80', 8, 95, 2, 94],
+                    ['81~90', 9, 65, 1, 58],
+                    ['91~100', 8, 44, 2, 52],
+                    ['101~110', 7, 35, 3, 32],
+                    ['111~120', 5, 20, 1, 19]
+                ];
+                raw.sort((a, b) => {
+                    const na = parseInt(a[0].split('~')[0]);
+                    const nb = parseInt(b[0].split('~')[0]);
+                    return na - nb;
+                });
+                const xData = raw.map(r => r[0]);
+                const oldAsin = raw.map(r => parseNum(r[1]));
+                const oldAvg = raw.map(r => parseNum(r[2]));
+                const newAsin = raw.map(r => parseNum(r[3]));
+                const newAvg = raw.map(r => parseNum(r[4]));
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = params[0].axisValue + '<br/>';
-                            params.forEach(p => { html += p.marker + ' ' + p.seriesName + ': ' + p.value
-                                    .toLocaleString() + '<br/>'; });
-                            return html;
-                        }
-                    },
-                    legend: { data: seriesNames, top: 5, textStyle: { fontSize: 11, color: '#333' } },
-                    grid: { left: '3%', right: '6%', top: '40px', bottom: '3%', containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 10 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        axisLabel: { formatter: fmtWan, color: '#666', fontSize: 11 },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    },
-                    series: seriesArr
-                };
-            }
-
-            // ==================== 图表15：分款价格分布 ====================
-            const chart15Styles = ['桌面按压式显微镜', '手持数码放大镜', '枪式手持数码显微镜', '台式套装', '手持光学显微镜', '分体式套装',
-                '2合1显微/望远', 'DV式手持显微镜'
-            ];
-            const chart15Prices = ['8.99-13.99', '13.99-18.99', '18.99-23.99', '23.99-28.99', '28.99-33.99', '33.99-38.99',
-                '38.99-43.99', '43.99-48.99', '48.99-53.99', '53.99-58.99', '58.99-63.99', '68.99-73.99', '73.99-78.99',
-                '78.99-83.99', '83.99-88.99', '88.99-93.99', '98.99-103.99', '118.99-123.99', '128.99-133.99',
-                '138.99-143.99', '168.99-173.99'
-            ];
-            const chart15VolData = [
-                [0, 278, 0, 0, 560, 40, 0, 140],
-                [0, 854, 218, 305, 1743, 81, 0, 0],
-                [0, 138, 926, 489, 0, 253, 0, 49],
-                [9750, 4588, 5295, 0, 382, 0, 366, 0],
-                [4233, 0, 862, 507, 0, 153, 58, 0],
-                [1785, 0, 127, 1432, 0, 383, 418, 79],
-                [0, 927, 155, 1885, 0, 555, 0, 0],
-                [0, 0, 0, 1624, 0, 0, 0, 106],
-                [3491, 0, 0, 60, 0, 515, 0, 0],
-                [9814, 0, 0, 0, 0, 0, 0, 0],
-                [19, 0, 0, 709, 0, 676, 0, 0],
-                [0, 0, 0, 26, 0, 0, 0, 0],
-                [0, 0, 0, 54, 0, 0, 0, 0],
-                [0, 0, 0, 327, 0, 0, 0, 0],
-                [0, 0, 0, 1435, 0, 0, 0, 0],
-                [0, 0, 0, 249, 0, 0, 0, 0],
-                [0, 0, 71, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 37, 0, 0],
-                [0, 0, 0, 41, 0, 149, 0, 0],
-                [0, 0, 0, 42, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 124, 0, 0]
-            ];
-            const chart15SalesData = [
-                [0, 2499, 0, 0, 6287, 531, 0, 1363],
-                [0, 14009, 3577, 5389, 25748, 1295, 0, 0],
-                [0, 2884, 19598, 10295, 0, 5056, 0, 1077],
-                [262065, 116515, 136696, 0, 10386, 0, 9801, 0],
-                [132958, 0, 25850, 15321, 0, 4894, 1739, 0],
-                [63746, 0, 4464, 49160, 0, 13536, 14291, 2842],
-                [0, 37997, 5268, 75344, 0, 22193, 0, 0],
-                [0, 0, 0, 76974, 0, 0, 0, 4874],
-                [174515, 0, 0, 2999, 0, 26696, 0, 0],
-                [355159, 0, 0, 0, 0, 0, 0, 0],
-                [1139, 0, 0, 42991, 0, 40553, 0, 0],
-                [0, 0, 0, 1819, 0, 0, 0, 0],
-                [0, 0, 0, 4228, 0, 0, 0, 0],
-                [0, 0, 0, 26156, 0, 0, 0, 0],
-                [0, 0, 0, 126236, 0, 0, 0, 0],
-                [0, 0, 0, 22368, 0, 0, 0, 0],
-                [0, 0, 7099, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 4439, 0, 0],
-                [0, 0, 0, 5329, 0, 19368, 0, 0],
-                [0, 0, 0, 6005, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 21078, 0, 0]
-            ];
-            const chart15TotalSales = chart15SalesData.map(row => row.reduce((s, v) => s + v, 0));
-
-            function buildChart15Option() {
-                const xData = chart15Prices;
-                const barSeries = chart15Styles.map((name, idx) => ({
-                    name: name,
-                    type: 'bar',
-                    stack: 'volume',
-                    data: chart15VolData.map(row => row[idx]),
-                    itemStyle: { color: COLORS[idx % COLORS.length] },
-                    barWidth: '60%',
-                    label: { show: false },
-                    emphasis: { focus: 'series' },
-                    yAxisIndex: 0
-                }));
-                const lineSeries = {
-                    name: '总月销售额',
-                    type: 'line',
-                    data: chart15TotalSales,
-                    smooth: true,
-                    symbol: 'circle',
-                    symbolSize: 6,
-                    lineStyle: { color: COLORS[8 % COLORS.length], width: 2.5 },
-                    itemStyle: { color: COLORS[8 % COLORS.length] },
-                    yAxisIndex: 1,
-                    label: { show: false }
-                };
-                const allSeries = [...barSeries, lineSeries];
-                const legendData = [...chart15Styles, '总月销售额'];
-                return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = '价格: ' + params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                if (p.seriesName === '总月销售额') html += p.marker + ' ' + p.seriesName +
-                                    ': $' + p.value.toLocaleString() + '<br/>';
-                                else if (p.value > 0) html += p.marker + ' ' + p.seriesName + '月销量: ' + p
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => {
+                                s += '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' + p
                                     .value.toLocaleString() + '<br/>';
                             });
-                            return html;
+                            return s;
                         }
                     },
-                    legend: { data: legendData, top: 5, textStyle: { fontSize: 10, color: '#333' },
-                    type: 'scroll' },
-                    grid: { left: '3%', right: '6%', top: '50px', bottom: '3%', containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 9, rotate: 45 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
+                    legend: { data: ['老品ASIN数', '新品ASIN数', '老品平均销量', '新品平均销量'], top: 5,
+                        textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 50, right: 70, top: 40, bottom: 30 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 10, color: '#666' } },
+                    yAxis: [{
+                        type: 'value',
+                        name: 'ASIN计数',
+                        axisLabel: { fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    }, {
+                        type: 'value',
+                        name: '平均月销量',
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
+                        splitLine: { show: false },
+                    }],
+                    series: [
+                        { name: '老品ASIN数', type: 'bar', data: oldAsin, stack: 'asin',
+                            itemStyle: { color: COLORS[0] }, barWidth: 16, yAxisIndex: 0 },
+                        { name: '新品ASIN数', type: 'bar', data: newAsin, stack: 'asin',
+                            itemStyle: { color: COLORS[1] }, barWidth: 16, yAxisIndex: 0 },
+                        { name: '老品平均销量', type: 'line', data: oldAvg, smooth: true, symbol: 'circle',
+                            symbolSize: 4, lineStyle: { width: 2, color: COLORS[2] },
+                        itemStyle: { color: COLORS[2] }, yAxisIndex: 1 },
+                        { name: '新品平均销量', type: 'line', data: newAvg, smooth: true, symbol: 'diamond',
+                            symbolSize: 5, lineStyle: { width: 2, color: COLORS[3] },
+                        itemStyle: { color: COLORS[3] }, yAxisIndex: 1 },
+                    ],
+                };
+            }
+
+            function buildPieSimple(title, dataArr) {
+                const nCat = dataArr.length;
+                const showLegend = nCat <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
                     },
+                    legend: showLegend ? { orient: 'vertical', right: 10, top: 'center',
+                        textStyle: { fontSize: 12, color: '#333' }, itemWidth: 12,
+                    itemHeight: 12 } : { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['45%', '72%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: '#fff', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                if (!showLegend) return '{dot|}{name|' + p.name +
+                                    '}\n{percent|' + p.percent + '%}';
+                                return '{name|' + p.name + '}\n{percent|' + p.percent + '%}';
+                            },
+                            rich: {
+                                dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'auto',
+                                    align: 'left', verticalAlign: 'middle' },
+                                name: { fontSize: 11, color: '#333', lineHeight: 16 },
+                                percent: { fontSize: 10, color: '#666', lineHeight: 14 }
+                            }
+                        },
+                        labelLine: { show: true, length: 18, length2: 28, lineStyle: { color: '#aaa' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: dataArr
+                    }]
+                };
+            }
+
+            function buildChart11() {
+                return buildPieSimple('卖家所属地', [
+                    { name: 'CN', value: 49945 }, { name: 'AMZ', value: 5685 }, { name: 'CN(HK)',
+                    value: 2837 },
+                    { name: 'US', value: 1116 }
+                ]);
+            }
+
+            function buildChart12() {
+                return buildPieSimple('配送方式', [
+                    { name: 'FBA', value: 53533 }, { name: 'AMZ', value: 5775 }, { name: 'NA', value: 242 },
+                    { name: 'FBM', value: 33 }
+                ]);
+            }
+
+            function buildChart13() {
+                return buildPieSimple('新品销量占比', [
+                    { name: '老品', value: 57395 }, { name: '3个月内新品', value: 1483 },
+                    { name: '3~6个月内新品', value: 705 }
+                ]);
+            }
+
+            function buildChart14() {
+                const raw = [
+                    ['0~10', 84, 115],
+                    ['10~30', 740, 792],
+                    ['30~50', 576, 730],
+                    ['50~100', 2062, 185],
+                    ['100~200', 5102, 366],
+                    ['200~300', 4100, 0],
+                    ['300~400', 1133, 0],
+                    ['400~500', 8444, 0],
+                    ['500~800', 9829, 0],
+                    ['800~1200', 4298, 0],
+                    ['1200~2000', 10749, 0],
+                    ['2000+', 10278, 0]
+                ];
+                const order = ['0~10', '10~30', '30~50', '50~100', '100~200', '200~300', '300~400', '400~500',
+                    '500~800', '800~1200', '1200~2000', '2000+'
+                ];
+                const xData = order;
+                const oldData = order.map(o => parseNum((raw.find(r => r[0] === o) || [o, 0])[1]));
+                const newData = order.map(o => parseNum((raw.find(r => r[0] === o) || [o, 0])[2]));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' + p.value
+                                    .toLocaleString() + '<br/>'; });
+                            return s;
+                        }
+                    },
+                    legend: { data: ['老品', '新品'], top: 5, textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 50, right: 30, top: 40, bottom: 30 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 10, color: '#666' } },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: 'ASIN数',
+                    },
+                    series: [
+                        { name: '老品', type: 'bar', data: oldData, stack: 'total',
+                        itemStyle: { color: COLORS[0] }, barWidth: 20 },
+                        { name: '新品', type: 'bar', data: newData, stack: 'total',
+                        itemStyle: { color: COLORS[1] }, barWidth: 20 },
+                    ],
+                };
+            }
+
+            function buildChart15() {
+                const priceRanges = ['8.99-13.99', '13.99-18.99', '18.99-23.99', '23.99-28.99', '28.99-33.99',
+                    '33.99-38.99', '38.99-43.99', '43.99-48.99', '48.99-53.99', '58.99-63.99', '68.99-73.99',
+                    '73.99-78.99', '78.99-83.99', '83.99-88.99', '88.99-93.99', '98.99-103.99', '118.99-123.99',
+                    '128.99-133.99', '138.99-143.99', '168.99-173.99'
+                ];
+                const styles = ['桌面按压式显微镜', '手持数码放大镜', '枪式手持数码显微镜', '台式套装', '手持光学显微镜', '分体式套装',
+                    '2合1显微/望远', 'DV式手持显微镜'
+                ];
+                const salesVolData = [
+                    [0, 278, 0, 0, 560, 40, 0, 140],
+                    [0, 854, 218, 305, 1743, 81, 0, 0],
+                    [0, 138, 926, 489, 0, 253, 0, 49],
+                    [9750, 4588, 5295, 0, 382, 0, 366, 0],
+                    [4233, 0, 862, 507, 0, 153, 58, 0],
+                    [15090, 0, 127, 1432, 0, 383, 418, 79],
+                    [0, 927, 155, 1885, 0, 555, 0, 0],
+                    [0, 0, 0, 1624, 0, 0, 0, 106],
+                    [0, 0, 0, 60, 0, 515, 0, 0],
+                    [19, 0, 0, 709, 0, 676, 0, 0],
+                    [0, 0, 0, 26, 0, 0, 0, 0],
+                    [0, 0, 0, 54, 0, 0, 0, 0],
+                    [0, 0, 0, 327, 0, 0, 0, 0],
+                    [0, 0, 0, 1435, 0, 0, 0, 0],
+                    [0, 0, 0, 249, 0, 0, 0, 0],
+                    [0, 0, 71, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 37, 0, 0],
+                    [0, 0, 0, 41, 0, 149, 0, 0],
+                    [0, 0, 0, 42, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 124, 0, 0]
+                ];
+                const salesAmtData = [
+                    [0, 2499, 0, 0, 6287, 531, 0, 1363],
+                    [0, 14009, 3577, 5389, 25748, 1295, 0, 0],
+                    [0, 2884, 19598, 10295, 0, 5056, 0, 1077],
+                    [262065, 116515, 136696, 0, 10386, 0, 9801, 0],
+                    [132958, 0, 25850, 15321, 0, 4894, 1739, 0],
+                    [593420, 0, 4464, 49160, 0, 13536, 14291, 2842],
+                    [0, 37997, 5268, 75344, 0, 22193, 0, 0],
+                    [0, 0, 0, 76974, 0, 0, 0, 4874],
+                    [0, 0, 0, 2999, 0, 26696, 0, 0],
+                    [1139, 0, 0, 42991, 0, 40553, 0, 0],
+                    [0, 0, 0, 1819, 0, 0, 0, 0],
+                    [0, 0, 0, 4228, 0, 0, 0, 0],
+                    [0, 0, 0, 26156, 0, 0, 0, 0],
+                    [0, 0, 0, 126236, 0, 0, 0, 0],
+                    [0, 0, 0, 22368, 0, 0, 0, 0],
+                    [0, 0, 7099, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 4439, 0, 0],
+                    [0, 0, 0, 5329, 0, 19368, 0, 0],
+                    [0, 0, 0, 6005, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 21078, 0, 0]
+                ];
+                const barSeries = styles.map((s, i) => ({
+                    name: s,
+                    type: 'bar',
+                    data: salesVolData.map(r => parseNum(r[i])),
+                    stack: 'total',
+                    itemStyle: { color: COLORS[i] },
+                    barWidth: 16,
+                    yAxisIndex: 0,
+                }));
+                const lineSeries = styles.map((s, i) => ({
+                    name: s + '(销售额)',
+                    type: 'line',
+                    data: salesAmtData.map(r => parseNum(r[i])),
+                    smooth: false,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 1.5, color: COLORS[i], type: 'dashed' },
+                    itemStyle: { color: COLORS[i] },
+                    yAxisIndex: 1,
+                }));
+                const allLineNames = lineSeries.map(s => s.name);
+                const selectedLegend = {};
+                allLineNames.forEach((n, i) => { selectedLegend[n] = i < 3; });
+                barSeries.forEach(s => { selectedLegend[s.name] = true; });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => {
+                                const val = p.seriesName.includes('销售额') ? fmtPrice(p.value) : p
+                                    .value.toLocaleString();
+                                s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' +
+                                    val + '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: [...styles, ...allLineNames],
+                        top: 5,
+                        textStyle: { fontSize: 9, color: '#333' },
+                        type: 'scroll',
+                        selected: selectedLegend,
+                    },
+                    grid: { left: 60, right: 70, top: 50, bottom: 50 },
+                    xAxis: { type: 'category', data: priceRanges, axisLabel: { fontSize: 9, color: '#666',
+                            rotate: 35 } },
                     yAxis: [{
                         type: 'value',
                         name: '月销量',
-                        axisLabel: { formatter: fmtWan, color: '#666', fontSize: 11 },
+                        axisLabel: { formatter: fmtLarge, fontSize: 10, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
                     }, {
                         type: 'value',
                         name: '月销售额($)',
-                        axisLabel: { formatter: function(v) { return '$' + fmtWan(v); }, color: '#666',
-                            fontSize: 11 },
+                        axisLabel: { formatter: function(v) { return fmtLarge(v); }, fontSize: 10,
+                            color: '#666' },
                         splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
                     }],
-                    series: allSeries
+                    series: [...barSeries, ...lineSeries],
                 };
             }
 
-            // ==================== 图表16：价格质量联动分析 ====================
-            const chart16Prices = ['8.99-13.99', '13.99-18.99', '18.99-23.99', '23.99-28.99', '28.99-33.99', '33.99-38.99',
-                '38.99-43.99', '43.99-48.99', '48.99-53.99', '53.99-58.99', '58.99-63.99', '68.99-73.99', '73.99-78.99',
-                '78.99-83.99', '83.99-88.99', '88.99-93.99', '98.99-103.99', '118.99-123.99', '128.99-133.99',
-                '138.99-143.99', '168.99-173.99'
-            ];
-            const chart16Data = [
-                [0, 4, 1, 0],
-                [1, 10, 5, 1],
-                [1, 2, 10, 1],
-                [0, 3, 15, 3],
-                [0, 1, 12, 0],
-                [0, 2, 8, 2],
-                [0, 1, 6, 0],
-                [0, 0, 3, 0],
-                [0, 1, 1, 2],
-                [0, 0, 2, 0],
-                [1, 0, 4, 0],
-                [0, 0, 1, 0],
-                [0, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 1, 0],
-                [0, 0, 3, 0],
-                [0, 0, 1, 0],
-                [0, 0, 1, 0],
-                [0, 0, 1, 1],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1]
-            ];
-            const chart16StarNames = ['三星半及以下', '四星', '四星半', '五星'];
-
-            // ==================== 图表17：品牌价格分布 ====================
-            const chart17Prices = ['8.99-13.99', '13.99-18.99', '18.99-23.99', '23.99-28.99', '28.99-33.99', '33.99-38.99',
-                '38.99-43.99', '43.99-48.99', '48.99-53.99', '53.99-58.99', '58.99-63.99', '68.99-73.99', '73.99-78.99',
-                '78.99-83.99', '83.99-88.99', '88.99-93.99', '98.99-103.99', '118.99-123.99', '128.99-133.99',
-                '138.99-143.99', '168.99-173.99'
-            ];
-            const chart17Data = [
-                [556, 462],
-                [1294, 1907],
-                [1855, 0],
-                [19999, 382],
-                [5813, 0],
-                [4112, 112],
-                [3522, 0],
-                [106, 1624],
-                [4066, 0],
-                [9814, 0],
-                [1404, 0],
-                [26, 0],
-                [54, 0],
-                [327, 0],
-                [1435, 0],
-                [249, 0],
-                [71, 0],
-                [37, 0],
-                [190, 0],
-                [0, 42],
-                [124, 0]
-            ];
-
-            // ==================== 图表18：新老品价格分布 ====================
-            const chart18Prices = ['8.99-13.99', '13.99-18.99', '18.99-23.99', '23.99-28.99', '28.99-33.99', '33.99-38.99',
-                '38.99-43.99', '43.99-48.99', '48.99-53.99', '53.99-58.99', '58.99-63.99', '68.99-73.99', '73.99-78.99',
-                '78.99-83.99', '83.99-88.99', '88.99-93.99', '98.99-103.99', '118.99-123.99', '128.99-133.99',
-                '138.99-143.99', '168.99-173.99'
-            ];
-            const chart18Data = [
-                [1018, 0],
-                [3085, 116],
-                [1634, 221],
-                [19723, 658],
-                [5162, 651],
-                [3701, 523],
-                [3522, 0],
-                [1730, 0],
-                [4066, 0],
-                [9814, 0],
-                [1385, 19],
-                [26, 0],
-                [54, 0],
-                [327, 0],
-                [1435, 0],
-                [249, 0],
-                [71, 0],
-                [37, 0],
-                [190, 0],
-                [42, 0],
-                [124, 0]
-            ];
-
-            // ==================== 图表19：分款质量分布 ====================
-            const chart19Stars = ['三星半及以下', '四星', '四星半', '五星'];
-            const chart19Styles = ['桌面按压式显微镜', '手持数码放大镜', '枪式手持数码显微镜', '台式套装', '手持光学显微镜', '分体式套装', '2合1显微/望远',
-                'DV式手持显微镜'
-            ];
-            const chart19Data = [
-                [1, 0, 0, 2, 0, 0, 0, 0],
-                [0, 7, 2, 6, 4, 4, 0, 2],
-                [14, 9, 17, 19, 2, 10, 3, 3],
-                [3, 1, 2, 1, 0, 4, 0, 0]
-            ];
-
-            function buildChart19Option() {
-                const xData = chart19Stars;
-                const seriesArr = chart19Styles.map((name, idx) => ({
-                    name: name,
+            function buildChart16() {
+                const raw = [
+                    ['8.99-13.99', 0, 4, 1, 0],
+                    ['13.99-18.99', 1, 10, 5, 1],
+                    ['18.99-23.99', 1, 2, 10, 1],
+                    ['23.99-28.99', 0, 3, 15, 3],
+                    ['28.99-33.99', 0, 1, 12, 0],
+                    ['33.99-38.99', 0, 2, 11, 2],
+                    ['38.99-43.99', 0, 1, 6, 0],
+                    ['43.99-48.99', 0, 0, 3, 0],
+                    ['48.99-53.99', 0, 1, 0, 2],
+                    ['58.99-63.99', 1, 0, 4, 0],
+                    ['68.99-73.99', 0, 0, 1, 0],
+                    ['73.99-78.99', 0, 1, 0, 0],
+                    ['78.99-83.99', 0, 0, 1, 0],
+                    ['83.99-88.99', 0, 0, 1, 0],
+                    ['88.99-93.99', 0, 0, 3, 0],
+                    ['98.99-103.99', 0, 0, 1, 0],
+                    ['118.99-123.99', 0, 0, 1, 0],
+                    ['128.99-133.99', 0, 0, 1, 1],
+                    ['138.99-143.99', 0, 0, 1, 0],
+                    ['168.99-173.99', 0, 0, 0, 1]
+                ];
+                const xData = raw.map(r => r[0]);
+                const cats = ['三星半及以下', '四星', '四星半', '五星'];
+                const seriesData = cats.map((c, i) => ({
+                    name: c,
                     type: 'bar',
-                    stack: 'quality',
-                    data: chart19Data.map(row => row[idx]),
-                    itemStyle: { color: COLORS[idx % COLORS.length] },
-                    barWidth: '50%',
-                    label: { show: false },
-                    emphasis: { focus: 'series' }
+                    data: raw.map(r => parseNum(r[i + 1])),
+                    stack: 'total',
+                    itemStyle: { color: COLORS[i] },
+                    barWidth: 18,
                 }));
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let html = '评分: ' + params[0].axisValue + '<br/>';
-                            params.forEach(p => { if (p.value > 0) html += p.marker + ' ' + p.seriesName +
-                                    ': ' + p.value + '<br/>'; });
-                            return html;
+                        axisPointer: { type: 'shadow' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + ': ' + p.value +
+                                    '<br/>'; });
+                            return s;
                         }
                     },
-                    legend: { data: chart19Styles, top: 5, textStyle: { fontSize: 10, color: '#333' },
-                    type: 'scroll' },
-                    grid: { left: '3%', right: '6%', top: '50px', bottom: '3%', containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: xData,
-                        axisLabel: { color: '#666', fontSize: 11 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
-                    },
+                    legend: { data: cats, top: 5, textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 50, right: 30, top: 40, bottom: 50 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 9, color: '#666',
+                            rotate: 35 } },
                     yAxis: {
                         type: 'value',
-                        axisLabel: { color: '#666', fontSize: 11 },
+                        axisLabel: { fontSize: 11, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        name: 'ASIN数',
                     },
-                    series: seriesArr
+                    series: seriesData,
                 };
             }
 
-            // ==================== 图表20：评分销量趋势 ====================
-            const chart20Data = [
-                [3.2, 34],
-                [3.3, 19],
-                [3.7, 179],
-                [3.8, 216],
-                [3.9, 320],
-                [4.0, 476],
-                [4.1, 428],
-                [4.2, 3796],
-                [4.3, 4272],
-                [4.4, 8906],
-                [4.5, 17327],
-                [4.6, 16146],
-                [4.7, 5434],
-                [4.8, 1737],
-                [4.9, 293]
-            ];
-
-            function buildChart20Option() {
-                const xData = chart20Data.map(r => r[0].toFixed(1));
-                const yData = chart20Data.map(r => r[1]);
+            function buildChart17() {
+                const raw = [
+                    ['8.99-13.99', 556, 462],
+                    ['13.99-18.99', 1294, 1907],
+                    ['18.99-23.99', 1855, 0],
+                    ['23.99-28.99', 19999, 382],
+                    ['28.99-33.99', 5813, 0],
+                    ['33.99-38.99', 17417, 112],
+                    ['38.99-43.99', 3522, 0],
+                    ['43.99-48.99', 106, 1624],
+                    ['48.99-53.99', 575, 0],
+                    ['58.99-63.99', 1404, 0],
+                    ['68.99-73.99', 26, 0],
+                    ['73.99-78.99', 54, 0],
+                    ['78.99-83.99', 327, 0],
+                    ['83.99-88.99', 1435, 0],
+                    ['88.99-93.99', 249, 0],
+                    ['98.99-103.99', 71, 0],
+                    ['118.99-123.99', 37, 0],
+                    ['128.99-133.99', 190, 0],
+                    ['138.99-143.99', 0, 42],
+                    ['168.99-173.99', 124, 0]
+                ];
+                const xData = raw.map(r => r[0]);
                 return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            return '评分: ' + params[0].axisValue + '<br/>月销量: ' + params[0].value
-                                .toLocaleString();
-                        }
+                        axisPointer: { type: 'shadow' },
                     },
-                    grid: { left: '3%', right: '6%', top: '15px', bottom: '3%', containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: xData,
-                        name: '评分',
-                        axisLabel: { color: '#666', fontSize: 11 },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                        splitLine: { show: false }
-                    },
+                    legend: { data: ['白牌', '品牌'], top: 5, textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 60, right: 30, top: 40, bottom: 50 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 9, color: '#666',
+                            rotate: 35 } },
                     yAxis: {
                         type: 'value',
-                        axisLabel: { formatter: fmtWan, color: '#666', fontSize: 11 },
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        name: '月销量',
+                    },
+                    series: [
+                        { name: '白牌', type: 'bar', data: raw.map(r => parseNum(r[1])), stack: 'total',
+                            itemStyle: { color: COLORS[0] }, barWidth: 18 },
+                        { name: '品牌', type: 'bar', data: raw.map(r => parseNum(r[2])), stack: 'total',
+                            itemStyle: { color: COLORS[1] }, barWidth: 18 },
+                    ],
+                };
+            }
+
+            function buildChart18() {
+                const raw = [
+                    ['8.99-13.99', 1018, 0],
+                    ['13.99-18.99', 3085, 116],
+                    ['18.99-23.99', 1634, 221],
+                    ['23.99-28.99', 19723, 658],
+                    ['28.99-33.99', 5162, 651],
+                    ['33.99-38.99', 17006, 523],
+                    ['38.99-43.99', 3522, 0],
+                    ['43.99-48.99', 1730, 0],
+                    ['48.99-53.99', 575, 0],
+                    ['58.99-63.99', 1385, 19],
+                    ['68.99-73.99', 26, 0],
+                    ['73.99-78.99', 54, 0],
+                    ['78.99-83.99', 327, 0],
+                    ['83.99-88.99', 1435, 0],
+                    ['88.99-93.99', 249, 0],
+                    ['98.99-103.99', 71, 0],
+                    ['118.99-123.99', 37, 0],
+                    ['128.99-133.99', 190, 0],
+                    ['138.99-143.99', 42, 0],
+                    ['168.99-173.99', 124, 0]
+                ];
+                const xData = raw.map(r => r[0]);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' },
+                    },
+                    legend: { data: ['老品', '新品'], top: 5, textStyle: { fontSize: 11, color: '#333' } },
+                    grid: { left: 60, right: 30, top: 40, bottom: 50 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 9, color: '#666',
+                            rotate: 35 } },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: '月销量',
+                    },
+                    series: [
+                        { name: '老品', type: 'bar', data: raw.map(r => parseNum(r[1])), stack: 'total',
+                            itemStyle: { color: COLORS[0] }, barWidth: 18 },
+                        { name: '新品', type: 'bar', data: raw.map(r => parseNum(r[2])), stack: 'total',
+                            itemStyle: { color: COLORS[1] }, barWidth: 18 },
+                    ],
+                };
+            }
+
+            function buildChart19() {
+                const stars = ['三星半及以下', '四星', '四星半', '五星'];
+                const styles19 = ['桌面按压式显微镜', '手持数码放大镜', '枪式手持数码显微镜', '台式套装', '手持光学显微镜', '分体式套装', '2合1显微/望远',
+                    'DV式手持显微镜'
+                ];
+                const data19 = [
+                    [1, 0, 0, 2, 0, 0, 0, 0],
+                    [0, 7, 2, 6, 4, 4, 0, 2],
+                    [14, 9, 17, 19, 2, 10, 3, 3],
+                    [3, 1, 2, 1, 0, 4, 0, 0]
+                ];
+                const series19 = styles19.map((s, i) => ({
+                    name: s,
+                    type: 'bar',
+                    data: data19.map(r => parseNum(r[i])),
+                    stack: 'total',
+                    itemStyle: { color: COLORS[i] },
+                    barWidth: 22,
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' },
+                    },
+                    legend: { data: styles19, top: 5, textStyle: { fontSize: 9, color: '#333' },
+                    type: 'scroll' },
+                    grid: { left: 50, right: 30, top: 50, bottom: 30 },
+                    xAxis: { type: 'category', data: stars, axisLabel: { fontSize: 11, color: '#666' } },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: 'ASIN数',
+                    },
+                    series: series19,
+                };
+            }
+
+            function buildChart20() {
+                const raw = [
+                    [3.2, 34],
+                    [3.3, 19],
+                    [3.7, 179],
+                    [3.8, 216],
+                    [3.9, 320],
+                    [4.0, 476],
+                    [4.1, 428],
+                    [4.2, 3796],
+                    [4.3, 4272],
+                    [4.4, 8906],
+                    [4.5, 17327],
+                    [4.6, 16146],
+                    [4.7, 5434],
+                    [4.8, 1737],
+                    [4.9, 293]
+                ];
+                raw.sort((a, b) => a[0] - b[0]);
+                const xData = raw.map(r => r[0].toFixed(1));
+                const yData = raw.map(r => parseNum(r[1]));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            return '评分: ' + ps[0].axisValue + '<br/>月销量: ' + ps[0].value.toLocaleString();
+                        }
+                    },
+                    grid: { left: 60, right: 30, top: 20, bottom: 30 },
+                    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 11, color: '#666' },
+                        name: '评分', boundaryGap: false },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: fmtLarge, fontSize: 11, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: '月销量',
                     },
                     series: [{
                         type: 'line',
                         data: yData,
                         smooth: true,
                         symbol: 'circle',
-                        symbolSize: 6,
-                        lineStyle: { color: COLORS[0], width: 2.5 },
+                        symbolSize: 5,
+                        lineStyle: { width: 2.5, color: COLORS[0] },
                         itemStyle: { color: COLORS[0] },
-                        areaStyle: { color: 'rgba(255,157,25,0.1)' },
-                        label: { show: false }
-                    }]
+                        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0,
+                                color: 'rgba(255,157,25,0.3)' }, { offset: 1, color: 'rgba(255,157,25,0.02)' }
+                        ]) },
+                        label: { show: false },
+                    }],
                 };
             }
 
-            // ==================== 构建图表配置数组 ====================
-            const chartOpts = [];
+            const chartOpts = [
+                buildChart1, buildChart2, buildChart3, buildChart4, buildChart5, buildChart6, buildChart7,
+                buildChart8,
+                buildChart9, buildChart10, buildChart11, buildChart12, buildChart13, buildChart14, buildChart15,
+                buildChart16, buildChart17, buildChart18, buildChart19, buildChart20
+            ];
 
-            // 图表1
-            chartOpts.push(buildPieOption(pie1Data, '分款销量占比'));
-            // 图表2
-            chartOpts.push(buildHBarOption(bar2Data, '屏幕类型销量分布'));
-            // 图表3
-            chartOpts.push(buildHBarOption(bar3Raw, '放大系统销量分布'));
-            // 图表4
-            chartOpts.push(buildPieOption2(pie4Data));
-            // 图表5
-            (function() {
-                const d5 = buildChart5Data();
-                chartOpts.push(buildLineOption(d5.xAxisData, d5.series, '关键词搜索量趋势', fmtWan));
-            })();
-            // 图表6
-            (function() {
-                const d6 = buildChart6Data();
-                chartOpts.push(buildLineOption(d6.xAxisData, d6.series, '关键词ABA排名趋势', function(v) { return v
-                        .toLocaleString(); }));
-            })();
-            // 图表7
-            chartOpts.push(buildChart7Option());
-            // 图表8
-            chartOpts.push(buildChart8Option());
-            // 图表9
-            chartOpts.push(buildSimplePieOption(pie9Data));
-            // 图表10
-            chartOpts.push(buildChart10Option());
-            // 图表11
-            chartOpts.push(buildSimplePieOption(pie11Data));
-            // 图表12
-            chartOpts.push(buildSimplePieOption(pie12Data));
-            // 图表13
-            chartOpts.push(buildSimplePieOption(pie13Data));
-            // 图表14
-            chartOpts.push(buildStackedBarOption(chart14Raw, ['老品', '新品'], 'review数分布'));
-            // 图表15
-            chartOpts.push(buildChart15Option());
-            // 图表16
-            chartOpts.push(buildStackedBarOption(chart16Data.map((row, i) => [chart16Prices[i], ...row]),
-                chart16StarNames, '价格质量联动分析'));
-            // 图表17
-            chartOpts.push(buildStackedBarOption(chart17Data.map((row, i) => [chart17Prices[i], ...row]), ['白牌', '品牌'],
-                '品牌价格分布'));
-            // 图表18
-            chartOpts.push(buildStackedBarOption(chart18Data.map((row, i) => [chart18Prices[i], ...row]), ['老品', '新品'],
-                '新老品价格分布'));
-            // 图表19
-            chartOpts.push(buildChart19Option());
-            // 图表20
-            chartOpts.push(buildChart20Option());
+            function init() {
+                const params = new URLSearchParams(window.location.search);
+                let id = parseInt(params.get('id')) || 1;
+                if (id < 1 || id > 20) id = 1;
+                const titleEl = document.getElementById('chartTitle');
+                const containerEl = document.getElementById('singleChart');
+                titleEl.textContent = chartTitles[id - 1];
+                const chart = echarts.init(containerEl);
+                const opt = chartOpts[id - 1]();
+                chart.setOption(opt);
+                setTimeout(() => { chart.resize(); }, 100);
+                window.addEventListener('resize', () => { chart.resize(); });
+            }
 
-            // ==================== 主逻辑 ====================
-            const params = new URLSearchParams(window.location.search);
-            let chartId = parseInt(params.get('id'));
-            if (isNaN(chartId) || chartId < 1 || chartId > 20) chartId = 1;
-
-            document.getElementById('chartTitle').textContent = chartTitles[chartId - 1];
-            const chartDom = document.getElementById('singleChart');
-            const myChart = echarts.init(chartDom);
-            myChart.setOption(chartOpts[chartId - 1]);
-
-            setTimeout(function() {
-                myChart.resize();
-            }, 100);
-
-            window.addEventListener('resize', function() {
-                myChart.resize();
-            });
+            document.addEventListener('DOMContentLoaded', init);
         })();
     </script>
 </body>
