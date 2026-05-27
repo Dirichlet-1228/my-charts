@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>市场分析图表</title>
+    <title>数据可视化图表</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
     </script>
     <style>
@@ -61,32 +61,32 @@
                 '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
             ];
 
-            // 千分位解析
-            function parseNum(v) { if (typeof v === 'number') return v; if (typeof v === 'string') return +v.replace(
-                    /,/g, ''); return +v; }
-
-            // 构建月份列表
-            function buildMonthRange(startYM, endYM) {
-                const [sy, sm] = startYM.split('-').map(Number);
-                const [ey, em] = endYM.split('-').map(Number);
-                const months = [];
-                let y = sy,
-                    m = sm;
-                while (y < ey || (y === ey && m <= em)) {
-                    months.push(y + '-' + String(m).padStart(2, '0'));
-                    m++;
-                    if (m > 12) { m = 1;
-                        y++; }
-                }
-                return months;
+            function parseNum(v) {
+                if (v === '' || v === null || v === undefined || v === '\t' || v === '0') return 0;
+                if (typeof v === 'number') return v;
+                return parseFloat(String(v).replace(/,/g, '')) || 0;
             }
 
-            // 图表标题列表
+            function parseNumOrNull(v) {
+                if (v === '' || v === null || v === undefined || v === '\t' || String(v).trim() === '') return null;
+                return parseFloat(String(v).replace(/,/g, '')) || null;
+            }
+
+            function formatWan(v) {
+                if (v >= 10000) return (v / 10000).toFixed(v % 10000 === 0 ? 0 : 1) + '万';
+                return v.toString();
+            }
+
+            function getColor(i) {
+                return COLORS[i % COLORS.length];
+            }
+
+            // ==================== 图表标题数组 ====================
             const chartTitles = [
                 '分款销量占比', // 1
                 '目标客群销量占比', // 2
                 '主题/IP销量占比', // 3
-                '', // 4 无数据
+                '图案丰富度销量分布', // 4
                 '关键词搜索量趋势', // 5
                 '关键词ABA排名趋势', // 6
                 '历史总销量走势', // 7
@@ -102,1328 +102,1910 @@
                 '品牌价格分布', // 17
                 '新老品价格分布', // 18
                 '分款评分星级分布', // 19
-                '评分销量趋势' // 20
+                '评分销量趋势', // 20
             ];
 
-            // 获取URL参数
-            const params = new URLSearchParams(window.location.search);
-            let chartId = parseInt(params.get('id')) || 1;
-            if (chartId < 1 || chartId > 20) chartId = 1;
-            document.getElementById('chartTitle').textContent = chartTitles[chartId - 1] || '图表';
-
-            // 构建图表配置
-            function getChartOption(id) {
-                let option = {};
-                switch (id) {
-                    case 1: { // 分款销量占比-饼图
-                        const data = [
-                            { name: '儿童主题/角色纹身', value: 78957 },
-                            { name: '花卉/女性装饰纹身', value: 23296 },
-                            { name: '成人写实/3D/半臂纹身', value: 21762 },
-                            { name: '儿童混合套装纹身', value: 16926 },
-                            { name: '夜光/UV发光纹身', value: 12253 },
-                            { name: 'DIY纹身墨水套装', value: 9121 },
-                            { name: 'DIY纹身马克笔套装', value: 8493 },
-                            { name: '特殊场合/节日纹身', value: 8437 },
-                            { name: '临时纹身打印机', value: 2715 },
-                            { name: 'DIY纹身闪粉套装', value: 824 }
-                        ];
-                        const showLegend = data.length <= 8;
-                        option = {
-                            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
-                            legend: showLegend ? {
-                                orient: 'vertical',
-                                right: 10,
-                                top: 'middle',
-                                textStyle: { fontSize: 11 },
-                                type: 'scroll',
-                                pageIconSize: 10
-                            } : { show: false },
-                            color: COLORS.slice(0, data.length),
-                            series: [{
-                                type: 'pie',
-                                radius: ['35%', '68%'],
-                                center: ['42%', '50%'],
-                                label: {
-                                    show: true,
-                                    formatter: showLegend ? '{b}\n{d}%' :
-                                        '{markerCircle|●} {b}\n   {d}%',
-                                    rich: {
-                                        markerCircle: {
-                                            width: 8,
-                                            height: 8,
-                                            borderRadius: 4,
-                                            backgroundColor: 'inherit'
-                                        }
-                                    },
-                                    fontSize: 10,
-                                    lineHeight: 16
-                                },
-                                labelLine: { show: true, length: 20, length2: 30 },
-                                emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
-                                data: data
-                            }]
-                        };
-                        break;
-                    }
-                    case 2: { // 目标客群销量占比-饼图
-                        const data = [
-                            { name: '儿童', value: 103938 },
-                            { name: '成人/青少年', value: 41316 },
-                            { name: '女性', value: 22282 },
-                            { name: '通用/全年龄', value: 15248 }
-                        ];
-                        const showLegend = data.length <= 8;
-                        option = {
-                            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
-                            legend: showLegend ? {
-                                orient: 'vertical',
-                                right: 10,
-                                top: 'middle',
-                                textStyle: { fontSize: 11 }
-                            } : { show: false },
-                            color: COLORS.slice(0, data.length),
-                            series: [{
-                                type: 'pie',
-                                radius: ['35%', '68%'],
-                                center: ['42%', '50%'],
-                                label: {
-                                    show: true,
-                                    formatter: showLegend ? '{b}\n{d}%' :
-                                        '{markerCircle|●} {b}\n   {d}%',
-                                    rich: { markerCircle: { width: 8,
-                                            height: 8, borderRadius: 4,
-                                            backgroundColor: 'inherit' } },
-                                    fontSize: 10,
-                                    lineHeight: 16
-                                },
-                                labelLine: { show: true, length: 20, length2: 30 },
-                                data: data
-                            }]
-                        };
-                        break;
-                    }
-                    case 3: { // 主题/IP销量占比-横轴柱状图
-                        const raw = [
-                            ['动物与自然', 20629],
-                            ['写实/暗黑/凶猛', 18752],
-                            ['综合/混合设计', 26308],
-                            ['卡通/IP角色', 39232],
-                            ['花卉/装饰', 21681],
-                            ['DIY/自定义', 20329],
-                            ['交通工具/运动', 11525],
-                            ['节日/场合', 11436],
-                            ['幻想/魔法', 12892]
-                        ];
-                        const names = raw.map(r => r[0]);
-                        const values = raw.map(r => r[1]);
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, axisPointer: { type: 'shadow' },
-                                formatter: p => p[0].name + '<br/>月销量: ' + p[0].value.toLocaleString() },
-                            grid: { left: '3%', right: '8%', top: '5%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'value', name: '月销量', axisLabel: { formatter: v => v >= 10000 ? (v /
-                                        10000).toFixed(1) + '万' : v } },
-                            yAxis: { type: 'category', data: names, inverse: true, axisLabel: { fontSize: 10 } },
-                            color: [COLORS[0]],
-                            series: [{ type: 'bar', data: values, barWidth: '55%', itemStyle: { borderRadius: [0,
-                                        3, 3, 0] } }]
-                        };
-                        break;
-                    }
-                    case 4: { // 无数据
-                        option = {
-                            title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
-                                    fontSize: 16 } },
-                            series: []
-                        };
-                        break;
-                    }
-                    case 5: { // 关键词搜索量趋势-多系列折线图
-                        const rawData = [
-                            ['temporary tattoos', '2017-01', 97305],
-                            ['temporary tattoos', '2017-02', 141807],
-                            ['temporary tattoos', '2017-03', 142423],
-                            ['temporary tattoos', '2017-04', 259672],
-                            ['temporary tattoos', '2017-05', 157861],
-                            ['temporary tattoos', '2017-06', 189734],
-                            ['temporary tattoos', '2017-07', 199934],
-                            ['temporary tattoos', '2017-08', 173131],
-                            ['temporary tattoos', '2017-09', 158457],
-                            ['temporary tattoos', '2017-10', 242492],
-                            ['temporary tattoos', '2017-11', 97204],
-                            ['temporary tattoos', '2017-12', 88453],
-                            ['temporary tattoos', '2018-01', 98151],
-                            ['temporary tattoos', '2018-02', 127189],
-                            ['temporary tattoos', '2018-03', 140908],
-                            ['temporary tattoos', '2018-04', 166929],
-                            ['temporary tattoos', '2018-05', 164812],
-                            ['temporary tattoos', '2018-06', 199094],
-                            ['temporary tattoos', '2018-07', 184224],
-                            ['temporary tattoos', '2018-08', 160363],
-                            ['temporary tattoos', '2018-09', 164076],
-                            ['temporary tattoos', '2018-10', 209470],
-                            ['temporary tattoos', '2018-11', 93150],
-                            ['temporary tattoos', '2018-12', 90465],
-                            ['temporary tattoos', '2019-01', 123260],
-                            ['temporary tattoos', '2019-02', 131835],
-                            ['temporary tattoos', '2019-03', 153360],
-                            ['temporary tattoos', '2019-04', 173756],
-                            ['temporary tattoos', '2019-05', 163712],
-                            ['temporary tattoos', '2019-06', 174798],
-                            ['temporary tattoos', '2019-07', 197297],
-                            ['temporary tattoos', '2019-08', 177868],
-                            ['temporary tattoos', '2019-09', 179511],
-                            ['temporary tattoos', '2019-10', 227272],
-                            ['temporary tattoos', '2019-11', 115579],
-                            ['temporary tattoos', '2019-12', 119675],
-                            ['temporary tattoos', '2020-01', 167796],
-                            ['temporary tattoos', '2020-02', 158402],
-                            ['temporary tattoos', '2020-03', 133354],
-                            ['temporary tattoos', '2020-04', 121176],
-                            ['temporary tattoos', '2020-05', 137371],
-                            ['temporary tattoos', '2020-06', 163285],
-                            ['temporary tattoos', '2020-07', 151121],
-                            ['temporary tattoos', '2020-08', 204771],
-                            ['temporary tattoos', '2020-09', 159646],
-                            ['temporary tattoos', '2020-10', 172306],
-                            ['temporary tattoos', '2020-11', 112041],
-                            ['temporary tattoos', '2020-12', 115511],
-                            ['temporary tattoos', '2021-01', 246145],
-                            ['temporary tattoos', '2021-02', 191924],
-                            ['temporary tattoos', '2021-03', 227662],
-                            ['temporary tattoos', '2021-04', 133793],
-                            ['temporary tattoos', '2021-05', 48382],
-                            ['temporary tattoos', '2021-06', 78361],
-                            ['temporary tattoos', '2021-07', 60274],
-                            ['temporary tattoos', '2021-08', 49301],
-                            ['temporary tattoos', '2021-09', 44156],
-                            ['temporary tattoos', '2021-10', 43820],
-                            ['temporary tattoos', '2021-11', 30214],
-                            ['temporary tattoos', '2021-12', 23189],
-                            ['temporary tattoos', '2022-01', 22877],
-                            ['temporary tattoos', '2022-02', 28751],
-                            ['temporary tattoos', '2022-03', 35115],
-                            ['temporary tattoos', '2022-04', 34589],
-                            ['temporary tattoos', '2022-05', 35302],
-                            ['temporary tattoos', '2022-06', 41113],
-                            ['temporary tattoos', '2022-07', 31866],
-                            ['temporary tattoos', '2022-08', 56795],
-                            ['temporary tattoos', '2022-09', 39311],
-                            ['temporary tattoos', '2022-10', 43471],
-                            ['temporary tattoos', '2022-11', 31525],
-                            ['temporary tattoos', '2022-12', 26334],
-                            ['temporary tattoos', '2023-01', 34000],
-                            ['temporary tattoos', '2023-02', 35386],
-                            ['temporary tattoos', '2023-03', 28621],
-                            ['temporary tattoos', '2023-04', 29136],
-                            ['temporary tattoos', '2023-05', 41412],
-                            ['temporary tattoos', '2023-06', 42687],
-                            ['temporary tattoos', '2023-07', 38658],
-                            ['temporary tattoos', '2023-08', 57361],
-                            ['temporary tattoos', '2023-09', 60903],
-                            ['temporary tattoos', '2023-10', 64412],
-                            ['temporary tattoos', '2023-11', 33382],
-                            ['temporary tattoos', '2023-12', 36479],
-                            ['temporary tattoos', '2024-01', 37657],
-                            ['temporary tattoos', '2024-02', 45770],
-                            ['temporary tattoos', '2024-03', 62367],
-                            ['temporary tattoos', '2024-04', 60622],
-                            ['temporary tattoos', '2024-05', 64447],
-                            ['temporary tattoos', '2024-06', 75956],
-                            ['temporary tattoos', '2024-07', 70346],
-                            ['temporary tattoos', '2024-08', 65671],
-                            ['temporary tattoos', '2024-09', 66088],
-                            ['temporary tattoos', '2024-10', 154053],
-                            ['temporary tattoos', '2024-11', 124180],
-                            ['temporary tattoos', '2024-12', 110600],
-                            ['temporary tattoos', '2025-01', 126278],
-                            ['temporary tattoos', '2025-02', 147622],
-                            ['temporary tattoos', '2025-03', 154177],
-                            ['temporary tattoos', '2025-04', 147091],
-                            ['temporary tattoos', '2025-05', 149775],
-                            ['temporary tattoos', '2025-06', 158189],
-                            ['temporary tattoos', '2025-07', 147123],
-                            ['temporary tattoos', '2025-08', 132269],
-                            ['temporary tattoos', '2025-09', 132243],
-                            ['temporary tattoos', '2025-10', 163523],
-                            ['temporary tattoos', '2025-11', 90648],
-                            ['temporary tattoos', '2025-12', 93582],
-                            ['temporary tattoos', '2026-01', 116222],
-                            ['temporary tattoos', '2026-02', 117361],
-                            ['temporary tattoos', '2026-03', 136318],
-                            ['temporary tattoos', '2026-04', 139712],
-                            ['temporary tattoo maker', '2017-01', 0],
-                            ['temporary tattoo maker', '2017-02', 0],
-                            ['temporary tattoo maker', '2017-03', 0],
-                            ['temporary tattoo maker', '2017-04', 0],
-                            ['temporary tattoo maker', '2017-05', 0],
-                            ['temporary tattoo maker', '2017-06', 0],
-                            ['temporary tattoo maker', '2017-07', 0],
-                            ['temporary tattoo maker', '2017-08', 0],
-                            ['temporary tattoo maker', '2017-09', 0],
-                            ['temporary tattoo maker', '2017-10', 0],
-                            ['temporary tattoo maker', '2017-11', 0],
-                            ['temporary tattoo maker', '2017-12', 0],
-                            ['temporary tattoo maker', '2018-01', 0],
-                            ['temporary tattoo maker', '2018-02', 0],
-                            ['temporary tattoo maker', '2018-03', 0],
-                            ['temporary tattoo maker', '2018-04', 0],
-                            ['temporary tattoo maker', '2018-05', 0],
-                            ['temporary tattoo maker', '2018-06', 0],
-                            ['temporary tattoo maker', '2018-07', 0],
-                            ['temporary tattoo maker', '2018-08', 0],
-                            ['temporary tattoo maker', '2018-09', 0],
-                            ['temporary tattoo maker', '2018-10', 0],
-                            ['temporary tattoo maker', '2018-11', 0],
-                            ['temporary tattoo maker', '2018-12', 0],
-                            ['temporary tattoo maker', '2019-01', 0],
-                            ['temporary tattoo maker', '2019-02', 0],
-                            ['temporary tattoo maker', '2019-03', 0],
-                            ['temporary tattoo maker', '2019-04', 0],
-                            ['temporary tattoo maker', '2019-05', 0],
-                            ['temporary tattoo maker', '2019-06', 0],
-                            ['temporary tattoo maker', '2019-07', 0],
-                            ['temporary tattoo maker', '2019-08', 0],
-                            ['temporary tattoo maker', '2019-09', 0],
-                            ['temporary tattoo maker', '2019-10', 0],
-                            ['temporary tattoo maker', '2019-11', 0],
-                            ['temporary tattoo maker', '2019-12', 0],
-                            ['temporary tattoo maker', '2020-01', 0],
-                            ['temporary tattoo maker', '2020-02', 0],
-                            ['temporary tattoo maker', '2020-03', 0],
-                            ['temporary tattoo maker', '2020-04', 0],
-                            ['temporary tattoo maker', '2020-05', 0],
-                            ['temporary tattoo maker', '2020-06', 0],
-                            ['temporary tattoo maker', '2020-07', 0],
-                            ['temporary tattoo maker', '2020-08', 0],
-                            ['temporary tattoo maker', '2020-09', 0],
-                            ['temporary tattoo maker', '2020-10', 0],
-                            ['temporary tattoo maker', '2020-11', 0],
-                            ['temporary tattoo maker', '2020-12', 0],
-                            ['temporary tattoo maker', '2021-01', 0],
-                            ['temporary tattoo maker', '2021-02', 0],
-                            ['temporary tattoo maker', '2021-03', 0],
-                            ['temporary tattoo maker', '2021-04', 0],
-                            ['temporary tattoo maker', '2021-05', 0],
-                            ['temporary tattoo maker', '2021-06', 0],
-                            ['temporary tattoo maker', '2021-07', 526],
-                            ['temporary tattoo maker', '2021-08', 0],
-                            ['temporary tattoo maker', '2021-09', 0],
-                            ['temporary tattoo maker', '2021-10', 0],
-                            ['temporary tattoo maker', '2021-11', 0],
-                            ['temporary tattoo maker', '2021-12', 0],
-                            ['temporary tattoo maker', '2022-01', 509],
-                            ['temporary tattoo maker', '2022-02', 0],
-                            ['temporary tattoo maker', '2022-03', 0],
-                            ['temporary tattoo maker', '2022-04', 0],
-                            ['temporary tattoo maker', '2022-05', 589],
-                            ['temporary tattoo maker', '2022-06', 989],
-                            ['temporary tattoo maker', '2022-07', 0],
-                            ['temporary tattoo maker', '2022-08', 506],
-                            ['temporary tattoo maker', '2022-09', 660],
-                            ['temporary tattoo maker', '2022-10', 0],
-                            ['temporary tattoo maker', '2022-11', 618],
-                            ['temporary tattoo maker', '2022-12', 592],
-                            ['temporary tattoo maker', '2023-01', 0],
-                            ['temporary tattoo maker', '2023-02', 449],
-                            ['temporary tattoo maker', '2023-03', 412],
-                            ['temporary tattoo maker', '2023-04', 0],
-                            ['temporary tattoo maker', '2023-05', 100],
-                            ['temporary tattoo maker', '2023-06', 100],
-                            ['temporary tattoo maker', '2023-07', 585],
-                            ['temporary tattoo maker', '2023-08', 1186],
-                            ['temporary tattoo maker', '2023-09', 0],
-                            ['temporary tattoo maker', '2023-10', 793],
-                            ['temporary tattoo maker', '2023-11', 879],
-                            ['temporary tattoo maker', '2023-12', 1147],
-                            ['temporary tattoo maker', '2024-01', 0],
-                            ['temporary tattoo maker', '2024-02', 0],
-                            ['temporary tattoo maker', '2024-03', 561],
-                            ['temporary tattoo maker', '2024-04', 307],
-                            ['temporary tattoo maker', '2024-05', 0],
-                            ['temporary tattoo maker', '2024-06', 559],
-                            ['temporary tattoo maker', '2024-07', 140],
-                            ['temporary tattoo maker', '2024-08', 0],
-                            ['temporary tattoo maker', '2024-09', 0],
-                            ['temporary tattoo maker', '2024-10', 521],
-                            ['temporary tattoo maker', '2024-11', 314],
-                            ['temporary tattoo maker', '2024-12', 627],
-                            ['temporary tattoo maker', '2025-01', 0],
-                            ['temporary tattoo maker', '2025-02', 0],
-                            ['temporary tattoo maker', '2025-03', 0],
-                            ['temporary tattoo maker', '2025-04', 0],
-                            ['temporary tattoo maker', '2025-05', 398],
-                            ['temporary tattoo maker', '2025-06', 302],
-                            ['temporary tattoo maker', '2025-07', 504],
-                            ['temporary tattoo maker', '2025-08', 0],
-                            ['temporary tattoo maker', '2025-09', 358],
-                            ['temporary tattoo maker', '2025-10', 140],
-                            ['temporary tattoo maker', '2025-11', 16748],
-                            ['temporary tattoo maker', '2025-12', 11882],
-                            ['temporary tattoo maker', '2026-01', 3431],
-                            ['temporary tattoo maker', '2026-02', 3888],
-                            ['temporary tattoo maker', '2026-03', 3587],
-                            ['temporary tattoo maker', '2026-04', 25833],
-                            ['temporary tattoo printer', '2017-01', 0],
-                            ['temporary tattoo printer', '2017-02', 0],
-                            ['temporary tattoo printer', '2017-03', 0],
-                            ['temporary tattoo printer', '2017-04', 0],
-                            ['temporary tattoo printer', '2017-05', 0],
-                            ['temporary tattoo printer', '2017-06', 0],
-                            ['temporary tattoo printer', '2017-07', 0],
-                            ['temporary tattoo printer', '2017-08', 0],
-                            ['temporary tattoo printer', '2017-09', 0],
-                            ['temporary tattoo printer', '2017-10', 0],
-                            ['temporary tattoo printer', '2017-11', 0],
-                            ['temporary tattoo printer', '2017-12', 0],
-                            ['temporary tattoo printer', '2018-01', 0],
-                            ['temporary tattoo printer', '2018-02', 0],
-                            ['temporary tattoo printer', '2018-03', 0],
-                            ['temporary tattoo printer', '2018-04', 0],
-                            ['temporary tattoo printer', '2018-05', 0],
-                            ['temporary tattoo printer', '2018-06', 0],
-                            ['temporary tattoo printer', '2018-07', 0],
-                            ['temporary tattoo printer', '2018-08', 1182],
-                            ['temporary tattoo printer', '2018-09', 0],
-                            ['temporary tattoo printer', '2018-10', 0],
-                            ['temporary tattoo printer', '2018-11', 0],
-                            ['temporary tattoo printer', '2018-12', 0],
-                            ['temporary tattoo printer', '2019-01', 0],
-                            ['temporary tattoo printer', '2019-02', 0],
-                            ['temporary tattoo printer', '2019-03', 0],
-                            ['temporary tattoo printer', '2019-04', 0],
-                            ['temporary tattoo printer', '2019-05', 0],
-                            ['temporary tattoo printer', '2019-06', 0],
-                            ['temporary tattoo printer', '2019-07', 0],
-                            ['temporary tattoo printer', '2019-08', 0],
-                            ['temporary tattoo printer', '2019-09', 2687],
-                            ['temporary tattoo printer', '2019-10', 0],
-                            ['temporary tattoo printer', '2019-11', 0],
-                            ['temporary tattoo printer', '2019-12', 0],
-                            ['temporary tattoo printer', '2020-01', 0],
-                            ['temporary tattoo printer', '2020-02', 0],
-                            ['temporary tattoo printer', '2020-03', 1101],
-                            ['temporary tattoo printer', '2020-04', 1434],
-                            ['temporary tattoo printer', '2020-05', 629],
-                            ['temporary tattoo printer', '2020-06', 0],
-                            ['temporary tattoo printer', '2020-07', 656],
-                            ['temporary tattoo printer', '2020-08', 1136],
-                            ['temporary tattoo printer', '2020-09', 701],
-                            ['temporary tattoo printer', '2020-10', 727],
-                            ['temporary tattoo printer', '2020-11', 679],
-                            ['temporary tattoo printer', '2020-12', 791],
-                            ['temporary tattoo printer', '2021-01', 845],
-                            ['temporary tattoo printer', '2021-02', 1589],
-                            ['temporary tattoo printer', '2021-03', 1069],
-                            ['temporary tattoo printer', '2021-04', 1712],
-                            ['temporary tattoo printer', '2021-05', 2403],
-                            ['temporary tattoo printer', '2021-06', 3598],
-                            ['temporary tattoo printer', '2021-07', 2393],
-                            ['temporary tattoo printer', '2021-08', 2435],
-                            ['temporary tattoo printer', '2021-09', 5423],
-                            ['temporary tattoo printer', '2021-10', 3497],
-                            ['temporary tattoo printer', '2021-11', 2215],
-                            ['temporary tattoo printer', '2021-12', 2469],
-                            ['temporary tattoo printer', '2022-01', 2761],
-                            ['temporary tattoo printer', '2022-02', 2820],
-                            ['temporary tattoo printer', '2022-03', 2206],
-                            ['temporary tattoo printer', '2022-04', 2136],
-                            ['temporary tattoo printer', '2022-05', 2341],
-                            ['temporary tattoo printer', '2022-06', 2031],
-                            ['temporary tattoo printer', '2022-07', 2345],
-                            ['temporary tattoo printer', '2022-08', 2781],
-                            ['temporary tattoo printer', '2022-09', 2833],
-                            ['temporary tattoo printer', '2022-10', 2584],
-                            ['temporary tattoo printer', '2022-11', 2153],
-                            ['temporary tattoo printer', '2022-12', 2140],
-                            ['temporary tattoo printer', '2023-01', 4285],
-                            ['temporary tattoo printer', '2023-02', 3675],
-                            ['temporary tattoo printer', '2023-03', 2310],
-                            ['temporary tattoo printer', '2023-04', 2266],
-                            ['temporary tattoo printer', '2023-05', 1841],
-                            ['temporary tattoo printer', '2023-06', 2599],
-                            ['temporary tattoo printer', '2023-07', 2327],
-                            ['temporary tattoo printer', '2023-08', 2880],
-                            ['temporary tattoo printer', '2023-09', 3358],
-                            ['temporary tattoo printer', '2023-10', 2707],
-                            ['temporary tattoo printer', '2023-11', 3713],
-                            ['temporary tattoo printer', '2023-12', 3554],
-                            ['temporary tattoo printer', '2024-01', 3438],
-                            ['temporary tattoo printer', '2024-02', 3459],
-                            ['temporary tattoo printer', '2024-03', 5521],
-                            ['temporary tattoo printer', '2024-04', 8173],
-                            ['temporary tattoo printer', '2024-05', 5796],
-                            ['temporary tattoo printer', '2024-06', 8367],
-                            ['temporary tattoo printer', '2024-07', 4689],
-                            ['temporary tattoo printer', '2024-08', 6230],
-                            ['temporary tattoo printer', '2024-09', 3262],
-                            ['temporary tattoo printer', '2024-10', 3202],
-                            ['temporary tattoo printer', '2024-11', 5036],
-                            ['temporary tattoo printer', '2024-12', 3866],
-                            ['temporary tattoo printer', '2025-01', 3145],
-                            ['temporary tattoo printer', '2025-02', 2566],
-                            ['temporary tattoo printer', '2025-03', 2507],
-                            ['temporary tattoo printer', '2025-04', 3123],
-                            ['temporary tattoo printer', '2025-05', 1707],
-                            ['temporary tattoo printer', '2025-06', 1973],
-                            ['temporary tattoo printer', '2025-07', 2785],
-                            ['temporary tattoo printer', '2025-08', 3146],
-                            ['temporary tattoo printer', '2025-09', 2137],
-                            ['temporary tattoo printer', '2025-10', 2400],
-                            ['temporary tattoo printer', '2025-11', 5878],
-                            ['temporary tattoo printer', '2025-12', 6203],
-                            ['temporary tattoo printer', '2026-01', 4323],
-                            ['temporary tattoo printer', '2026-02', 4945],
-                            ['temporary tattoo printer', '2026-03', 3697],
-                            ['temporary tattoo printer', '2026-04', 6299]
-                        ];
-                        const months5 = buildMonthRange('2017-01', '2026-04');
-                        const seriesNames5 = ['temporary tattoos', 'temporary tattoo maker',
-                            'temporary tattoo printer'
-                        ];
-                        const lookup5 = {};
-                        rawData.forEach(r => { const k = r[0] + '|' + r[1];
-                            lookup5[k] = r[2]; });
-                        const series5 = seriesNames5.map((name, si) => ({
-                            name: name,
-                            type: 'line',
-                            smooth: true,
-                            symbol: 'none',
-                            lineStyle: { width: 2, color: COLORS[si] },
-                            itemStyle: { color: COLORS[si] },
-                            data: months5.map(m => { const v = lookup5[name + '|' + m]; return v !==
-                                    undefined ? v : 0; })
-                        }));
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: function(ps) { return ps.map(p =>
-                                        p.seriesName + ': ' + p.value.toLocaleString()).join(
-                                        '<br/>'); } },
-                            legend: { top: 5, textStyle: { fontSize: 11 }, selected: seriesNames5.reduce(
-                                    (a, n, i) => { a[n] = i < 3; return a; }, {}) },
-                            grid: { left: '3%', right: '4%', top: '12%', bottom: '8%', containLabel: true },
-                            xAxis: { type: 'category', data: months5, axisLabel: { fontSize: 9, interval: 11,
-                                    rotate: 30 } },
-                            yAxis: { type: 'value', name: '月搜索量', axisLabel: { formatter: v => v >= 10000 ? (v /
-                                        10000).toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            color: COLORS.slice(0, 3),
-                            dataZoom: [{ type: 'inside', start: 60, end: 100 }, { type: 'slider', start: 60,
-                                end: 100, height: 20, bottom: 2 }],
-                            series: series5
-                        };
-                        break;
-                    }
-                    case 6: { // 关键词ABA排名趋势
-                        const rawABA = [
-                            ['temporary tattoos', '2017-01', 6574],
-                            ['temporary tattoos', '2017-02', 4563],
-                            ['temporary tattoos', '2017-03', 4105],
-                            ['temporary tattoos', '2017-04', 1842],
-                            ['temporary tattoos', '2017-05', 3473],
-                            ['temporary tattoos', '2017-06', 2746],
-                            ['temporary tattoos', '2017-07', 2723],
-                            ['temporary tattoos', '2017-08', 3330],
-                            ['temporary tattoos', '2017-09', 3500],
-                            ['temporary tattoos', '2017-10', 2053],
-                            ['temporary tattoos', '2017-11', 6549],
-                            ['temporary tattoos', '2017-12', 7549],
-                            ['temporary tattoos', '2018-01', 6552],
-                            ['temporary tattoos', '2018-02', 5385],
-                            ['temporary tattoos', '2018-03', 4571],
-                            ['temporary tattoos', '2018-04', 3452],
-                            ['temporary tattoos', '2018-05', 3396],
-                            ['temporary tattoos', '2018-06', 2797],
-                            ['temporary tattoos', '2018-07', 2997],
-                            ['temporary tattoos', '2018-08', 3634],
-                            ['temporary tattoos', '2018-09', 3610],
-                            ['temporary tattoos', '2018-10', 2426],
-                            ['temporary tattoos', '2018-11', 6925],
-                            ['temporary tattoos', '2018-12', 7229],
-                            ['temporary tattoos', '2019-01', 5215],
-                            ['temporary tattoos', '2019-02', 4782],
-                            ['temporary tattoos', '2019-03', 3689],
-                            ['temporary tattoos', '2019-04', 3272],
-                            ['temporary tattoos', '2019-05', 3685],
-                            ['temporary tattoos', '2019-06', 3330],
-                            ['temporary tattoos', '2019-07', 2742],
-                            ['temporary tattoos', '2019-08', 3121],
-                            ['temporary tattoos', '2019-09', 2978],
-                            ['temporary tattoos', '2019-10', 2106],
-                            ['temporary tattoos', '2019-11', 5529],
-                            ['temporary tattoos', '2019-12', 5518],
-                            ['temporary tattoos', '2020-01', 3538],
-                            ['temporary tattoos', '2020-02', 3813],
-                            ['temporary tattoos', '2020-03', 4527],
-                            ['temporary tattoos', '2020-04', 5146],
-                            ['temporary tattoos', '2020-05', 4636],
-                            ['temporary tattoos', '2020-06', 3504],
-                            ['temporary tattoos', '2020-07', 3794],
-                            ['temporary tattoos', '2020-08', 2638],
-                            ['temporary tattoos', '2020-09', 3455],
-                            ['temporary tattoos', '2020-10', 3250],
-                            ['temporary tattoos', '2020-11', 6031],
-                            ['temporary tattoos', '2020-12', 6224],
-                            ['temporary tattoos', '2021-01', 1913],
-                            ['temporary tattoos', '2021-02', 2868],
-                            ['temporary tattoos', '2021-03', 2114],
-                            ['temporary tattoos', '2021-04', 4659],
-                            ['temporary tattoos', '2021-05', 15275],
-                            ['temporary tattoos', '2021-06', 8628],
-                            ['temporary tattoos', '2021-07', 11901],
-                            ['temporary tattoos', '2021-08', 14951],
-                            ['temporary tattoos', '2021-09', 16918],
-                            ['temporary tattoos', '2021-10', 17381],
-                            ['temporary tattoos', '2021-11', 26186],
-                            ['temporary tattoos', '2021-12', 33850],
-                            ['temporary tattoos', '2022-01', 36151],
-                            ['temporary tattoos', '2022-02', 26855],
-                            ['temporary tattoos', '2022-03', 21901],
-                            ['temporary tattoos', '2022-04', 21894],
-                            ['temporary tattoos', '2022-05', 22284],
-                            ['temporary tattoos', '2022-06', 18913],
-                            ['temporary tattoos', '2022-07', 24181],
-                            ['temporary tattoos', '2022-08', 12864],
-                            ['temporary tattoos', '2022-09', 19057],
-                            ['temporary tattoos', '2022-10', 17469],
-                            ['temporary tattoos', '2022-11', 25011],
-                            ['temporary tattoos', '2022-12', 29999],
-                            ['temporary tattoos', '2023-01', 22836],
-                            ['temporary tattoos', '2023-02', 21988],
-                            ['temporary tattoos', '2023-03', 27744],
-                            ['temporary tattoos', '2023-04', 27052],
-                            ['temporary tattoos', '2023-05', 18502],
-                            ['temporary tattoos', '2023-06', 18067],
-                            ['temporary tattoos', '2023-07', 20106],
-                            ['temporary tattoos', '2023-08', 23017],
-                            ['temporary tattoos', '2023-09', 20745],
-                            ['temporary tattoos', '2023-10', 19492],
-                            ['temporary tattoos', '2023-11', 44202],
-                            ['temporary tattoos', '2023-12', 40270],
-                            ['temporary tattoos', '2024-01', 38158],
-                            ['temporary tattoos', '2024-02', 30464],
-                            ['temporary tattoos', '2024-03', 23313],
-                            ['temporary tattoos', '2024-04', 24363],
-                            ['temporary tattoos', '2024-05', 22304],
-                            ['temporary tattoos', '2024-06', 17288],
-                            ['temporary tattoos', '2024-07', 19330],
-                            ['temporary tattoos', '2024-08', 21450],
-                            ['temporary tattoos', '2024-09', 21216],
-                            ['temporary tattoos', '2024-10', 4817],
-                            ['temporary tattoos', '2024-11', 6893],
-                            ['temporary tattoos', '2024-12', 8109],
-                            ['temporary tattoos', '2025-01', 7448],
-                            ['temporary tattoos', '2025-02', 4751],
-                            ['temporary tattoos', '2025-03', 4097],
-                            ['temporary tattoos', '2025-04', 4715],
-                            ['temporary tattoos', '2025-05', 4311],
-                            ['temporary tattoos', '2025-06', 4100],
-                            ['temporary tattoos', '2025-07', 4689],
-                            ['temporary tattoos', '2025-08', 5363],
-                            ['temporary tattoos', '2025-09', 5110],
-                            ['temporary tattoos', '2025-10', 3943],
-                            ['temporary tattoos', '2025-11', 11090],
-                            ['temporary tattoos', '2025-12', 10331],
-                            ['temporary tattoos', '2026-01', 8842],
-                            ['temporary tattoos', '2026-02', 7476],
-                            ['temporary tattoos', '2026-03', 5493],
-                            ['temporary tattoos', '2026-04', 5603],
-                            ['temporary tattoo maker', '2017-01', 0],
-                            ['temporary tattoo maker', '2021-07', 1891178],
-                            ['temporary tattoo maker', '2022-01', 1932760],
-                            ['temporary tattoo maker', '2022-06', 1158429],
-                            ['temporary tattoo maker', '2022-08', 1939072],
-                            ['temporary tattoo maker', '2022-09', 1564729],
-                            ['temporary tattoo maker', '2022-11', 1669268],
-                            ['temporary tattoo maker', '2022-12', 1731161],
-                            ['temporary tattoo maker', '2023-02', 2069406],
-                            ['temporary tattoo maker', '2023-03', 2144838],
-                            ['temporary tattoo maker', '2023-05', 2463623],
-                            ['temporary tattoo maker', '2023-06', 2411205],
-                            ['temporary tattoo maker', '2023-07', 1747311],
-                            ['temporary tattoo maker', '2023-08', 1638445],
-                            ['temporary tattoo maker', '2023-10', 2488879],
-                            ['temporary tattoo maker', '2023-11', 2194870],
-                            ['temporary tattoo maker', '2023-12', 1834021],
-                            ['temporary tattoo maker', '2024-03', 1902174],
-                            ['temporary tattoo maker', '2024-04', 2297988],
-                            ['temporary tattoo maker', '2024-06', 1906303],
-                            ['temporary tattoo maker', '2024-07', 2642787],
-                            ['temporary tattoo maker', '2024-10', 1983183],
-                            ['temporary tattoo maker', '2024-11', 2293496],
-                            ['temporary tattoo maker', '2024-12', 1755736],
-                            ['temporary tattoo maker', '2025-05', 2213704],
-                            ['temporary tattoo maker', '2025-06', 2300379],
-                            ['temporary tattoo maker', '2025-07', 2018032],
-                            ['temporary tattoo maker', '2025-09', 2260572],
-                            ['temporary tattoo maker', '2025-10', 3020058],
-                            ['temporary tattoo maker', '2025-11', 104985],
-                            ['temporary tattoo maker', '2025-12', 157116],
-                            ['temporary tattoo maker', '2026-01', 416272],
-                            ['temporary tattoo maker', '2026-02', 380011],
-                            ['temporary tattoo maker', '2026-03', 412127],
-                            ['temporary tattoo maker', '2026-04', 62213],
-                            ['temporary tattoo printer', '2018-08', 1038157],
-                            ['temporary tattoo printer', '2019-09', 529134],
-                            ['temporary tattoo printer', '2020-03', 1147860],
-                            ['temporary tattoo printer', '2020-04', 910873],
-                            ['temporary tattoo printer', '2020-05', 1641069],
-                            ['temporary tattoo printer', '2020-07', 1577590],
-                            ['temporary tattoo printer', '2020-08', 1115619],
-                            ['temporary tattoo printer', '2020-09', 1481593],
-                            ['temporary tattoo printer', '2020-10', 1448226],
-                            ['temporary tattoo printer', '2020-11', 1520051],
-                            ['temporary tattoo printer', '2020-12', 1366049],
-                            ['temporary tattoo printer', '2021-01', 1301263],
-                            ['temporary tattoo printer', '2021-02', 836175],
-                            ['temporary tattoo printer', '2021-03', 1146703],
-                            ['temporary tattoo printer', '2021-04', 782832],
-                            ['temporary tattoo printer', '2021-05', 585410],
-                            ['temporary tattoo printer', '2021-06', 386213],
-                            ['temporary tattoo printer', '2021-07', 587751],
-                            ['temporary tattoo printer', '2021-08', 589630],
-                            ['temporary tattoo printer', '2021-09', 220457],
-                            ['temporary tattoo printer', '2021-10', 396213],
-                            ['temporary tattoo printer', '2021-11', 630284],
-                            ['temporary tattoo printer', '2021-12', 587321],
-                            ['temporary tattoo printer', '2022-01', 522395],
-                            ['temporary tattoo printer', '2022-02', 496905],
-                            ['temporary tattoo printer', '2022-03', 646461],
-                            ['temporary tattoo printer', '2022-04', 643405],
-                            ['temporary tattoo printer', '2022-05', 601244],
-                            ['temporary tattoo printer', '2022-06', 718205],
-                            ['temporary tattoo printer', '2022-07', 618606],
-                            ['temporary tattoo printer', '2022-08', 516395],
-                            ['temporary tattoo printer', '2022-09', 491440],
-                            ['temporary tattoo printer', '2022-10', 567272],
-                            ['temporary tattoo printer', '2022-11', 672222],
-                            ['temporary tattoo printer', '2022-12', 662823],
-                            ['temporary tattoo printer', '2023-01', 306125],
-                            ['temporary tattoo printer', '2023-02', 383109],
-                            ['temporary tattoo printer', '2023-03', 632418],
-                            ['temporary tattoo printer', '2023-04', 633902],
-                            ['temporary tattoo printer', '2023-05', 758886],
-                            ['temporary tattoo printer', '2023-06', 539256],
-                            ['temporary tattoo printer', '2023-07', 614462],
-                            ['temporary tattoo printer', '2023-08', 620619],
-                            ['temporary tattoo printer', '2023-09', 492912],
-                            ['temporary tattoo printer', '2023-10', 647089],
-                            ['temporary tattoo printer', '2023-11', 447079],
-                            ['temporary tattoo printer', '2023-12', 464873],
-                            ['temporary tattoo printer', '2024-01', 492188],
-                            ['temporary tattoo printer', '2024-02', 496071],
-                            ['temporary tattoo printer', '2024-03', 291155],
-                            ['temporary tattoo printer', '2024-04', 204974],
-                            ['temporary tattoo printer', '2024-05', 277395],
-                            ['temporary tattoo printer', '2024-06', 199367],
-                            ['temporary tattoo printer', '2024-07', 332985],
-                            ['temporary tattoo printer', '2024-08', 260265],
-                            ['temporary tattoo printer', '2024-09', 440033],
-                            ['temporary tattoo printer', '2024-10', 452538],
-                            ['temporary tattoo printer', '2024-11', 302584],
-                            ['temporary tattoo printer', '2024-12', 386797],
-                            ['temporary tattoo printer', '2025-01', 450898],
-                            ['temporary tattoo printer', '2025-02', 557676],
-                            ['temporary tattoo printer', '2025-03', 596002],
-                            ['temporary tattoo printer', '2025-04', 458626],
-                            ['temporary tattoo printer', '2025-05', 849708],
-                            ['temporary tattoo printer', '2025-06', 753063],
-                            ['temporary tattoo printer', '2025-07', 508735],
-                            ['temporary tattoo printer', '2025-08', 457067],
-                            ['temporary tattoo printer', '2025-09', 699681],
-                            ['temporary tattoo printer', '2025-10', 607001],
-                            ['temporary tattoo printer', '2025-11', 263916],
-                            ['temporary tattoo printer', '2025-12', 251827],
-                            ['temporary tattoo printer', '2026-01', 344000],
-                            ['temporary tattoo printer', '2026-02', 306393],
-                            ['temporary tattoo printer', '2026-03', 395394],
-                            ['temporary tattoo printer', '2026-04', 247759]
-                        ];
-                        const months6 = buildMonthRange('2017-01', '2026-04');
-                        const snABA = ['temporary tattoos', 'temporary tattoo maker', 'temporary tattoo printer'];
-                        const lkABA = {};
-                        rawABA.forEach(r => { const k = r[0] + '|' + r[1];
-                            lkABA[k] = r[2] === 0 ? null : r[2]; });
-                        const sABA = snABA.map((name, si) => ({
-                            name: name,
-                            type: 'line',
-                            smooth: true,
-                            symbol: 'none',
-                            lineStyle: { width: 2, color: COLORS[si] },
-                            itemStyle: { color: COLORS[si] },
-                            connectNulls: false,
-                            data: months6.map(m => { const v = lkABA[name + '|' + m]; return v !==
-                                    undefined ? v : null; })
-                        }));
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: function(ps) { return ps.map(p =>
-                                        p.seriesName + ': ' + (p.value != null ? p.value.toLocaleString() :
-                                            'N/A')).join('<br/>'); } },
-                            legend: { top: 5, textStyle: { fontSize: 11 }, selected: snABA.reduce((a, n, i) => { a[
-                                        n] = i < 3; return a; }, {}) },
-                            grid: { left: '3%', right: '4%', top: '12%', bottom: '8%', containLabel: true },
-                            xAxis: { type: 'category', data: months6, axisLabel: { fontSize: 9, interval: 11,
-                                    rotate: 30 } },
-                            yAxis: { type: 'value', name: 'ABA排名', inverse: true, axisLabel: { formatter: v =>
-                                    v >= 10000 ? (v / 10000).toFixed(1) + '万' : v }, splitLine: { lineStyle: {
-                                        type: 'dashed', color: '#E9ECEF' } } },
-                            color: COLORS.slice(0, 3),
-                            dataZoom: [{ type: 'inside', start: 60, end: 100 }, { type: 'slider', start: 60,
-                                end: 100, height: 20, bottom: 2 }],
-                            series: sABA
-                        };
-                        break;
-                    }
-                    case 7: { // 历史总销量走势-复合图
-                        const raw7 = [
-                            ['2024-05', 61091, 620685.26, 1110],
-                            ['2024-06', 71063, 691833.97, 1246],
-                            ['2024-07', 68687, 695084.66, 1184],
-                            ['2024-08', 61758, 617880.85, 1046],
-                            ['2024-09', 63817, 625998.31, 1063],
-                            ['2024-10', 101239, 992490.08, 1606],
-                            ['2024-11', 67763, 681202.09, 1058],
-                            ['2024-12', 92255, 1014120.42, 1441],
-                            ['2025-01', 53084, 511745.69, 804],
-                            ['2025-02', 66139, 649840.03, 972],
-                            ['2025-03', 83922, 780536.4, 1182],
-                            ['2025-04', 98000, 924632.96, 1342],
-                            ['2025-05', 113354, 1068656.78, 1511],
-                            ['2025-06', 132849, 1245278.58, 1703],
-                            ['2025-07', 144325, 1353521.43, 1804],
-                            ['2025-08', 122694, 1152551.1, 1460],
-                            ['2025-09', 116155, 1061878.06, 1290],
-                            ['2025-10', 172351, 1570712.19, 1853],
-                            ['2025-11', 145813, 1593014.83, 1503],
-                            ['2025-12', 172418, 1956419.04, 1741],
-                            ['2026-01', 105038, 986318, 1029],
-                            ['2026-02', 123912, 1119524.78, 1168],
-                            ['2026-03', 199227, 1759235, 1844],
-                            ['2026-04', 182191, 1670391.11, 1686],
-                            ['2026-05', 192603, 1705046.177, 1783]
-                        ];
-                        const x7 = raw7.map(r => r[0]);
-                        const salesVol = raw7.map(r => r[1]);
-                        const salesAmt = raw7.map(r => Math.round(r[2]));
-                        const avgVol = raw7.map(r => r[3]);
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: function(ps) { return ps.map(p =>
-                                        p.seriesName + ': ' + (p.seriesName.includes('销售额') ? '$' : '') + p
-                                        .value.toLocaleString()).join('<br/>'); } },
-                            legend: { top: 5, textStyle: { fontSize: 11 } },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: x7, axisLabel: { fontSize: 10, rotate: 30 } },
-                            yAxis: [{ type: 'value', name: '月销量/平均销量', axisLabel: { formatter: v => v >= 10000 ? (
-                                        v / 10000).toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                                { type: 'value', name: '月销售额($)', axisLabel: { formatter: v => v >= 1000000 ?
-                                            (v / 1000000).toFixed(2) + 'M' : v >= 1000 ? (v / 1000).toFixed(
-                                                1) + 'K' : v }, splitLine: { show: false } }
-                            ],
-                            color: [COLORS[0], COLORS[2], COLORS[1]],
-                            series: [
-                                { name: '月销量', type: 'bar', data: salesVol, barWidth: '50%',
-                                    itemStyle: { color: COLORS[0] }, yAxisIndex: 0 },
-                                { name: '平均月销量', type: 'line', data: avgVol, smooth: true, symbol: 'circle',
-                                    symbolSize: 4, lineStyle: { width: 2, color: COLORS[2] },
-                                    itemStyle: { color: COLORS[2] }, yAxisIndex: 0 },
-                                { name: '月销售额', type: 'line', data: salesAmt, smooth: true, symbol: 'diamond',
-                                    symbolSize: 5, lineStyle: { width: 2, color: COLORS[1] },
-                                    itemStyle: { color: COLORS[1] }, yAxisIndex: 1 }
-                            ]
-                        };
-                        break;
-                    }
-                    case 8: { // 价格四分位走势
-                        const raw8 = [
-                            ['2024-05', 9.35, 8.99, 7.99, 9.99],
-                            ['2024-06', 9.17, 8.95, 7.99, 9.99],
-                            ['2024-07', 9.31, 8.99, 7.99, 9.99],
-                            ['2024-08', 9.26, 8.99, 7.99, 9.99],
-                            ['2024-09', 9.26, 8.99, 7.99, 9.97],
-                            ['2024-10', 9.43, 8.99, 8.01, 9.59],
-                            ['2024-11', 9.36, 8.675, 7.99, 9.64],
-                            ['2024-12', 9.91, 8.89, 7.99, 9.35],
-                            ['2025-01', 8.91, 8.575, 7.74, 8.99],
-                            ['2025-02', 8.86, 8.72, 7.61, 8.99],
-                            ['2025-03', 8.74, 8.625, 7.16, 9.22],
-                            ['2025-04', 8.82, 8.545, 7.35, 9.99],
-                            ['2025-05', 8.88, 8.585, 7.60, 9.95],
-                            ['2025-06', 8.94, 8.415, 7.84, 9.66],
-                            ['2025-07', 8.97, 8.59, 7.60, 9.98],
-                            ['2025-08', 8.97, 8.525, 7.00, 9.99],
-                            ['2025-09', 8.72, 8.56, 6.99, 9.98],
-                            ['2025-10', 8.81, 8.49, 7.10, 9.95],
-                            ['2025-11', 10.65, 8.345, 6.99, 9.91],
-                            ['2025-12', 10.66, 8.52, 6.99, 9.70],
-                            ['2026-01', 8.84, 8.215, 6.99, 9.38],
-                            ['2026-02', 8.56, 7.99, 6.99, 9.70],
-                            ['2026-03', 8.58, 7.99, 6.99, 9.93],
-                            ['2026-04', 8.84, 7.99, 6.99, 9.54],
-                            ['2026-05', 8.66, 8.02, 6.99, 9.39]
-                        ];
-                        const x8 = raw8.map(r => r[0]);
-                        const sn8 = ['销量加权均价', '中位数', 'Q1', 'Q3'];
-                        const s8 = sn8.map((name, si) => ({
-                            name: name,
-                            type: 'line',
-                            smooth: true,
-                            symbol: 'circle',
-                            symbolSize: 3,
-                            lineStyle: { width: 2, color: COLORS[si] },
-                            itemStyle: { color: COLORS[si] },
-                            data: raw8.map(r => r[si + 1])
-                        }));
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: function(ps) { return ps.map(p =>
-                                        p.seriesName + ': $' + p.value.toFixed(2)).join('<br/>'); } },
-                            legend: { top: 5, textStyle: { fontSize: 11 }, selected: sn8.reduce((a, n, i) => { a[
-                                        n] = i < 3; return a; }, {}) },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: x8, axisLabel: { fontSize: 10, rotate: 30 } },
-                            yAxis: { type: 'value', name: '价格($)', axisLabel: { formatter: v => '$' + v.toFixed(
-                                        2) }, splitLine: { lineStyle: { type: 'dashed', color: '#E9ECEF' } } },
-                            color: COLORS.slice(0, 4),
-                            series: s8
-                        };
-                        break;
-                    }
-                    case 9: { // 品牌垄断-饼图
-                        const data9 = [
-                            { name: 'Generic', value: 13188 },
-                            { name: 'xo, Fetti', value: 11576 },
-                            { name: 'CHARLENT', value: 8262 },
-                            { name: 'JCFIRE', value: 8248 },
-                            { name: 'Vagilelf', value: 7333 },
-                            { name: 'Keikihipa', value: 6157 },
-                            { name: 'JEEFONNA', value: 5390 },
-                            { name: 'PARTYWIND', value: 5171 },
-                            { name: 'YINFENGKANHAI', value: 4767 },
-                            { name: 'Zomme', value: 3962 },
-                            { name: '其余', value: 108730 }
-                        ];
-                        const sl9 = data9.length <= 8;
-                        option = {
-                            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
-                            legend: sl9 ? { orient: 'vertical', right: 10, top: 'middle',
-                                textStyle: { fontSize: 10 }, type: 'scroll' } : { show: false },
-                            color: COLORS.slice(0, data9.length),
-                            series: [{
-                                type: 'pie',
-                                radius: ['35%', '68%'],
-                                center: ['40%', '50%'],
-                                label: {
-                                    show: true,
-                                    formatter: sl9 ? '{b}\n{d}%' : '{markerCircle|●} {b}\n   {d}%',
-                                    rich: { markerCircle: { width: 8, height: 8, borderRadius: 4,
-                                            backgroundColor: 'inherit' } },
-                                    fontSize: 9,
-                                    lineHeight: 14
-                                },
-                                labelLine: { show: true, length: 15, length2: 22 },
-                                data: data9
-                            }]
-                        };
-                        break;
-                    }
-                    case 10: { // 排名垄断-复合图
-                        const segs = ['1~10', '11~20', '21~30', '31~40', '41~50', '51~60', '61~70', '71~80', '81~90',
-                            '91~100', '101~110'
-                        ];
-                        const oldCnt = [8, 9, 9, 9, 9, 8, 9, 10, 10, 8, 5];
-                        const newCnt = [2, 1, 1, 1, 1, 2, 1, 0, 0, 2, 3];
-                        const oldAvg = [4790, 2585, 2179, 1848, 1564, 1321, 1170, 1022, 780, 548, 298];
-                        const newAvg = [6258, 2876, 2190, 1755, 1463, 1367, 1210, 0, 0, 433, 95];
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' } },
-                            legend: { top: 5, textStyle: { fontSize: 11 } },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: segs },
-                            yAxis: [{ type: 'value', name: 'ASIN计数', splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                                { type: 'value', name: '平均月销量', axisLabel: { formatter: v => v >= 1000 ? (v /
-                                            1000).toFixed(1) + 'K' : v }, splitLine: { show: false } }
-                            ],
-                            color: [COLORS[0], COLORS[1], COLORS[2], COLORS[3]],
-                            series: [
-                                { name: '老品ASIN数', type: 'bar', stack: 'cnt', data: oldCnt,
-                                    itemStyle: { color: COLORS[0] }, yAxisIndex: 0, barWidth: '50%' },
-                                { name: '新品ASIN数', type: 'bar', stack: 'cnt', data: newCnt,
-                                    itemStyle: { color: COLORS[1] }, yAxisIndex: 0 },
-                                { name: '老品平均销量', type: 'line', data: oldAvg, smooth: true, symbol: 'circle',
-                                    symbolSize: 5, lineStyle: { width: 2, color: COLORS[2] },
-                                    itemStyle: { color: COLORS[2] }, yAxisIndex: 1 },
-                                { name: '新品平均销量', type: 'line', data: newAvg, smooth: true, symbol: 'diamond',
-                                    symbolSize: 5, lineStyle: { width: 2, color: COLORS[3] },
-                                    itemStyle: { color: COLORS[3] }, yAxisIndex: 1 }
-                            ]
-                        };
-                        break;
-                    }
-                    case 11: { // 卖家所属地-饼图
-                        const data11 = [
-                            { name: 'CN', value: 127376 },
-                            { name: 'US', value: 22780 },
-                            { name: 'VN', value: 14320 },
-                            { name: 'AMZ', value: 11914 },
-                            { name: 'CN(HK)', value: 5658 },
-                            { name: 'LV', value: 697 },
-                            { name: 'KR', value: 39 }
-                        ];
-                        const sl11 = data11.length <= 8;
-                        option = {
-                            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
-                            legend: sl11 ? { orient: 'vertical', right: 10, top: 'middle',
-                                textStyle: { fontSize: 11 } } : { show: false },
-                            color: COLORS.slice(0, data11.length),
-                            series: [{
-                                type: 'pie',
-                                radius: ['35%', '68%'],
-                                center: ['42%', '50%'],
-                                label: {
-                                    show: true,
-                                    formatter: sl11 ? '{b}\n{d}%' : '{markerCircle|●} {b}\n   {d}%',
-                                    rich: { markerCircle: { width: 8, height: 8, borderRadius: 4,
-                                            backgroundColor: 'inherit' } },
-                                    fontSize: 10,
-                                    lineHeight: 16
-                                },
-                                labelLine: { show: true, length: 20, length2: 30 },
-                                data: data11
-                            }]
-                        };
-                        break;
-                    }
-                    case 12: { // 配送方式-饼图
-                        const data12 = [{ name: 'AMZ', value: 11914 }, { name: 'FBA', value: 170870 }];
-                        const sl12 = data12.length <= 8;
-                        option = {
-                            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
-                            legend: sl12 ? { orient: 'vertical', right: 10, top: 'middle',
-                                textStyle: { fontSize: 11 } } : { show: false },
-                            color: COLORS.slice(0, data12.length),
-                            series: [{
-                                type: 'pie',
-                                radius: ['40%', '70%'],
-                                center: ['42%', '50%'],
-                                label: {
-                                    show: true,
-                                    formatter: sl12 ? '{b}\n{d}%' : '{markerCircle|●} {b}\n   {d}%',
-                                    rich: { markerCircle: { width: 8, height: 8, borderRadius: 4,
-                                            backgroundColor: 'inherit' } },
-                                    fontSize: 11,
-                                    lineHeight: 18
-                                },
-                                labelLine: { show: true, length: 22, length2: 32 },
-                                data: data12
-                            }]
-                        };
-                        break;
-                    }
-                    case 13: { // 新品销量占比-饼图
-                        const data13 = [{ name: '3个月内新品', value: 6148 }, { name: '3~6个月内新品', value: 19745 },
-                            { name: '老品', value: 156891 }
-                        ];
-                        const sl13 = data13.length <= 8;
-                        option = {
-                            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: '{b}: {c} ({d}%)' },
-                            legend: sl13 ? { orient: 'vertical', right: 10, top: 'middle',
-                                textStyle: { fontSize: 11 } } : { show: false },
-                            color: COLORS.slice(0, data13.length),
-                            series: [{
-                                type: 'pie',
-                                radius: ['40%', '70%'],
-                                center: ['42%', '50%'],
-                                label: {
-                                    show: true,
-                                    formatter: sl13 ? '{b}\n{d}%' : '{markerCircle|●} {b}\n   {d}%',
-                                    rich: { markerCircle: { width: 8, height: 8, borderRadius: 4,
-                                            backgroundColor: 'inherit' } },
-                                    fontSize: 11,
-                                    lineHeight: 18
-                                },
-                                labelLine: { show: true, length: 22, length2: 32 },
-                                data: data13
-                            }]
-                        };
-                        break;
-                    }
-                    case 14: { // review数分布-堆积柱状图
-                        const segs14 = ['0~10', '10~30', '30~50', '50~100', '100~200', '200~300', '300~400', '400~500',
-                            '500~800', '800~1200', '1200~2000', '2000+'
-                        ];
-                        const old14 = [0, 0, 453, 5834, 17891, 13536, 11152, 10388, 20622, 30691, 17407, 28917];
-                        const new14 = [34, 4938, 1985, 2190, 5327, 1210, 7333, 0, 0, 0, 0, 2876];
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, axisPointer: { type: 'shadow' } },
-                            legend: { top: 5, textStyle: { fontSize: 11 } },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: segs14, axisLabel: { fontSize: 10, rotate: 25 } },
-                            yAxis: { type: 'value', name: '销量', axisLabel: { formatter: v => v >= 10000 ? (v / 10000)
-                                        .toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            color: [COLORS[0], COLORS[1]],
-                            series: [
-                                { name: '老品', type: 'bar', stack: 'total', data: old14,
-                                itemStyle: { color: COLORS[0] } },
-                                { name: '新品', type: 'bar', stack: 'total', data: new14,
-                                itemStyle: { color: COLORS[1] } }
-                            ]
-                        };
-                        break;
-                    }
-                    case 15: { // 市场分款价格分布
-                        const pxSegs = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98',
-                            '38.98-43.98', '58.98-63.98', '458.98-463.98'
-                        ];
-                        const styles15 = ['儿童混合套装纹身', '儿童主题/角色纹身', '成人写实/3D/半臂纹身', '花卉/女性装饰纹身', 'DIY纹身墨水套装',
-                            '夜光/UV发光纹身', 'DIY纹身马克笔套装', '临时纹身打印机', '特殊场合/节日纹身', 'DIY纹身闪粉套装'
-                        ];
-                        const volData15 = [
-                            [13816, 3110, 0, 0, 0, 0, 0, 0],
-                            [44179, 34778, 0, 0, 0, 0, 0, 0],
-                            [13033, 6579, 2150, 0, 0, 0, 0, 0],
-                            [23296, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 9121, 0, 0, 0, 0, 0, 0],
-                            [10638, 1615, 0, 0, 0, 0, 0, 0],
-                            [409, 6338, 1746, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 2391, 106, 179, 39],
-                            [8437, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 824, 0, 0, 0, 0]
-                        ];
-                        const amtData15 = [
-                            [93248, 38579, 0, 0, 0, 0, 0, 0],
-                            [320583, 345307, 0, 0, 0, 0, 0, 0],
-                            [99267, 59103, 32142, 0, 0, 0, 0, 0],
-                            [176784, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 99493, 0, 0, 0, 0, 0, 0],
-                            [82008, 14518, 0, 0, 0, 0, 0, 0],
-                            [3267, 61640, 25766, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 78879, 4238, 10737, 17901],
-                            [58023, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 16471, 0, 0, 0, 0]
-                        ];
-                        const series15 = [];
-                        styles15.forEach((s, i) => {
-                            series15.push({
-                                name: s + '-月销量',
-                                type: 'bar',
-                                stack: 'vol',
-                                data: volData15[i],
-                                itemStyle: { color: COLORS[i % COLORS.length] },
-                                yAxisIndex: 0,
-                                barWidth: '55%'
-                            });
-                        });
-                        styles15.forEach((s, i) => {
-                            series15.push({
-                                name: s + '-月销售额',
-                                type: 'line',
-                                data: amtData15[i].map(v => Math.round(v)),
-                                smooth: false,
-                                symbol: 'circle',
-                                symbolSize: 4,
-                                lineStyle: { width: 1.5, color: COLORS[i % COLORS.length] },
-                                itemStyle: { color: COLORS[i % COLORS.length] },
-                                yAxisIndex: 1,
-                                connectNulls: true
-                            });
-                        });
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff', fontSize: 10 }, formatter: function(ps) { return ps
-                                        .filter(p => p.value > 0).map(p => p.seriesName + ': ' + p.value
-                                            .toLocaleString()).join('<br/>'); } },
-                            legend: { top: 3, textStyle: { fontSize: 9 }, type: 'scroll', height: 40,
-                                selected: styles15.reduce((a, s, i) => { a[s + '-月销量'] = i < 5;
-                                    a[s + '-月销售额'] = i < 5; return a; }, {}) },
-                            grid: { left: '3%', right: '4%', top: '16%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: pxSegs, axisLabel: { fontSize: 9, rotate: 25 } },
-                            yAxis: [{ type: 'value', name: '月销量', axisLabel: { formatter: v => v >= 10000 ? (v /
-                                        10000).toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                                { type: 'value', name: '月销售额($)', axisLabel: { formatter: v => v >= 100000 ?
-                                            (v / 1000).toFixed(0) + 'K' : v }, splitLine: { show: false } }
-                            ],
-                            series: series15
-                        };
-                        break;
-                    }
-                    case 16: { // 价格质量联动分析
-                        const px16 = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
-                            '58.98-63.98', '458.98-463.98'
-                        ];
-                        const starNames = ['三星半及以下', '四星', '四星半', '五星'];
-                        const starData = [
-                            [0, 0, 0, 0, 0, 0, 0, 1],
-                            [1, 2, 0, 0, 0, 1, 1, 0],
-                            [58, 29, 3, 1, 1, 0, 1, 0],
-                            [5, 4, 0, 0, 0, 0, 0, 0]
-                        ];
-                        const s16 = starNames.map((name, si) => ({
-                            name: name,
-                            type: 'bar',
-                            stack: 'total',
-                            data: starData[si],
-                            itemStyle: { color: COLORS[si] },
-                            barWidth: '50%'
-                        }));
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, axisPointer: { type: 'shadow' } },
-                            legend: { top: 5, textStyle: { fontSize: 11 } },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: px16, axisLabel: { fontSize: 9, rotate: 25 } },
-                            yAxis: { type: 'value', name: 'ASIN数', splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            color: COLORS.slice(0, 4),
-                            series: s16
-                        };
-                        break;
-                    }
-                    case 17: { // 品牌价格分布
-                        const px17 = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
-                            '58.98-63.98', '458.98-463.98'
-                        ];
-                        const white17 = [103847, 51497, 3896, 824, 2391, 106, 0, 0];
-                        const brand17 = [9961, 10044, 0, 0, 0, 0, 179, 39];
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, axisPointer: { type: 'shadow' } },
-                            legend: { top: 5, textStyle: { fontSize: 11 } },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: px17, axisLabel: { fontSize: 9, rotate: 25 } },
-                            yAxis: { type: 'value', name: '月销量', axisLabel: { formatter: v => v >= 10000 ? (v / 10000)
-                                        .toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            color: [COLORS[0], COLORS[1]],
-                            series: [
-                                { name: '白牌', type: 'bar', stack: 'total', data: white17,
-                                    itemStyle: { color: COLORS[0] } },
-                                { name: '品牌', type: 'bar', stack: 'total', data: brand17,
-                                    itemStyle: { color: COLORS[1] } }
-                            ]
-                        };
-                        break;
-                    }
-                    case 18: { // 新老品价格分布
-                        const px18 = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
-                            '58.98-63.98', '458.98-463.98'
-                        ];
-                        const old18 = [97327, 52414, 3896, 824, 2391, 0, 0, 39];
-                        const new18 = [16481, 9127, 0, 0, 0, 106, 179, 0];
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, axisPointer: { type: 'shadow' } },
-                            legend: { top: 5, textStyle: { fontSize: 11 } },
-                            grid: { left: '3%', right: '4%', top: '14%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: px18, axisLabel: { fontSize: 9, rotate: 25 } },
-                            yAxis: { type: 'value', name: '月销量', axisLabel: { formatter: v => v >= 10000 ? (v / 10000)
-                                        .toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            color: [COLORS[0], COLORS[1]],
-                            series: [
-                                { name: '老品', type: 'bar', stack: 'total', data: old18,
-                                    itemStyle: { color: COLORS[0] } },
-                                { name: '新品', type: 'bar', stack: 'total', data: new18,
-                                    itemStyle: { color: COLORS[1] } }
-                            ]
-                        };
-                        break;
-                    }
-                    case 19: { // 分款评分星级分布
-                        const stars19 = ['三星半及以下', '四星', '四星半', '五星'];
-                        const styles19 = ['儿童混合套装纹身', '儿童主题/角色纹身', '成人写实/3D/半臂纹身', '花卉/女性装饰纹身', 'DIY纹身墨水套装',
-                            '夜光/UV发光纹身', 'DIY纹身马克笔套装', '临时纹身打印机', '特殊场合/节日纹身', 'DIY纹身闪粉套装'
-                        ];
-                        const data19 = [
-                            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                            [0, 0, 1, 0, 1, 0, 1, 2, 0, 0],
-                            [8, 40, 7, 13, 5, 6, 7, 2, 4, 1],
-                            [1, 5, 0, 1, 0, 0, 0, 0, 2, 0]
-                        ];
-                        const s19 = styles19.map((name, si) => ({
-                            name: name,
-                            type: 'bar',
-                            stack: 'total',
-                            data: [data19[0][si], data19[1][si], data19[2][si], data19[3][si]],
-                            itemStyle: { color: COLORS[si % COLORS.length] },
-                            barWidth: '50%'
-                        }));
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, axisPointer: { type: 'shadow' } },
-                            legend: { top: 5, textStyle: { fontSize: 9 }, type: 'scroll', height: 35,
-                                selected: styles19.reduce((a, s, i) => { a[s] = i < 6; return a; }, {}) },
-                            grid: { left: '3%', right: '4%', top: '16%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: stars19, axisLabel: { fontSize: 10 } },
-                            yAxis: { type: 'value', name: 'ASIN数', splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            series: s19
-                        };
-                        break;
-                    }
-                    case 20: { // 评分销量趋势-折线图
-                        const data20 = [
-                            [3.6, 39],
-                            [3.9, 106],
-                            [4.0, 1334],
-                            [4.2, 3506],
-                            [4.3, 7551],
-                            [4.4, 24219],
-                            [4.5, 28323],
-                            [4.6, 45634],
-                            [4.7, 54298],
-                            [4.8, 17350],
-                            [4.9, 424]
-                        ];
-                        const x20 = data20.map(r => r[0]);
-                        const y20 = data20.map(r => r[1]);
-                        option = {
-                            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)',
-                                textStyle: { color: '#fff' }, formatter: function(ps) { return '评分: ' + ps[0]
-                                        .axisValue + '<br/>月销量: ' + ps[0].value.toLocaleString(); } },
-                            legend: { show: false },
-                            grid: { left: '3%', right: '4%', top: '8%', bottom: '3%', containLabel: true },
-                            xAxis: { type: 'category', data: x20, name: '评分', axisLabel: { fontSize: 10 } },
-                            yAxis: { type: 'value', name: '月销量', axisLabel: { formatter: v => v >= 10000 ? (v / 10000)
-                                        .toFixed(1) + '万' : v }, splitLine: { lineStyle: { type: 'dashed',
-                                        color: '#E9ECEF' } } },
-                            color: [COLORS[0]],
-                            series: [{ type: 'line', data: y20, smooth: true, symbol: 'circle', symbolSize: 6,
-                                lineStyle: { width: 2.5, color: COLORS[0] }, itemStyle: { color: COLORS[0] },
-                                areaStyle: { color: 'rgba(255,157,25,0.1)' } }]
-                        };
-                        break;
-                    }
-                    default:
-                        option = {
-                            title: { text: '暂无数据', left: 'center', top: 'center',
-                            textStyle: { color: '#999' } },
-                            series: []
-                        };
-                }
-                return option;
+            // ==================== 图表1：分款销量占比-饼图 ====================
+            function getChart1Opt() {
+                const data = [
+                    { name: '儿童主题/角色纹身', value: 78957 },
+                    { name: '花卉/女性装饰纹身', value: 23296 },
+                    { name: '成人写实/3D/半臂纹身', value: 21762 },
+                    { name: '儿童混合套装纹身', value: 16926 },
+                    { name: '夜光/UV发光纹身', value: 12253 },
+                    { name: 'DIY纹身墨水套装', value: 9121 },
+                    { name: 'DIY纹身马克笔套装', value: 8493 },
+                    { name: '特殊场合/节日纹身', value: 8437 },
+                    { name: '临时纹身打印机', value: 2715 },
+                    { name: 'DIY纹身闪粉套装', value: 824 },
+                ];
+                const n = data.length; // 10 > 8，隐藏图例
+                const seriesData = data.map((d, i) => ({ ...d, itemStyle: { color: getColor(i) } }));
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent +
+                                '%';
+                        }
+                    },
+                    legend: { show: false },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '72%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                return '● ' + p.name + '\n{d}%';
+                            },
+                            color: '#333',
+                            fontSize: 11,
+                            lineHeight: 16,
+                        },
+                        labelLine: { show: true, length: 18, length2: 28, lineStyle: { width: 1 } },
+                        emphasis: {
+                            label: { fontSize: 14, fontWeight: 'bold' },
+                            scaleSize: 8,
+                        },
+                        data: seriesData,
+                    }],
+                };
             }
 
-            const chartDom = document.getElementById('singleChart');
-            let myChart = echarts.init(chartDom);
-            const option = getChartOption(chartId);
-            if (option) myChart.setOption(option);
-            setTimeout(() => { myChart.resize(); }, 100);
-            window.addEventListener('resize', () => { myChart.resize(); });
+            // ==================== 图表2：目标客群销量占比-饼图 ====================
+            function getChart2Opt() {
+                const data = [
+                    { name: '儿童', value: 103938 },
+                    { name: '成人/青少年', value: 41316 },
+                    { name: '女性', value: 22282 },
+                    { name: '通用/全年龄', value: 15248 },
+                ];
+                const n = data.length; // 4 <= 8，显示图例
+                const seriesData = data.map((d, i) => ({ ...d, itemStyle: { color: getColor(i) } }));
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent +
+                                '%';
+                        }
+                    },
+                    legend: {
+                        show: true,
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'center',
+                        itemGap: 10,
+                        textStyle: { fontSize: 12, color: '#333' },
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['38%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 11,
+                            color: '#333',
+                        },
+                        labelLine: { show: true, length: 14, length2: 22, lineStyle: { width: 1 } },
+                        emphasis: { scaleSize: 8 },
+                        data: seriesData,
+                    }],
+                };
+            }
+
+            // ==================== 图表3：主题/IP销量占比-横轴柱状图 ====================
+            function getChart3Opt() {
+                const raw = [
+                    { name: '动物与自然', value: 20629 },
+                    { name: '写实/暗黑/凶猛', value: 18752 },
+                    { name: '综合/混合设计', value: 26308 },
+                    { name: '卡通/IP角色', value: 39232 },
+                    { name: '花卉/装饰', value: 21681 },
+                    { name: 'DIY/自定义', value: 20329 },
+                    { name: '交通工具/运动', value: 11525 },
+                    { name: '节日/场合', value: 11436 },
+                    { name: '幻想/魔法', value: 12892 },
+                ];
+                raw.sort((a, b) => a.value - b.value);
+                const categories = raw.map(d => d.name);
+                const values = raw.map(d => d.value);
+                const colors = raw.map((_, i) => getColor(i));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p[0].name + '<br/>月销量: ' + p[0].value.toLocaleString();
+                        }
+                    },
+                    grid: { left: '3%', right: '8%', top: '5%', bottom: '3%', containLabel: true },
+                    xAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: categories,
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#333', fontSize: 11 },
+                        inverse: true,
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: values.map((v, i) => ({ value: v, itemStyle: { color: colors[i],
+                                borderRadius: [0, 4, 4, 0] } })),
+                        barWidth: '60%',
+                        label: { show: false },
+                        emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.2)' } },
+                    }],
+                };
+            }
+
+            // ==================== 图表4：图案丰富度销量分布-柱状图 ====================
+            function getChart4Opt() {
+                const raw = [
+                    ['8-17', 5222],
+                    ['18-27', 15264],
+                    ['28-37', 1247],
+                    ['38-47', 8611],
+                    ['48-57', 31387],
+                    ['58-67', 7654],
+                    ['68-77', 22781],
+                    ['78-87', 4075],
+                    ['88-97', 18095],
+                    ['98-107', 12301],
+                    ['108-117', 1367],
+                    ['118-127', 8528],
+                    ['148-157', 9404],
+                    ['158-167', 3654],
+                    ['168-177', 9647],
+                    ['198-207', 978],
+                    ['238-247', 974],
+                    ['248-257', 826],
+                    ['258-267', 1189],
+                    ['298-307', 1813],
+                    ['308-317', 2015],
+                    ['318-327', 2283],
+                    ['348-357', 6852],
+                    ['378-387', 2665],
+                    ['408-417', 3110],
+                    ['598-607', 803],
+                    ['998-1000', 39],
+                ];
+                const categories = raw.map(d => d[0]);
+                const values = raw.map(d => d[1]);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) { return '图案丰富度: ' + p[0].name + '<br/>月销量: ' + p[0].value
+                                .toLocaleString(); }
+                    },
+                    grid: { left: '3%', right: '5%', top: '5%', bottom: '10%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: categories,
+                        axisLabel: { rotate: 50, fontSize: 10, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: values.map(v => ({ value: v, itemStyle: { color: getColor(0),
+                                borderRadius: [4, 4, 0, 0] } })),
+                        barWidth: '55%',
+                        label: { show: false },
+                        emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.2)' } },
+                    }],
+                };
+            }
+
+            // ==================== 图表5：关键词搜索量趋势-多系列折线图 ====================
+            function getChart5Opt() {
+                const rawData = [
+                    ['2026-04', 'temporary tattoos', 139712],
+                    ['2026-03', 'temporary tattoos', 136318],
+                    ['2026-02', 'temporary tattoos', 117361],
+                    ['2026-01', 'temporary tattoos', 116222],
+                    ['2025-12', 'temporary tattoos', 93582],
+                    ['2025-11', 'temporary tattoos', 90648],
+                    ['2025-10', 'temporary tattoos', 163523],
+                    ['2025-09', 'temporary tattoos', 132243],
+                    ['2025-08', 'temporary tattoos', 132269],
+                    ['2025-07', 'temporary tattoos', 147123],
+                    ['2025-06', 'temporary tattoos', 158189],
+                    ['2025-05', 'temporary tattoos', 149775],
+                    ['2025-04', 'temporary tattoos', 147091],
+                    ['2025-03', 'temporary tattoos', 154177],
+                    ['2025-02', 'temporary tattoos', 147622],
+                    ['2025-01', 'temporary tattoos', 126278],
+                    ['2024-12', 'temporary tattoos', 110600],
+                    ['2024-11', 'temporary tattoos', 124180],
+                    ['2024-10', 'temporary tattoos', 154053],
+                    ['2024-09', 'temporary tattoos', 66088],
+                    ['2024-08', 'temporary tattoos', 65671],
+                    ['2024-07', 'temporary tattoos', 70346],
+                    ['2024-06', 'temporary tattoos', 75956],
+                    ['2024-05', 'temporary tattoos', 64447],
+                    ['2024-04', 'temporary tattoos', 60622],
+                    ['2024-03', 'temporary tattoos', 62367],
+                    ['2024-02', 'temporary tattoos', 45770],
+                    ['2024-01', 'temporary tattoos', 37657],
+                    ['2023-12', 'temporary tattoos', 36479],
+                    ['2023-11', 'temporary tattoos', 33382],
+                    ['2023-10', 'temporary tattoos', 64412],
+                    ['2023-09', 'temporary tattoos', 60903],
+                    ['2023-08', 'temporary tattoos', 57361],
+                    ['2023-07', 'temporary tattoos', 38658],
+                    ['2023-06', 'temporary tattoos', 42687],
+                    ['2023-05', 'temporary tattoos', 41412],
+                    ['2023-04', 'temporary tattoos', 29136],
+                    ['2023-03', 'temporary tattoos', 28621],
+                    ['2023-02', 'temporary tattoos', 35386],
+                    ['2023-01', 'temporary tattoos', 34000],
+                    ['2022-12', 'temporary tattoos', 26334],
+                    ['2022-11', 'temporary tattoos', 31525],
+                    ['2022-10', 'temporary tattoos', 43471],
+                    ['2022-09', 'temporary tattoos', 39311],
+                    ['2022-08', 'temporary tattoos', 56795],
+                    ['2022-07', 'temporary tattoos', 31866],
+                    ['2022-06', 'temporary tattoos', 41113],
+                    ['2022-05', 'temporary tattoos', 35302],
+                    ['2022-04', 'temporary tattoos', 34589],
+                    ['2022-03', 'temporary tattoos', 35115],
+                    ['2022-02', 'temporary tattoos', 28751],
+                    ['2022-01', 'temporary tattoos', 22877],
+                    ['2021-12', 'temporary tattoos', 23189],
+                    ['2021-11', 'temporary tattoos', 30214],
+                    ['2021-10', 'temporary tattoos', 43820],
+                    ['2021-09', 'temporary tattoos', 44156],
+                    ['2021-08', 'temporary tattoos', 49301],
+                    ['2021-07', 'temporary tattoos', 60274],
+                    ['2021-06', 'temporary tattoos', 78361],
+                    ['2021-05', 'temporary tattoos', 48382],
+                    ['2021-04', 'temporary tattoos', 133793],
+                    ['2021-03', 'temporary tattoos', 227662],
+                    ['2021-02', 'temporary tattoos', 191924],
+                    ['2021-01', 'temporary tattoos', 246145],
+                    ['2020-12', 'temporary tattoos', 115511],
+                    ['2020-11', 'temporary tattoos', 112041],
+                    ['2020-10', 'temporary tattoos', 172306],
+                    ['2020-09', 'temporary tattoos', 159646],
+                    ['2020-08', 'temporary tattoos', 204771],
+                    ['2020-07', 'temporary tattoos', 151121],
+                    ['2020-06', 'temporary tattoos', 163285],
+                    ['2020-05', 'temporary tattoos', 137371],
+                    ['2020-04', 'temporary tattoos', 121176],
+                    ['2020-03', 'temporary tattoos', 133354],
+                    ['2020-02', 'temporary tattoos', 158402],
+                    ['2020-01', 'temporary tattoos', 167796],
+                    ['2019-12', 'temporary tattoos', 119675],
+                    ['2019-11', 'temporary tattoos', 115579],
+                    ['2019-10', 'temporary tattoos', 227272],
+                    ['2019-09', 'temporary tattoos', 179511],
+                    ['2019-08', 'temporary tattoos', 177868],
+                    ['2019-07', 'temporary tattoos', 197297],
+                    ['2019-06', 'temporary tattoos', 174798],
+                    ['2019-05', 'temporary tattoos', 163712],
+                    ['2019-04', 'temporary tattoos', 173756],
+                    ['2019-03', 'temporary tattoos', 153360],
+                    ['2019-02', 'temporary tattoos', 131835],
+                    ['2019-01', 'temporary tattoos', 123260],
+                    ['2018-12', 'temporary tattoos', 90465],
+                    ['2018-11', 'temporary tattoos', 93150],
+                    ['2018-10', 'temporary tattoos', 209470],
+                    ['2018-09', 'temporary tattoos', 164076],
+                    ['2018-08', 'temporary tattoos', 160363],
+                    ['2018-07', 'temporary tattoos', 184224],
+                    ['2018-06', 'temporary tattoos', 199094],
+                    ['2018-05', 'temporary tattoos', 164812],
+                    ['2018-04', 'temporary tattoos', 166929],
+                    ['2018-03', 'temporary tattoos', 140908],
+                    ['2018-02', 'temporary tattoos', 127189],
+                    ['2018-01', 'temporary tattoos', 98151],
+                    ['2017-12', 'temporary tattoos', 88453],
+                    ['2017-11', 'temporary tattoos', 97204],
+                    ['2017-10', 'temporary tattoos', 242492],
+                    ['2017-09', 'temporary tattoos', 158457],
+                    ['2017-08', 'temporary tattoos', 173131],
+                    ['2017-07', 'temporary tattoos', 199934],
+                    ['2017-06', 'temporary tattoos', 189734],
+                    ['2017-05', 'temporary tattoos', 157861],
+                    ['2017-04', 'temporary tattoos', 259672],
+                    ['2017-03', 'temporary tattoos', 142423],
+                    ['2017-02', 'temporary tattoos', 141807],
+                    ['2017-01', 'temporary tattoos', 97305],
+                    ['2026-04', 'temporary tattoos for kids', 80687],
+                    ['2026-03', 'temporary tattoos for kids', 105447],
+                    ['2026-02', 'temporary tattoos for kids', 64082],
+                    ['2026-01', 'temporary tattoos for kids', 47651],
+                    ['2025-12', 'temporary tattoos for kids', 57672],
+                    ['2025-11', 'temporary tattoos for kids', 52706],
+                    ['2025-10', 'temporary tattoos for kids', 69982],
+                    ['2025-09', 'temporary tattoos for kids', 69893],
+                    ['2025-08', 'temporary tattoos for kids', 64775],
+                    ['2025-07', 'temporary tattoos for kids', 68607],
+                    ['2025-06', 'temporary tattoos for kids', 74396],
+                    ['2025-05', 'temporary tattoos for kids', 79720],
+                    ['2025-04', 'temporary tattoos for kids', 126004],
+                    ['2025-03', 'temporary tattoos for kids', 42441],
+                    ['2025-02', 'temporary tattoos for kids', 18415],
+                    ['2025-01', 'temporary tattoos for kids', 11891],
+                    ['2024-12', 'temporary tattoos for kids', 12996],
+                    ['2024-11', 'temporary tattoos for kids', 16050],
+                    ['2024-10', 'temporary tattoos for kids', 18097],
+                    ['2024-09', 'temporary tattoos for kids', 12140],
+                    ['2024-08', 'temporary tattoos for kids', 11356],
+                    ['2024-07', 'temporary tattoos for kids', 13127],
+                    ['2024-06', 'temporary tattoos for kids', 12442],
+                    ['2024-05', 'temporary tattoos for kids', 13069],
+                    ['2024-04', 'temporary tattoos for kids', 10007],
+                    ['2024-03', 'temporary tattoos for kids', 17109],
+                    ['2024-02', 'temporary tattoos for kids', 7787],
+                    ['2024-01', 'temporary tattoos for kids', 4909],
+                    ['2023-12', 'temporary tattoos for kids', 6096],
+                    ['2023-11', 'temporary tattoos for kids', 6190],
+                    ['2023-10', 'temporary tattoos for kids', 10311],
+                    ['2023-09', 'temporary tattoos for kids', 12570],
+                    ['2023-08', 'temporary tattoos for kids', 11439],
+                    ['2023-07', 'temporary tattoos for kids', 8205],
+                    ['2023-06', 'temporary tattoos for kids', 9088],
+                    ['2023-05', 'temporary tattoos for kids', 9619],
+                    ['2023-04', 'temporary tattoos for kids', 10075],
+                    ['2023-03', 'temporary tattoos for kids', 11893],
+                    ['2023-02', 'temporary tattoos for kids', 9027],
+                    ['2023-01', 'temporary tattoos for kids', 6600],
+                    ['2022-12', 'temporary tattoos for kids', 6716],
+                    ['2022-11', 'temporary tattoos for kids', 7591],
+                    ['2022-10', 'temporary tattoos for kids', 9782],
+                    ['2022-09', 'temporary tattoos for kids', 9878],
+                    ['2022-08', 'temporary tattoos for kids', 11166],
+                    ['2022-07', 'temporary tattoos for kids', 9054],
+                    ['2022-06', 'temporary tattoos for kids', 11528],
+                    ['2022-05', 'temporary tattoos for kids', 9914],
+                    ['2022-04', 'temporary tattoos for kids', 13814],
+                    ['2022-03', 'temporary tattoos for kids', 13118],
+                    ['2022-02', 'temporary tattoos for kids', 9662],
+                    ['2022-01', 'temporary tattoos for kids', 6726],
+                    ['2021-12', 'temporary tattoos for kids', 6859],
+                    ['2021-11', 'temporary tattoos for kids', 8295],
+                    ['2021-10', 'temporary tattoos for kids', 10034],
+                    ['2021-09', 'temporary tattoos for kids', 9847],
+                    ['2021-08', 'temporary tattoos for kids', 10096],
+                    ['2021-07', 'temporary tattoos for kids', 12596],
+                    ['2021-06', 'temporary tattoos for kids', 25381],
+                    ['2021-05', 'temporary tattoos for kids', 27562],
+                    ['2021-04', 'temporary tattoos for kids', 25169],
+                    ['2021-03', 'temporary tattoos for kids', 47159],
+                    ['2021-02', 'temporary tattoos for kids', 22279],
+                    ['2021-01', 'temporary tattoos for kids', 15458],
+                    ['2020-12', 'temporary tattoos for kids', 29164],
+                    ['2020-11', 'temporary tattoos for kids', 28988],
+                    ['2020-10', 'temporary tattoos for kids', 26902],
+                    ['2020-09', 'temporary tattoos for kids', 25714],
+                    ['2020-08', 'temporary tattoos for kids', 26987],
+                    ['2020-07', 'temporary tattoos for kids', 17964],
+                    ['2020-06', 'temporary tattoos for kids', 14500],
+                    ['2020-05', 'temporary tattoos for kids', 21295],
+                    ['2020-04', 'temporary tattoos for kids', 55020],
+                    ['2020-03', 'temporary tattoos for kids', 32730],
+                    ['2020-02', 'temporary tattoos for kids', 31058],
+                    ['2020-01', 'temporary tattoos for kids', 15284],
+                    ['2019-12', 'temporary tattoos for kids', 25689],
+                    ['2019-11', 'temporary tattoos for kids', 25937],
+                    ['2019-10', 'temporary tattoos for kids', 39343],
+                    ['2019-09', 'temporary tattoos for kids', 44588],
+                    ['2019-08', 'temporary tattoos for kids', 46287],
+                    ['2019-07', 'temporary tattoos for kids', 45313],
+                    ['2019-06', 'temporary tattoos for kids', 15034],
+                    ['2019-05', 'temporary tattoos for kids', 46053],
+                    ['2019-04', 'temporary tattoos for kids', 36641],
+                    ['2019-03', 'temporary tattoos for kids', 34822],
+                    ['2019-02', 'temporary tattoos for kids', 24062],
+                    ['2019-01', 'temporary tattoos for kids', 16017],
+                    ['2018-12', 'temporary tattoos for kids', 15666],
+                    ['2018-11', 'temporary tattoos for kids', 15742],
+                    ['2018-10', 'temporary tattoos for kids', 26152],
+                    ['2018-09', 'temporary tattoos for kids', 31193],
+                    ['2018-08', 'temporary tattoos for kids', 30290],
+                    ['2018-07', 'temporary tattoos for kids', 35367],
+                    ['2018-06', 'temporary tattoos for kids', 36299],
+                    ['2018-05', 'temporary tattoos for kids', 40678],
+                    ['2018-04', 'temporary tattoos for kids', 31765],
+                    ['2018-03', 'temporary tattoos for kids', 41542],
+                    ['2018-02', 'temporary tattoos for kids', 26834],
+                    ['2018-01', 'temporary tattoos for kids', 17087],
+                    ['2017-12', 'temporary tattoos for kids', 14463],
+                    ['2017-11', 'temporary tattoos for kids', 18677],
+                    ['2017-10', 'temporary tattoos for kids', 29700],
+                    ['2017-09', 'temporary tattoos for kids', 25238],
+                    ['2017-08', 'temporary tattoos for kids', 15906],
+                    ['2017-07', 'temporary tattoos for kids', 16309],
+                    ['2017-06', 'temporary tattoos for kids', 17910],
+                    ['2017-05', 'temporary tattoos for kids', 19403],
+                    ['2017-04', 'temporary tattoos for kids', 23693],
+                    ['2017-03', 'temporary tattoos for kids', 12485],
+                    ['2017-02', 'temporary tattoos for kids', 15133],
+                    ['2017-01', 'temporary tattoos for kids', 5686],
+                    ['2026-04', 'temporary tattoo maker', 25833],
+                    ['2026-03', 'temporary tattoo maker', 3587],
+                    ['2026-02', 'temporary tattoo maker', 3888],
+                    ['2026-01', 'temporary tattoo maker', 3431],
+                    ['2025-12', 'temporary tattoo maker', 11882],
+                    ['2025-11', 'temporary tattoo maker', 16748],
+                    ['2025-10', 'temporary tattoo maker', 140],
+                    ['2025-09', 'temporary tattoo maker', 358],
+                    ['2025-07', 'temporary tattoo maker', 504],
+                    ['2025-06', 'temporary tattoo maker', 302],
+                    ['2025-05', 'temporary tattoo maker', 398],
+                    ['2024-12', 'temporary tattoo maker', 627],
+                    ['2024-11', 'temporary tattoo maker', 314],
+                    ['2024-10', 'temporary tattoo maker', 521],
+                    ['2024-07', 'temporary tattoo maker', 140],
+                    ['2024-06', 'temporary tattoo maker', 559],
+                    ['2024-04', 'temporary tattoo maker', 307],
+                    ['2024-03', 'temporary tattoo maker', 561],
+                    ['2023-12', 'temporary tattoo maker', 1147],
+                    ['2023-11', 'temporary tattoo maker', 879],
+                    ['2023-10', 'temporary tattoo maker', 793],
+                    ['2023-08', 'temporary tattoo maker', 1186],
+                    ['2023-07', 'temporary tattoo maker', 585],
+                    ['2023-06', 'temporary tattoo maker', 100],
+                    ['2023-05', 'temporary tattoo maker', 100],
+                    ['2023-04', 'temporary tattoo maker', 0],
+                    ['2023-03', 'temporary tattoo maker', 412],
+                    ['2023-02', 'temporary tattoo maker', 449],
+                    ['2023-01', 'temporary tattoo maker', 0],
+                    ['2022-12', 'temporary tattoo maker', 592],
+                    ['2022-11', 'temporary tattoo maker', 618],
+                    ['2022-10', 'temporary tattoo maker', 0],
+                    ['2022-09', 'temporary tattoo maker', 660],
+                    ['2022-08', 'temporary tattoo maker', 506],
+                    ['2022-07', 'temporary tattoo maker', 0],
+                    ['2022-06', 'temporary tattoo maker', 989],
+                    ['2022-05', 'temporary tattoo maker', 589],
+                    ['2022-04', 'temporary tattoo maker', 0],
+                    ['2022-03', 'temporary tattoo maker', 0],
+                    ['2022-02', 'temporary tattoo maker', 0],
+                    ['2022-01', 'temporary tattoo maker', 509],
+                    ['2021-12', 'temporary tattoo maker', 0],
+                    ['2021-11', 'temporary tattoo maker', 0],
+                    ['2021-10', 'temporary tattoo maker', 0],
+                    ['2021-09', 'temporary tattoo maker', 0],
+                    ['2021-08', 'temporary tattoo maker', 0],
+                    ['2021-07', 'temporary tattoo maker', 526],
+                    ['2021-06', 'temporary tattoo maker', 0],
+                    ['2021-05', 'temporary tattoo maker', 0],
+                    ['2021-04', 'temporary tattoo maker', 0],
+                    ['2021-03', 'temporary tattoo maker', 0],
+                    ['2021-02', 'temporary tattoo maker', 0],
+                    ['2021-01', 'temporary tattoo maker', 0],
+                    ['2020-12', 'temporary tattoo maker', 0],
+                    ['2020-11', 'temporary tattoo maker', 0],
+                    ['2020-10', 'temporary tattoo maker', 0],
+                    ['2020-09', 'temporary tattoo maker', 0],
+                    ['2020-08', 'temporary tattoo maker', 0],
+                    ['2020-07', 'temporary tattoo maker', 0],
+                    ['2020-06', 'temporary tattoo maker', 0],
+                    ['2020-05', 'temporary tattoo maker', 0],
+                    ['2020-04', 'temporary tattoo maker', 0],
+                    ['2020-03', 'temporary tattoo maker', 0],
+                    ['2020-02', 'temporary tattoo maker', 0],
+                    ['2020-01', 'temporary tattoo maker', 1],
+                    ['2019-12', 'temporary tattoo maker', 2],
+                    ['2019-11', 'temporary tattoo maker', 3],
+                    ['2019-10', 'temporary tattoo maker', 4],
+                    ['2019-09', 'temporary tattoo maker', 5],
+                    ['2019-08', 'temporary tattoo maker', 6],
+                    ['2019-07', 'temporary tattoo maker', 7],
+                    ['2019-06', 'temporary tattoo maker', 8],
+                    ['2019-05', 'temporary tattoo maker', 9],
+                    ['2019-04', 'temporary tattoo maker', 10],
+                    ['2019-03', 'temporary tattoo maker', 11],
+                    ['2019-02', 'temporary tattoo maker', 12],
+                    ['2019-01', 'temporary tattoo maker', 13],
+                    ['2018-12', 'temporary tattoo maker', 14],
+                    ['2018-11', 'temporary tattoo maker', 15],
+                    ['2018-10', 'temporary tattoo maker', 16],
+                    ['2018-09', 'temporary tattoo maker', 17],
+                    ['2018-08', 'temporary tattoo maker', 18],
+                    ['2018-07', 'temporary tattoo maker', 19],
+                    ['2018-06', 'temporary tattoo maker', 20],
+                    ['2018-05', 'temporary tattoo maker', 21],
+                    ['2018-04', 'temporary tattoo maker', 22],
+                    ['2018-03', 'temporary tattoo maker', 23],
+                    ['2018-02', 'temporary tattoo maker', 24],
+                    ['2018-01', 'temporary tattoo maker', 25],
+                    ['2017-12', 'temporary tattoo maker', 26],
+                    ['2017-11', 'temporary tattoo maker', 27],
+                    ['2017-10', 'temporary tattoo maker', 28],
+                    ['2017-09', 'temporary tattoo maker', 29],
+                    ['2017-08', 'temporary tattoo maker', 30],
+                    ['2017-07', 'temporary tattoo maker', 31],
+                    ['2017-06', 'temporary tattoo maker', 32],
+                    ['2017-05', 'temporary tattoo maker', 33],
+                    ['2017-04', 'temporary tattoo maker', 34],
+                    ['2017-03', 'temporary tattoo maker', 35],
+                    ['2017-02', 'temporary tattoo maker', 36],
+                    ['2017-01', 'temporary tattoo maker', 37],
+                ];
+                const kwMap = {};
+                const allMonthsSet = new Set();
+                rawData.forEach(r => { allMonthsSet.add(r[0]);
+                    kwMap[r[1]] = true; });
+                const allMonths = Array.from(allMonthsSet).sort();
+                const keywords = ['temporary tattoos', 'temporary tattoos for kids', 'temporary tattoo maker'];
+                const seriesByKw = {};
+                keywords.forEach(kw => { seriesByKw[kw] = {}; });
+                rawData.forEach(r => { seriesByKw[r[1]][r[0]] = parseNum(r[2]); });
+                const seriesArr = keywords.map((kw, idx) => ({
+                    name: kw,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { color: getColor(idx), width: 2 },
+                    itemStyle: { color: getColor(idx) },
+                    data: allMonths.map(m => seriesByKw[kw][m] ?? null),
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s += p.marker + ' ' + p.seriesName + ': ' + (p.value != null ? p
+                                    .value.toLocaleString() : '-') + '<br/>'; });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: keywords,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: allMonths,
+                        axisLabel: { rotate: 60, fontSize: 9, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: seriesArr,
+                };
+            }
+
+            // ==================== 图表6：关键词ABA排名趋势-多系列折线图 ====================
+            function getChart6Opt() {
+                const rawData = [
+                    ['2026-04', 'temporary tattoos', 5603],
+                    ['2026-03', 'temporary tattoos', 5493],
+                    ['2026-02', 'temporary tattoos', 7476],
+                    ['2026-01', 'temporary tattoos', 8842],
+                    ['2025-12', 'temporary tattoos', 10331],
+                    ['2025-11', 'temporary tattoos', 11090],
+                    ['2025-10', 'temporary tattoos', 3943],
+                    ['2025-09', 'temporary tattoos', 5110],
+                    ['2025-08', 'temporary tattoos', 5363],
+                    ['2025-07', 'temporary tattoos', 4689],
+                    ['2025-06', 'temporary tattoos', 4100],
+                    ['2025-05', 'temporary tattoos', 4311],
+                    ['2025-04', 'temporary tattoos', 4715],
+                    ['2025-03', 'temporary tattoos', 4097],
+                    ['2025-02', 'temporary tattoos', 4751],
+                    ['2025-01', 'temporary tattoos', 7448],
+                    ['2024-12', 'temporary tattoos', 8109],
+                    ['2024-11', 'temporary tattoos', 6893],
+                    ['2024-10', 'temporary tattoos', 4817],
+                    ['2024-09', 'temporary tattoos', 21216],
+                    ['2024-08', 'temporary tattoos', 21450],
+                    ['2024-07', 'temporary tattoos', 19330],
+                    ['2024-06', 'temporary tattoos', 17288],
+                    ['2024-05', 'temporary tattoos', 22304],
+                    ['2024-04', 'temporary tattoos', 24363],
+                    ['2024-03', 'temporary tattoos', 23313],
+                    ['2024-02', 'temporary tattoos', 30464],
+                    ['2024-01', 'temporary tattoos', 38158],
+                    ['2023-12', 'temporary tattoos', 40270],
+                    ['2023-11', 'temporary tattoos', 44202],
+                    ['2023-10', 'temporary tattoos', 19492],
+                    ['2023-09', 'temporary tattoos', 20745],
+                    ['2023-08', 'temporary tattoos', 23017],
+                    ['2023-07', 'temporary tattoos', 20106],
+                    ['2023-06', 'temporary tattoos', 18067],
+                    ['2023-05', 'temporary tattoos', 18502],
+                    ['2023-04', 'temporary tattoos', 27052],
+                    ['2023-03', 'temporary tattoos', 27744],
+                    ['2023-02', 'temporary tattoos', 21988],
+                    ['2023-01', 'temporary tattoos', 22836],
+                    ['2022-12', 'temporary tattoos', 29999],
+                    ['2022-11', 'temporary tattoos', 25011],
+                    ['2022-10', 'temporary tattoos', 17469],
+                    ['2022-09', 'temporary tattoos', 19057],
+                    ['2022-08', 'temporary tattoos', 12864],
+                    ['2022-07', 'temporary tattoos', 24181],
+                    ['2022-06', 'temporary tattoos', 18913],
+                    ['2022-05', 'temporary tattoos', 22284],
+                    ['2022-04', 'temporary tattoos', 21894],
+                    ['2022-03', 'temporary tattoos', 21901],
+                    ['2022-02', 'temporary tattoos', 26855],
+                    ['2022-01', 'temporary tattoos', 36151],
+                    ['2021-12', 'temporary tattoos', 33850],
+                    ['2021-11', 'temporary tattoos', 26186],
+                    ['2021-10', 'temporary tattoos', 17381],
+                    ['2021-09', 'temporary tattoos', 16918],
+                    ['2021-08', 'temporary tattoos', 14951],
+                    ['2021-07', 'temporary tattoos', 11901],
+                    ['2021-06', 'temporary tattoos', 8628],
+                    ['2021-05', 'temporary tattoos', 15275],
+                    ['2021-04', 'temporary tattoos', 4659],
+                    ['2021-03', 'temporary tattoos', 2114],
+                    ['2021-02', 'temporary tattoos', 2868],
+                    ['2021-01', 'temporary tattoos', 1913],
+                    ['2020-12', 'temporary tattoos', 6224],
+                    ['2020-11', 'temporary tattoos', 6031],
+                    ['2020-10', 'temporary tattoos', 3250],
+                    ['2020-09', 'temporary tattoos', 3455],
+                    ['2020-08', 'temporary tattoos', 2638],
+                    ['2020-07', 'temporary tattoos', 3794],
+                    ['2020-06', 'temporary tattoos', 3504],
+                    ['2020-05', 'temporary tattoos', 4636],
+                    ['2020-04', 'temporary tattoos', 5146],
+                    ['2020-03', 'temporary tattoos', 4527],
+                    ['2020-02', 'temporary tattoos', 3813],
+                    ['2020-01', 'temporary tattoos', 3538],
+                    ['2019-12', 'temporary tattoos', 5518],
+                    ['2019-11', 'temporary tattoos', 5529],
+                    ['2019-10', 'temporary tattoos', 2106],
+                    ['2019-09', 'temporary tattoos', 2978],
+                    ['2019-08', 'temporary tattoos', 3121],
+                    ['2019-07', 'temporary tattoos', 2742],
+                    ['2019-06', 'temporary tattoos', 3330],
+                    ['2019-05', 'temporary tattoos', 3685],
+                    ['2019-04', 'temporary tattoos', 3272],
+                    ['2019-03', 'temporary tattoos', 3689],
+                    ['2019-02', 'temporary tattoos', 4782],
+                    ['2019-01', 'temporary tattoos', 5215],
+                    ['2018-12', 'temporary tattoos', 7229],
+                    ['2018-11', 'temporary tattoos', 6925],
+                    ['2018-10', 'temporary tattoos', 2426],
+                    ['2018-09', 'temporary tattoos', 3610],
+                    ['2018-08', 'temporary tattoos', 3634],
+                    ['2018-07', 'temporary tattoos', 2997],
+                    ['2018-06', 'temporary tattoos', 2797],
+                    ['2018-05', 'temporary tattoos', 3396],
+                    ['2018-04', 'temporary tattoos', 3452],
+                    ['2018-03', 'temporary tattoos', 4571],
+                    ['2018-02', 'temporary tattoos', 5385],
+                    ['2018-01', 'temporary tattoos', 6552],
+                    ['2017-12', 'temporary tattoos', 7549],
+                    ['2017-11', 'temporary tattoos', 6549],
+                    ['2017-10', 'temporary tattoos', 2053],
+                    ['2017-09', 'temporary tattoos', 3500],
+                    ['2017-08', 'temporary tattoos', 3330],
+                    ['2017-07', 'temporary tattoos', 2723],
+                    ['2017-06', 'temporary tattoos', 2746],
+                    ['2017-05', 'temporary tattoos', 3473],
+                    ['2017-04', 'temporary tattoos', 1842],
+                    ['2017-03', 'temporary tattoos', 4105],
+                    ['2017-02', 'temporary tattoos', 4563],
+                    ['2017-01', 'temporary tattoos', 6574],
+                    ['2026-04', 'temporary tattoos for kids', 13423],
+                    ['2026-03', 'temporary tattoos for kids', 8775],
+                    ['2026-02', 'temporary tattoos for kids', 19093],
+                    ['2026-01', 'temporary tattoos for kids', 29829],
+                    ['2025-12', 'temporary tattoos for kids', 22217],
+                    ['2025-11', 'temporary tattoos for kids', 25580],
+                    ['2025-10', 'temporary tattoos for kids', 16938],
+                    ['2025-09', 'temporary tattoos for kids', 16706],
+                    ['2025-08', 'temporary tattoos for kids', 18934],
+                    ['2025-07', 'temporary tattoos for kids', 17387],
+                    ['2025-06', 'temporary tattoos for kids', 15414],
+                    ['2025-05', 'temporary tattoos for kids', 13885],
+                    ['2025-04', 'temporary tattoos for kids', 6941],
+                    ['2025-03', 'temporary tattoos for kids', 33382],
+                    ['2025-02', 'temporary tattoos for kids', 90960],
+                    ['2025-01', 'temporary tattoos for kids', 150981],
+                    ['2024-12', 'temporary tattoos for kids', 141464],
+                    ['2024-11', 'temporary tattoos for kids', 111885],
+                    ['2024-10', 'temporary tattoos for kids', 97603],
+                    ['2024-09', 'temporary tattoos for kids', 155205],
+                    ['2024-08', 'temporary tattoos for kids', 156767],
+                    ['2024-07', 'temporary tattoos for kids', 147912],
+                    ['2024-06', 'temporary tattoos for kids', 149779],
+                    ['2024-05', 'temporary tattoos for kids', 138218],
+                    ['2024-04', 'temporary tattoos for kids', 170572],
+                    ['2024-03', 'temporary tattoos for kids', 105502],
+                    ['2024-02', 'temporary tattoos for kids', 190926],
+                    ['2024-01', 'temporary tattoos for kids', 287573],
+                    ['2023-12', 'temporary tattoos for kids', 242677],
+                    ['2023-11', 'temporary tattoos for kids', 234779],
+                    ['2023-10', 'temporary tattoos for kids', 149712],
+                    ['2023-09', 'temporary tattoos for kids', 127151],
+                    ['2023-08', 'temporary tattoos for kids', 143161],
+                    ['2023-07', 'temporary tattoos for kids', 134654],
+                    ['2023-06', 'temporary tattoos for kids', 116275],
+                    ['2023-05', 'temporary tattoos for kids', 108787],
+                    ['2023-04', 'temporary tattoos for kids', 101955],
+                    ['2023-03', 'temporary tattoos for kids', 88474],
+                    ['2023-02', 'temporary tattoos for kids', 117447],
+                    ['2023-01', 'temporary tattoos for kids', 172140],
+                    ['2022-12', 'temporary tattoos for kids', 169706],
+                    ['2022-11', 'temporary tattoos for kids', 147026],
+                    ['2022-10', 'temporary tattoos for kids', 105850],
+                    ['2022-09', 'temporary tattoos for kids', 103889],
+                    ['2022-08', 'temporary tattoos for kids', 98011],
+                    ['2022-07', 'temporary tattoos for kids', 118400],
+                    ['2022-06', 'temporary tattoos for kids', 95931],
+                    ['2022-05', 'temporary tattoos for kids', 103624],
+                    ['2022-04', 'temporary tattoos for kids', 73712],
+                    ['2022-03', 'temporary tattoos for kids', 80055],
+                    ['2022-02', 'temporary tattoos for kids', 106529],
+                    ['2022-01', 'temporary tattoos for kids', 170895],
+                    ['2021-12', 'temporary tattoos for kids', 163892],
+                    ['2021-11', 'temporary tattoos for kids', 130628],
+                    ['2021-10', 'temporary tattoos for kids', 101584],
+                    ['2021-09', 'temporary tattoos for kids', 105720],
+                    ['2021-08', 'temporary tattoos for kids', 101279],
+                    ['2021-07', 'temporary tattoos for kids', 75350],
+                    ['2021-06', 'temporary tattoos for kids', 30755],
+                    ['2021-05', 'temporary tattoos for kids', 28319],
+                    ['2021-04', 'temporary tattoos for kids', 30840],
+                    ['2021-03', 'temporary tattoos for kids', 15515],
+                    ['2021-02', 'temporary tattoos for kids', 34927],
+                    ['2021-01', 'temporary tattoos for kids', 56806],
+                    ['2020-12', 'temporary tattoos for kids', 27492],
+                    ['2020-11', 'temporary tattoos for kids', 27838],
+                    ['2020-10', 'temporary tattoos for kids', 28764],
+                    ['2020-09', 'temporary tattoos for kids', 30630],
+                    ['2020-08', 'temporary tattoos for kids', 30082],
+                    ['2020-07', 'temporary tattoos for kids', 44531],
+                    ['2020-06', 'temporary tattoos for kids', 59943],
+                    ['2020-05', 'temporary tattoos for kids', 36614],
+                    ['2020-04', 'temporary tattoos for kids', 13349],
+                    ['2020-03', 'temporary tattoos for kids', 23644],
+                    ['2020-02', 'temporary tattoos for kids', 25418],
+                    ['2020-01', 'temporary tattoos for kids', 61460],
+                    ['2019-12', 'temporary tattoos for kids', 31718],
+                    ['2019-11', 'temporary tattoos for kids', 30831],
+                    ['2019-10', 'temporary tattoos for kids', 19146],
+                    ['2019-09', 'temporary tattoos for kids', 16885],
+                    ['2019-08', 'temporary tattoos for kids', 15961],
+                    ['2019-07', 'temporary tattoos for kids', 16317],
+                    ['2019-06', 'temporary tattoos for kids', 56548],
+                    ['2019-05', 'temporary tattoos for kids', 16337],
+                    ['2019-04', 'temporary tattoos for kids', 21126],
+                    ['2019-03', 'temporary tattoos for kids', 22129],
+                    ['2019-02', 'temporary tattoos for kids', 32806],
+                    ['2019-01', 'temporary tattoos for kids', 53003],
+                    ['2018-12', 'temporary tattoos for kids', 57938],
+                    ['2018-11', 'temporary tattoos for kids', 52967],
+                    ['2018-10', 'temporary tattoos for kids', 30421],
+                    ['2018-09', 'temporary tattoos for kids', 25652],
+                    ['2018-08', 'temporary tattoos for kids', 26577],
+                    ['2018-07', 'temporary tattoos for kids', 21810],
+                    ['2018-06', 'temporary tattoos for kids', 21099],
+                    ['2018-05', 'temporary tattoos for kids', 18564],
+                    ['2018-04', 'temporary tattoos for kids', 24230],
+                    ['2018-03', 'temporary tattoos for kids', 18532],
+                    ['2018-02', 'temporary tattoos for kids', 29579],
+                    ['2018-01', 'temporary tattoos for kids', 49127],
+                    ['2017-12', 'temporary tattoos for kids', 67392],
+                    ['2017-11', 'temporary tattoos for kids', 41849],
+                    ['2017-10', 'temporary tattoos for kids', 26868],
+                    ['2017-09', 'temporary tattoos for kids', 31967],
+                    ['2017-08', 'temporary tattoos for kids', 56548],
+                    ['2017-07', 'temporary tattoos for kids', 50707],
+                    ['2017-06', 'temporary tattoos for kids', 46152],
+                    ['2017-05', 'temporary tattoos for kids', 40344],
+                    ['2017-04', 'temporary tattoos for kids', 34511],
+                    ['2017-03', 'temporary tattoos for kids', 81368],
+                    ['2017-02', 'temporary tattoos for kids', 57276],
+                    ['2017-01', 'temporary tattoos for kids', 207817],
+                    ['2026-04', 'temporary tattoo maker', 62213],
+                    ['2026-03', 'temporary tattoo maker', 412127],
+                    ['2026-02', 'temporary tattoo maker', 380011],
+                    ['2026-01', 'temporary tattoo maker', 416272],
+                    ['2025-12', 'temporary tattoo maker', 157116],
+                    ['2025-11', 'temporary tattoo maker', 104985],
+                    ['2025-10', 'temporary tattoo maker', 3020058],
+                    ['2025-09', 'temporary tattoo maker', 2260572],
+                    ['2025-07', 'temporary tattoo maker', 2018032],
+                    ['2025-06', 'temporary tattoo maker', 2300379],
+                    ['2025-05', 'temporary tattoo maker', 2213704],
+                    ['2024-12', 'temporary tattoo maker', 1755736],
+                    ['2024-11', 'temporary tattoo maker', 2293496],
+                    ['2024-10', 'temporary tattoo maker', 1983183],
+                    ['2024-07', 'temporary tattoo maker', 2642787],
+                    ['2024-06', 'temporary tattoo maker', 1906303],
+                    ['2024-04', 'temporary tattoo maker', 2297988],
+                    ['2024-03', 'temporary tattoo maker', 1902174],
+                    ['2023-12', 'temporary tattoo maker', 1834021],
+                    ['2023-11', 'temporary tattoo maker', 2194870],
+                    ['2023-10', 'temporary tattoo maker', 2488879],
+                    ['2023-08', 'temporary tattoo maker', 1638445],
+                    ['2023-07', 'temporary tattoo maker', 1747311],
+                    ['2023-06', 'temporary tattoo maker', 2411205],
+                    ['2023-05', 'temporary tattoo maker', 2463623],
+                    ['2023-04', 'temporary tattoo maker', null],
+                    ['2023-03', 'temporary tattoo maker', 2144838],
+                    ['2023-02', 'temporary tattoo maker', 2069406],
+                    ['2023-01', 'temporary tattoo maker', null],
+                    ['2022-12', 'temporary tattoo maker', 1731161],
+                    ['2022-11', 'temporary tattoo maker', 1669268],
+                    ['2022-10', 'temporary tattoo maker', null],
+                    ['2022-09', 'temporary tattoo maker', 1564729],
+                    ['2022-08', 'temporary tattoo maker', 1939072],
+                    ['2022-07', 'temporary tattoo maker', null],
+                    ['2022-06', 'temporary tattoo maker', 1158429],
+                    ['2022-05', 'temporary tattoo maker', 1736811],
+                    ['2022-04', 'temporary tattoo maker', null],
+                    ['2022-03', 'temporary tattoo maker', null],
+                    ['2022-02', 'temporary tattoo maker', null],
+                    ['2022-01', 'temporary tattoo maker', 1932760],
+                    ['2021-12', 'temporary tattoo maker', null],
+                    ['2021-11', 'temporary tattoo maker', null],
+                    ['2021-10', 'temporary tattoo maker', null],
+                    ['2021-09', 'temporary tattoo maker', null],
+                    ['2021-08', 'temporary tattoo maker', null],
+                    ['2021-07', 'temporary tattoo maker', 1891178],
+                    ['2021-06', 'temporary tattoo maker', null],
+                    ['2021-05', 'temporary tattoo maker', null],
+                    ['2021-04', 'temporary tattoo maker', 0],
+                    ['2021-03', 'temporary tattoo maker', 0],
+                    ['2021-02', 'temporary tattoo maker', 0],
+                    ['2021-01', 'temporary tattoo maker', 0],
+                    ['2020-12', 'temporary tattoo maker', 0],
+                    ['2020-11', 'temporary tattoo maker', 0],
+                    ['2020-10', 'temporary tattoo maker', 0],
+                    ['2020-09', 'temporary tattoo maker', 0],
+                    ['2020-08', 'temporary tattoo maker', 0],
+                    ['2020-07', 'temporary tattoo maker', 0],
+                    ['2020-06', 'temporary tattoo maker', 0],
+                    ['2020-05', 'temporary tattoo maker', 0],
+                    ['2020-04', 'temporary tattoo maker', 0],
+                    ['2020-03', 'temporary tattoo maker', 0],
+                    ['2020-02', 'temporary tattoo maker', null],
+                    ['2020-01', 'temporary tattoo maker', null],
+                    ['2019-12', 'temporary tattoo maker', null],
+                    ['2019-11', 'temporary tattoo maker', null],
+                    ['2019-10', 'temporary tattoo maker', null],
+                    ['2019-09', 'temporary tattoo maker', null],
+                    ['2019-08', 'temporary tattoo maker', null],
+                    ['2019-07', 'temporary tattoo maker', null],
+                    ['2019-06', 'temporary tattoo maker', null],
+                    ['2019-05', 'temporary tattoo maker', null],
+                    ['2019-04', 'temporary tattoo maker', null],
+                    ['2019-03', 'temporary tattoo maker', null],
+                    ['2019-02', 'temporary tattoo maker', null],
+                    ['2019-01', 'temporary tattoo maker', null],
+                    ['2018-12', 'temporary tattoo maker', null],
+                    ['2018-11', 'temporary tattoo maker', null],
+                    ['2018-10', 'temporary tattoo maker', null],
+                    ['2018-09', 'temporary tattoo maker', null],
+                    ['2018-08', 'temporary tattoo maker', null],
+                    ['2018-07', 'temporary tattoo maker', null],
+                    ['2018-06', 'temporary tattoo maker', null],
+                    ['2018-05', 'temporary tattoo maker', null],
+                    ['2018-04', 'temporary tattoo maker', null],
+                    ['2018-03', 'temporary tattoo maker', null],
+                    ['2018-02', 'temporary tattoo maker', null],
+                    ['2018-01', 'temporary tattoo maker', null],
+                    ['2017-12', 'temporary tattoo maker', null],
+                    ['2017-11', 'temporary tattoo maker', null],
+                    ['2017-10', 'temporary tattoo maker', null],
+                    ['2017-09', 'temporary tattoo maker', null],
+                    ['2017-08', 'temporary tattoo maker', null],
+                    ['2017-07', 'temporary tattoo maker', null],
+                    ['2017-06', 'temporary tattoo maker', null],
+                    ['2017-05', 'temporary tattoo maker', null],
+                    ['2017-04', 'temporary tattoo maker', null],
+                    ['2017-03', 'temporary tattoo maker', null],
+                    ['2017-02', 'temporary tattoo maker', null],
+                    ['2017-01', 'temporary tattoo maker', null],
+                ];
+                const kwMap2 = {};
+                const allMonthsSet2 = new Set();
+                rawData.forEach(r => { allMonthsSet2.add(r[0]);
+                    kwMap2[r[1]] = true; });
+                const allMonths2 = Array.from(allMonthsSet2).sort();
+                const keywords2 = ['temporary tattoos', 'temporary tattoos for kids', 'temporary tattoo maker'];
+                const seriesByKw2 = {};
+                keywords2.forEach(kw => { seriesByKw2[kw] = {}; });
+                rawData.forEach(r => { seriesByKw2[r[1]][r[0]] = parseNumOrNull(r[2]); });
+                const seriesArr2 = keywords2.map((kw, idx) => ({
+                    name: kw,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    connectNulls: false,
+                    lineStyle: { color: getColor(idx), width: 2 },
+                    itemStyle: { color: getColor(idx) },
+                    data: allMonths2.map(m => seriesByKw2[kw][m] ?? null),
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s += p.marker + ' ' + p.seriesName + ': ' + (p.value != null ? p
+                                    .value.toLocaleString() : '-') + '<br/>'; });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: keywords2,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: allMonths2,
+                        axisLabel: { rotate: 60, fontSize: 9, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        inverse: true,
+                        name: 'ABA排名(越小越好)',
+                        nameTextStyle: { fontSize: 10, color: '#999' },
+                    },
+                    series: seriesArr2,
+                };
+            }
+
+            // ==================== 图表7：历史总销量走势-复合图 ====================
+            function getChart7Opt() {
+                const raw = [
+                    ['2024-05', 61091, 620685.26, 1110],
+                    ['2024-06', 71063, 691833.97, 1246],
+                    ['2024-07', 68687, 695084.66, 1184],
+                    ['2024-08', 61758, 617880.85, 1046],
+                    ['2024-09', 63817, 625998.31, 1063],
+                    ['2024-10', 101239, 992490.08, 1606],
+                    ['2024-11', 67763, 681202.09, 1058],
+                    ['2024-12', 92255, 1014120.42, 1441],
+                    ['2025-01', 53084, 511745.69, 804],
+                    ['2025-02', 66139, 649840.03, 972],
+                    ['2025-03', 83922, 780536.4, 1182],
+                    ['2025-04', 98000, 924632.96, 1342],
+                    ['2025-05', 113354, 1068656.78, 1511],
+                    ['2025-06', 132849, 1245278.58, 1703],
+                    ['2025-07', 144325, 1353521.43, 1804],
+                    ['2025-08', 122694, 1152551.1, 1460],
+                    ['2025-09', 116155, 1061878.06, 1290],
+                    ['2025-10', 172351, 1570712.19, 1853],
+                    ['2025-11', 145813, 1593014.83, 1503],
+                    ['2025-12', 172418, 1956419.04, 1741],
+                    ['2026-01', 105038, 986318, 1029],
+                    ['2026-02', 123912, 1119524.78, 1168],
+                    ['2026-03', 199227, 1759235, 1844],
+                    ['2026-04', 182191, 1670391.11, 1686],
+                    ['2026-05', 192603, 1705046.177, 1783],
+                ];
+                const xData = raw.map(r => r[0]);
+                const barData = raw.map(r => parseNum(r[1]));
+                const avgLineData = raw.map(r => parseNum(r[3]));
+                const salesLineData = raw.map(r => parseNum(r[2]));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => {
+                                s += p.marker + ' ' + p.seriesName + ': ' + (p.value != null ? p.value
+                                    .toLocaleString() : '-') + '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: ['月销量', '平均月销量', '月销售额'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: function(v) { return '$' + formatWan(v); }, color: '#666',
+                            fontSize: 11 },
+                        splitLine: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    }],
+                    series: [{
+                        name: '月销量',
+                        type: 'bar',
+                        data: barData,
+                        itemStyle: { color: getColor(0), borderRadius: [4, 4, 0, 0] },
+                        barWidth: '55%',
+                        yAxisIndex: 0,
+                        label: { show: false },
+                    }, {
+                        name: '平均月销量',
+                        type: 'line',
+                        data: avgLineData,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { color: getColor(1), width: 2 },
+                        itemStyle: { color: getColor(1) },
+                        yAxisIndex: 0,
+                    }, {
+                        name: '月销售额',
+                        type: 'line',
+                        data: salesLineData,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 5,
+                        lineStyle: { color: getColor(2), width: 2, type: 'dashed' },
+                        itemStyle: { color: getColor(2) },
+                        yAxisIndex: 1,
+                    }],
+                };
+            }
+
+            // ==================== 图表8：价格四分位走势-多系列折线图 ====================
+            function getChart8Opt() {
+                const raw = [
+                    ['2024-05', 9.35, 8.99, 7.99, 9.99],
+                    ['2024-06', 9.17, 8.95, 7.99, 9.99],
+                    ['2024-07', 9.31, 8.99, 7.99, 9.99],
+                    ['2024-08', 9.26, 8.99, 7.99, 9.99],
+                    ['2024-09', 9.26, 8.99, 7.99, 9.97],
+                    ['2024-10', 9.43, 8.99, 8.01, 9.59],
+                    ['2024-11', 9.36, 8.675, 7.99, 9.64],
+                    ['2024-12', 9.91, 8.89, 7.99, 9.35],
+                    ['2025-01', 8.91, 8.575, 7.74, 8.99],
+                    ['2025-02', 8.86, 8.72, 7.61, 8.99],
+                    ['2025-03', 8.74, 8.625, 7.16, 9.22],
+                    ['2025-04', 8.82, 8.545, 7.35, 9.99],
+                    ['2025-05', 8.88, 8.585, 7.60, 9.95],
+                    ['2025-06', 8.94, 8.415, 7.84, 9.66],
+                    ['2025-07', 8.97, 8.59, 7.60, 9.98],
+                    ['2025-08', 8.97, 8.525, 7.00, 9.99],
+                    ['2025-09', 8.72, 8.56, 6.99, 9.98],
+                    ['2025-10', 8.81, 8.49, 7.10, 9.95],
+                    ['2025-11', 10.65, 8.345, 6.99, 9.91],
+                    ['2025-12', 10.66, 8.52, 6.99, 9.70],
+                    ['2026-01', 8.84, 8.215, 6.99, 9.38],
+                    ['2026-02', 8.56, 7.99, 6.99, 9.70],
+                    ['2026-03', 8.58, 7.99, 6.99, 9.93],
+                    ['2026-04', 8.84, 7.99, 6.99, 9.54],
+                    ['2026-05', 8.66, 8.02, 6.99, 9.39],
+                ];
+                const xData = raw.map(r => r[0]);
+                const seriesNames = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
+                const seriesArr = seriesNames.map((name, idx) => ({
+                    name: name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { color: getColor(idx), width: 2 },
+                    itemStyle: { color: getColor(idx) },
+                    data: raw.map(r => parseNum(r[idx + 1])),
+                }));
+                // 超过3个系列，默认隐藏第4个
+                const legendSelected = { '销量加权均价': true, '月价格中位数': true, 'Q1分位数': true,
+                    'Q3分位数': false };
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s += p.marker + ' ' + p.seriesName + ': $' + (p.value != null ?
+                                    p.value.toFixed(2) : '-') + '<br/>'; });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: seriesNames,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        selected: legendSelected,
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '价格($)',
+                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(2); }, color: '#666',
+                        fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: seriesArr,
+                };
+            }
+
+            // ==================== 图表9：品牌垄断-饼图 ====================
+            function getChart9Opt() {
+                const data = [
+                    { name: 'Generic', value: 13188 },
+                    { name: 'xo, Fetti', value: 11576 },
+                    { name: 'CHARLENT', value: 8262 },
+                    { name: 'JCFIRE', value: 8248 },
+                    { name: 'Vagilelf', value: 7333 },
+                    { name: 'Keikihipa', value: 6157 },
+                    { name: 'JEEFONNA', value: 5390 },
+                    { name: 'PARTYWIND', value: 5171 },
+                    { name: 'YINFENGKANHAI', value: 4767 },
+                    { name: 'Zomme', value: 3962 },
+                    { name: '其余', value: 108730 },
+                ];
+                const n = data.length; // 11 > 8，隐藏图例
+                const seriesData = data.map((d, i) => ({ ...d, itemStyle: { color: getColor(i) } }));
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent +
+                                '%';
+                        }
+                    },
+                    legend: { show: false },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '72%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) { return '● ' + p.name + '\n{d}%'; },
+                            fontSize: 10,
+                            color: '#333',
+                        },
+                        labelLine: { show: true, length: 16, length2: 24, lineStyle: { width: 1 } },
+                        emphasis: { scaleSize: 8 },
+                        data: seriesData,
+                    }],
+                };
+            }
+
+            // ==================== 图表10：排名垄断-复合图 ====================
+            function getChart10Opt() {
+                const xData = ['1~10', '11~20', '21~30', '31~40', '41~50', '51~60', '61~70', '71~80', '81~90', '91~100',
+                    '101~110'
+                ];
+                const oldAsin = [8, 9, 9, 9, 9, 8, 9, 10, 10, 8, 5];
+                const newAsin = [2, 1, 1, 1, 1, 2, 1, 0, 0, 2, 3];
+                const oldAvg = [4790, 2585, 2179, 1848, 1564, 1321, 1170, 1022, 780, 548, 298];
+                const newAvg = [6258, 2876, 2190, 1755, 1463, 1367, 1210, 0, 0, 433, 95];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: ['老品ASIN数', '新品ASIN数', '老品平均销量', '新品平均销量'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: 'ASIN计数',
+                        axisLabel: { color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    }, {
+                        type: 'value',
+                        name: '平均月销量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    }],
+                    series: [{
+                        name: '老品ASIN数',
+                        type: 'bar',
+                        stack: 'asin',
+                        data: oldAsin,
+                        itemStyle: { color: getColor(0) },
+                        barWidth: '50%',
+                        yAxisIndex: 0,
+                        label: { show: false },
+                    }, {
+                        name: '新品ASIN数',
+                        type: 'bar',
+                        stack: 'asin',
+                        data: newAsin,
+                        itemStyle: { color: getColor(1) },
+                        yAxisIndex: 0,
+                        label: { show: false },
+                    }, {
+                        name: '老品平均销量',
+                        type: 'line',
+                        data: oldAvg,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { color: getColor(2), width: 2 },
+                        itemStyle: { color: getColor(2) },
+                        yAxisIndex: 1,
+                    }, {
+                        name: '新品平均销量',
+                        type: 'line',
+                        data: newAvg,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        lineStyle: { color: getColor(3), width: 2, type: 'dashed' },
+                        itemStyle: { color: getColor(3) },
+                        yAxisIndex: 1,
+                    }],
+                };
+            }
+
+            // ==================== 图表11：卖家所属地-饼图 ====================
+            function getChart11Opt() {
+                const data = [
+                    { name: 'CN', value: 127376 },
+                    { name: 'US', value: 22780 },
+                    { name: 'VN', value: 14320 },
+                    { name: 'AMZ', value: 11914 },
+                    { name: 'CN(HK)', value: 5658 },
+                    { name: 'LV', value: 697 },
+                    { name: 'KR', value: 39 },
+                ];
+                const n = data.length; // 7 <= 8，显示图例
+                const seriesData = data.map((d, i) => ({ ...d, itemStyle: { color: getColor(i) } }));
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent +
+                                '%';
+                        }
+                    },
+                    legend: {
+                        show: true,
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'center',
+                        itemGap: 8,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['38%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 10,
+                            color: '#333',
+                        },
+                        labelLine: { show: true, length: 14, length2: 20, lineStyle: { width: 1 } },
+                        emphasis: { scaleSize: 8 },
+                        data: seriesData,
+                    }],
+                };
+            }
+
+            // ==================== 图表12：配送方式-饼图 ====================
+            function getChart12Opt() {
+                const data = [
+                    { name: 'AMZ', value: 11914 },
+                    { name: 'FBA', value: 170870 },
+                ];
+                const seriesData = data.map((d, i) => ({ ...d, itemStyle: { color: getColor(i) } }));
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent +
+                                '%';
+                        }
+                    },
+                    legend: {
+                        show: true,
+                        orient: 'vertical',
+                        right: '8%',
+                        top: 'center',
+                        textStyle: { fontSize: 12, color: '#333' },
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['45%', '72%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 12,
+                            color: '#333',
+                        },
+                        labelLine: { show: true, length: 18, length2: 28, lineStyle: { width: 1 } },
+                        emphasis: { scaleSize: 8 },
+                        data: seriesData,
+                    }],
+                };
+            }
+
+            // ==================== 图表13：新品销量占比-饼图 ====================
+            function getChart13Opt() {
+                const data = [
+                    { name: '3个月内新品', value: 6148 },
+                    { name: '3~6个月内新品', value: 19745 },
+                    { name: '老品', value: 156891 },
+                ];
+                const seriesData = data.map((d, i) => ({ ...d, itemStyle: { color: getColor(i) } }));
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent +
+                                '%';
+                        }
+                    },
+                    legend: {
+                        show: true,
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'center',
+                        textStyle: { fontSize: 12, color: '#333' },
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['38%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 11,
+                            color: '#333',
+                        },
+                        labelLine: { show: true, length: 14, length2: 22, lineStyle: { width: 1 } },
+                        emphasis: { scaleSize: 8 },
+                        data: seriesData,
+                    }],
+                };
+            }
+
+            // ==================== 图表14：review数分布-堆积柱状图 ====================
+            function getChart14Opt() {
+                const xData = ['0~10', '10~30', '30~50', '50~100', '100~200', '200~300', '300~400', '400~500', '500~800',
+                    '800~1200', '1200~2000', '2000+'
+                ];
+                const oldData = [0, 0, 453, 5834, 17891, 13536, 11152, 10388, 20622, 30691, 17407, 28917];
+                const newData = [34, 4938, 1985, 2190, 5327, 1210, 7333, 0, 0, 0, 0, 2876];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: ['老品', '新品'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: [{
+                        name: '老品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: oldData,
+                        itemStyle: { color: getColor(0) },
+                        barWidth: '55%',
+                        label: { show: false },
+                    }, {
+                        name: '新品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: newData,
+                        itemStyle: { color: getColor(1) },
+                        label: { show: false },
+                    }],
+                };
+            }
+
+            // ==================== 图表15：市场分款价格分布-复合图 ====================
+            function getChart15Opt() {
+                const priceRanges = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
+                    '58.98-63.98', '458.98-463.98'
+                ];
+                const fenkuanNames = [
+                    '儿童混合套装纹身', '儿童主题/角色纹身', '成人写实/3D/半臂纹身', '花卉/女性装饰纹身',
+                    'DIY纹身墨水套装', '夜光/UV发光纹身', 'DIY纹身马克笔套装', '临时纹身打印机',
+                    '特殊场合/节日纹身', 'DIY纹身闪粉套装'
+                ];
+                const salesVolume = [
+                    [13816, 44179, 13033, 23296, 0, 10638, 409, 0, 8437, 0],
+                    [3110, 34778, 6579, 0, 9121, 1615, 6338, 0, 0, 0],
+                    [0, 0, 2150, 0, 0, 0, 1746, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 824],
+                    [0, 0, 0, 0, 0, 0, 0, 2391, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 106, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 179, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 39, 0, 0],
+                ];
+                const salesAmount = [
+                    [93248, 320583, 99267, 176784, 0, 82008, 3267, 0, 58023, 0],
+                    [38579, 345307, 59103, 0, 99493, 14518, 61640, 0, 0, 0],
+                    [0, 0, 32142, 0, 0, 0, 25766, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 16471],
+                    [0, 0, 0, 0, 0, 0, 0, 78879, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 4238, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 10737, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 17901, 0, 0],
+                ];
+                const totalSalesAmount = salesAmount.map(row => row.reduce((a, b) => a + b, 0));
+                const barSeries = fenkuanNames.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'volume',
+                    data: salesVolume.map(row => row[idx]),
+                    itemStyle: { color: getColor(idx) },
+                    yAxisIndex: 0,
+                    label: { show: false },
+                }));
+                const lineSeries = {
+                    name: '总月销售额',
+                    type: 'line',
+                    data: totalSalesAmount,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 7,
+                    lineStyle: { color: getColor(fenkuanNames.length), width: 3 },
+                    itemStyle: { color: getColor(fenkuanNames.length) },
+                    yAxisIndex: 1,
+                };
+                const allSeries = [...barSeries, lineSeries];
+                const allLegendNames = [...fenkuanNames, '总月销售额'];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: allLegendNames,
+                        top: 5,
+                        textStyle: { fontSize: 9, color: '#333' },
+                        type: 'scroll',
+                        bottom: 0,
+                    },
+                    grid: { left: '3%', right: '5%', top: '16%', bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: priceRanges,
+                        axisLabel: { fontSize: 9, color: '#666', rotate: 25 },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: function(v) { return '$' + formatWan(v); }, color: '#666',
+                            fontSize: 10 },
+                        splitLine: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    }],
+                    series: allSeries,
+                };
+            }
+
+            // ==================== 图表16：价格质量联动分析-多系列堆积柱状图 ====================
+            function getChart16Opt() {
+                const xData = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
+                    '58.98-63.98', '458.98-463.98'
+                ];
+                const seriesNames = ['三星半及以下', '四星', '四星半', '五星'];
+                const dataMatrix = [
+                    [0, 1, 58, 5],
+                    [0, 2, 29, 4],
+                    [0, 0, 3, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 1, 0],
+                    [0, 1, 0, 0],
+                    [0, 1, 1, 0],
+                    [1, 0, 0, 0],
+                ];
+                const seriesArr = seriesNames.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: dataMatrix.map(row => row[idx]),
+                    itemStyle: { color: getColor(idx) },
+                    barWidth: '55%',
+                    label: { show: false },
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: seriesNames,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 25 },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ASIN数量',
+                        axisLabel: { color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: seriesArr,
+                };
+            }
+
+            // ==================== 图表17：品牌价格分布-堆积柱状图 ====================
+            function getChart17Opt() {
+                const xData = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
+                    '58.98-63.98', '458.98-463.98'
+                ];
+                const baipai = [103847, 51497, 3896, 824, 2391, 106, 0, 0];
+                const pinpai = [9961, 10044, 0, 0, 0, 0, 179, 39];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: ['白牌', '品牌'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 25 },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: [{
+                        name: '白牌',
+                        type: 'bar',
+                        stack: 'total',
+                        data: baipai,
+                        itemStyle: { color: getColor(0) },
+                        barWidth: '55%',
+                        label: { show: false },
+                    }, {
+                        name: '品牌',
+                        type: 'bar',
+                        stack: 'total',
+                        data: pinpai,
+                        itemStyle: { color: getColor(1) },
+                        label: { show: false },
+                    }],
+                };
+            }
+
+            // ==================== 图表18：新老品价格分布-堆积柱状图 ====================
+            function getChart18Opt() {
+                const xData = ['3.98-8.98', '8.98-13.98', '13.98-18.98', '18.98-23.98', '28.98-33.98', '38.98-43.98',
+                    '58.98-63.98', '458.98-463.98'
+                ];
+                const laopin = [97327, 52414, 3896, 824, 2391, 0, 0, 39];
+                const xinpin = [16481, 9127, 0, 0, 0, 106, 179, 0];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: ['老品', '新品'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '3%', right: '5%', top: '14%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 25 },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: [{
+                        name: '老品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: laopin,
+                        itemStyle: { color: getColor(0) },
+                        barWidth: '55%',
+                        label: { show: false },
+                    }, {
+                        name: '新品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: xinpin,
+                        itemStyle: { color: getColor(1) },
+                        label: { show: false },
+                    }],
+                };
+            }
+
+            // ==================== 图表19：分款评分星级分布-堆积柱状图 ====================
+            function getChart19Opt() {
+                const xData = ['三星半及以下', '四星', '四星半', '五星'];
+                const fenkuanNames = [
+                    '儿童混合套装纹身', '儿童主题/角色纹身', '成人写实/3D/半臂纹身', '花卉/女性装饰纹身',
+                    'DIY纹身墨水套装', '夜光/UV发光纹身', 'DIY纹身马克笔套装', '临时纹身打印机',
+                    '特殊场合/节日纹身', 'DIY纹身闪粉套装'
+                ];
+                const dataMatrix = [
+                    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 1, 0, 1, 2, 0, 0],
+                    [8, 40, 7, 13, 5, 6, 7, 2, 4, 1],
+                    [1, 5, 0, 1, 0, 0, 0, 0, 2, 0],
+                ];
+                const seriesArr = fenkuanNames.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: dataMatrix.map(row => row[idx]),
+                    itemStyle: { color: getColor(idx) },
+                    barWidth: '55%',
+                    label: { show: false },
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        data: fenkuanNames,
+                        top: 5,
+                        textStyle: { fontSize: 8, color: '#333' },
+                        type: 'scroll',
+                    },
+                    grid: { left: '3%', right: '5%', top: '16%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ASIN数量',
+                        axisLabel: { color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: seriesArr,
+                };
+            }
+
+            // ==================== 图表20：评分销量趋势-折线图 ====================
+            function getChart20Opt() {
+                const raw = [
+                    [3.6, 39],
+                    [3.9, 106],
+                    [4.0, 1334],
+                    [4.2, 3506],
+                    [4.3, 7551],
+                    [4.4, 24219],
+                    [4.5, 28323],
+                    [4.6, 45634],
+                    [4.7, 54298],
+                    [4.8, 17350],
+                    [4.9, 424],
+                ];
+                const xData = raw.map(r => r[0].toString());
+                const yData = raw.map(r => r[1]);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return '评分: ' + p[0].axisValue + '<br/>月销量: ' + p[0].value.toLocaleString();
+                        }
+                    },
+                    grid: { left: '3%', right: '5%', top: '8%', bottom: '5%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        name: '评分',
+                        axisLabel: { fontSize: 11, color: '#666' },
+                        axisTick: { show: false },
+                        axisLine: { lineStyle: { color: '#ddd' } },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatWan, color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                    },
+                    series: [{
+                        type: 'line',
+                        data: yData,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        lineStyle: { color: getColor(0), width: 3 },
+                        itemStyle: { color: getColor(0) },
+                        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0,
+                                color: 'rgba(255,157,25,0.3)' }, { offset: 1,
+                                color: 'rgba(255,157,25,0.02)' }]) },
+                        label: { show: false },
+                    }],
+                };
+            }
+
+            // ==================== 图表配置映射 ====================
+            const chartOpts = [
+                getChart1Opt, getChart2Opt, getChart3Opt, getChart4Opt, getChart5Opt,
+                getChart6Opt, getChart7Opt, getChart8Opt, getChart9Opt, getChart10Opt,
+                getChart11Opt, getChart12Opt, getChart13Opt, getChart14Opt, getChart15Opt,
+                getChart16Opt, getChart17Opt, getChart18Opt, getChart19Opt, getChart20Opt,
+            ];
+
+            // ==================== 主逻辑 ====================
+            function init() {
+                const params = new URLSearchParams(window.location.search);
+                let chartId = parseInt(params.get('id')) || 1;
+                if (chartId < 1 || chartId > 20) chartId = 1;
+                const titleEl = document.getElementById('chartTitle');
+                const containerEl = document.getElementById('singleChart');
+                titleEl.textContent = chartTitles[chartId - 1];
+                const optFn = chartOpts[chartId - 1];
+                const option = optFn();
+                const chart = echarts.init(containerEl);
+                chart.setOption(option);
+                setTimeout(() => { chart.resize(); }, 100);
+                window.addEventListener('resize', () => { chart.resize(); });
+            }
+
+            document.addEventListener('DOMContentLoaded', init);
         })();
     </script>
 </body>
