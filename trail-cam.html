@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>市场分析图表仪表盘</title>
-    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         html, body { height:100%; margin:0; background:transparent; }
@@ -22,111 +23,493 @@
     </div>
     <script>
         (function() {
+            // ========== 全局配色与工具函数 ==========
             const COLORS = ['#FF9D19','#4682EB','#52C41A','#F5222D','#FAAD14','#0FC6C2','#722ED1','#EB2F96','#13C2C2','#7CB305','#B37FEB','#FF6B35','#4080FF','#FFBBA8','#95DE64','#FF7875'];
 
-            function parseNum(v) { if (typeof v === 'string') return parseFloat(v.replace(/,/g,''))||0; if (typeof v === 'number') return v; return 0; }
-            function fmtKBM(v) { var n=parseNum(v); if(n>=1000000) return (n/1000000).toFixed(1)+'M'; if(n>=10000) return (n/10000).toFixed(1)+'万'; if(n>=1000) return (n/1000).toFixed(1)+'K'; return n.toString(); }
+            function parseNum(v) {
+                if (typeof v === 'string') return parseFloat(v.replace(/,/g,'')) || 0;
+                if (typeof v === 'number') return v;
+                return 0;
+            }
+
+            function fmtKBM(v) {
+                var n = parseNum(v);
+                if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+                if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+                if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+                return n.toString();
+            }
 
             const chartTitles = [
-                '分款销量占比','核心连接方式销量分布','供电方案销量分布','数据存储与服务模式销量占比图',
-                '关键词搜索量趋势','关键词ABA排名趋势','历史总销量走势','价格四分位走势',
-                '品牌垄断','排名垄断','卖家所属地','配送方式','新品销量占比','review数分布',
-                '市场分款价格分布','价格质量联动分析','品牌价格分布','新老品价格分布',
-                '分款评分星级分布','评分销量趋势','产品月销量排名'
+                '分款销量占比', '核心连接方式销量分布', '供电方案销量分布', '数据存储与服务模式销量占比图',
+                '关键词搜索量趋势', '关键词ABA排名趋势', '历史总销量走势', '价格四分位走势',
+                '品牌垄断', '排名垄断', '卖家所属地', '配送方式', '新品销量占比', 'review数分布',
+                '市场分款价格分布', '价格质量联动分析', '品牌价格分布', '新老品价格分布',
+                '分款评分星级分布', '评分销量趋势', '产品月销量排名'
             ];
 
+            // ========== 图表构建函数 ==========
             function getPieOpt(dataPairs, title, opts) {
                 opts = opts || {};
                 var showLegend = dataPairs.length <= 8;
-                var seriesData = dataPairs.map(function(d,i){ return { name:d[0], value:d[1], itemStyle:{ color:COLORS[i%COLORS.length] } }; });
-                var legendData = dataPairs.map(function(d){ return d[0]; });
-                var option = {
-                    tooltip: { trigger:'item', backgroundColor:'rgba(0,0,0,0.7)', borderColor:'transparent', textStyle:{ color:'#fff' }, formatter:function(p){ return p.name+'<br/>月销量: '+p.value.toLocaleString()+'<br/>占比: '+p.percent+'%'; } },
-                    legend: showLegend ? { type:'scroll', orient:'vertical', right:10, top:'middle', itemGap:8, textStyle:{ fontSize:12, color:'#333' }, data:legendData } : { show:false },
+                var seriesData = dataPairs.map(function(d, i) {
+                    return { name: d[0], value: d[1], itemStyle: { color: COLORS[i % COLORS.length] } };
+                });
+                var legendData = dataPairs.map(function(d) { return d[0]; });
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'middle',
+                        itemGap: 8,
+                        textStyle: { fontSize: 12, color: '#333' },
+                        data: legendData
+                    } : { show: false },
                     series: [{
-                        type:'pie', radius:['40%','68%'], center: showLegend?['40%','50%']:['50%','50%'], avoidLabelOverlap:true, itemStyle:{ borderColor:'transparent', borderWidth:0 },
-                        label: { show:true, position:'outside', formatter: showLegend?'{b}\n{d}%': function(p){ var idx=p.dataIndex; var c=COLORS[idx%COLORS.length]; return '{dot'+idx+'|●} {name'+idx+'|'+p.name+'}\n{pc'+idx+'|'+p.percent+'%}'; }, rich: showLegend?{}: (function(){ var r={}; for(var i=0;i<dataPairs.length;i++){ r['dot'+i]={ fontSize:13, color:COLORS[i%COLORS.length], fontWeight:'bold', padding:[0,4,0,0] }; r['name'+i]={ fontSize:11, color:'#333', padding:[0,0,0,2] }; r['pc'+i]={ fontSize:10, color:'#888', padding:[0,0,0,16] }; } return r; })() },
-                        labelLine: { show:true, length:18, length2:30, lineStyle:{ color:'#bbb', width:1 } },
-                        emphasis: { label:{ fontSize:14, fontWeight:'bold' }, scaleSize:8 },
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
+                                var idx = p.dataIndex;
+                                var c = COLORS[idx % COLORS.length];
+                                return '{dot' + idx + '|●} {name' + idx + '|' + p.name + '}\n{pc' + idx + '|' + p.percent + '%}';
+                            },
+                            rich: showLegend ? {} : (function() {
+                                var r = {};
+                                for (var i = 0; i < dataPairs.length; i++) {
+                                    r['dot' + i] = { fontSize: 13, color: COLORS[i % COLORS.length], fontWeight: 'bold', padding: [0, 4, 0, 0] };
+                                    r['name' + i] = { fontSize: 11, color: '#333', padding: [0, 0, 0, 2] };
+                                    r['pc' + i] = { fontSize: 10, color: '#888', padding: [0, 0, 0, 16] };
+                                }
+                                return r;
+                            })()
+                        },
+                        labelLine: { show: true, length: 18, length2: 30, lineStyle: { color: '#bbb', width: 1 } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
                         data: seriesData
                     }]
                 };
-                return option;
             }
 
             function getLineOpt(xData, seriesArr, title, opts) {
                 opts = opts || {};
-                var yAxisFormatter = opts.yAxisFormatter || function(v){ return fmtKBM(v); };
+                var yAxisFormatter = opts.yAxisFormatter || function(v) { return fmtKBM(v); };
                 var legendSelected = {};
-                if(seriesArr.length > 3){ for(var i=0;i<seriesArr.length;i++){ legendSelected[seriesArr[i].name] = i<3; } }
-                var option = {
-                    tooltip: { trigger:'axis', backgroundColor:'rgba(0,0,0,0.7)', borderColor:'transparent', textStyle:{ color:'#fff' }, formatter: opts.tooltipFormatter || null },
-                    legend: { type:'scroll', bottom:0, textStyle:{ fontSize:11, color:'#333' }, data: seriesArr.map(function(s){ return s.name; }), selected: legendSelected },
-                    grid: { left:50, right:30, top:25, bottom:50 },
-                    xAxis: { type:'category', data:xData, boundaryGap:false, axisLine:{ lineStyle:{ color:'#ccc' } }, axisTick:{ show:false }, axisLabel:{ fontSize:10, color:'#666', rotate:opts.xRotate||0, interval:opts.xInterval||'auto' } },
-                    yAxis: { type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:yAxisFormatter }, splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } }, name:opts.yAxisName||'' },
-                    series: seriesArr.map(function(s,i){ return { name:s.name, type:'line', data:s.data, symbol:'circle', symbolSize:3, lineStyle:{ width:1.5, color:COLORS[i%COLORS.length] }, itemStyle:{ color:COLORS[i%COLORS.length] }, emphasis:{ focus:'series' }, smooth:opts.smooth!==false }; })
+                if (seriesArr.length > 3) {
+                    for (var i = 0; i < seriesArr.length; i++) {
+                        legendSelected[seriesArr[i].name] = i < 3;
+                    }
+                }
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: opts.tooltipFormatter || null
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        data: seriesArr.map(function(s) { return s.name; }),
+                        selected: legendSelected
+                    },
+                    grid: { left: 50, right: 30, top: 25, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        boundaryGap: false,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { fontSize: 10, color: '#666', rotate: opts.xRotate || 0, interval: opts.xInterval || 'auto' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: yAxisFormatter },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: opts.yAxisName || ''
+                    },
+                    series: seriesArr.map(function(s, i) {
+                        return {
+                            name: s.name,
+                            type: 'line',
+                            data: s.data,
+                            symbol: 'circle',
+                            symbolSize: 3,
+                            lineStyle: { width: 1.5, color: COLORS[i % COLORS.length] },
+                            itemStyle: { color: COLORS[i % COLORS.length] },
+                            emphasis: { focus: 'series' },
+                            smooth: opts.smooth !== false
+                        };
+                    })
                 };
-                return option;
             }
 
             function getBarOpt(xData, seriesArr, title, opts) {
                 opts = opts || {};
                 var isStacked = opts.stacked || false;
-                var yAxisFormatter = opts.yAxisFormatter || function(v){ return fmtKBM(v); };
+                var yAxisFormatter = opts.yAxisFormatter || function(v) { return fmtKBM(v); };
                 var option = {
-                    tooltip: { trigger:'axis', backgroundColor:'rgba(0,0,0,0.7)', borderColor:'transparent', textStyle:{ color:'#fff' }, axisPointer:{ type:'shadow' } },
-                    legend: { type:'scroll', bottom:0, textStyle:{ fontSize:11, color:'#333' }, data: seriesArr.map(function(s){ return s.name; }) },
-                    grid: { left:55, right:30, top:25, bottom:50 },
-                    xAxis: { type:'category', data:xData, axisLine:{ lineStyle:{ color:'#ccc' } }, axisTick:{ show:false }, axisLabel:{ fontSize:10, color:'#666', rotate:opts.xRotate||0, interval:opts.xInterval||'auto' } },
-                    yAxis: { type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:yAxisFormatter }, splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } }, name:opts.yAxisName||'' },
-                    series: seriesArr.map(function(s,i){ var cfg={ name:s.name, type:'bar', data:s.data, itemStyle:{ color:COLORS[i%COLORS.length], borderColor:'transparent', borderWidth:0 }, emphasis:{ focus:'series' }, barMaxWidth:opts.barMaxWidth||40 }; if(isStacked) cfg.stack=opts.stackName||'stack'; if(s.yAxisIndex!==undefined){ cfg.yAxisIndex=s.yAxisIndex; cfg.itemStyle.color=COLORS[i%COLORS.length]; } return cfg; })
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        data: seriesArr.map(function(s) { return s.name; })
+                    },
+                    grid: { left: 55, right: 30, top: 25, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { fontSize: 10, color: '#666', rotate: opts.xRotate || 0, interval: opts.xInterval || 'auto' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: yAxisFormatter },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: opts.yAxisName || ''
+                    },
+                    series: seriesArr.map(function(s, i) {
+                        var cfg = {
+                            name: s.name,
+                            type: 'bar',
+                            data: s.data,
+                            itemStyle: { color: COLORS[i % COLORS.length], borderColor: 'transparent', borderWidth: 0 },
+                            emphasis: { focus: 'series' },
+                            barMaxWidth: opts.barMaxWidth || 40
+                        };
+                        if (isStacked) cfg.stack = opts.stackName || 'stack';
+                        if (s.yAxisIndex !== undefined) {
+                            cfg.yAxisIndex = s.yAxisIndex;
+                            cfg.itemStyle.color = COLORS[i % COLORS.length];
+                        }
+                        return cfg;
+                    })
                 };
-                if(opts.secondYAxis){ option.yAxis=[{ type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:yAxisFormatter }, splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } }, name:opts.yAxisName||'' },{ type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:opts.yAxisFormatter2||function(v){ return fmtKBM(v); } }, splitLine:{ show:false }, name:opts.yAxisName2||'' }]; }
+                if (opts.secondYAxis) {
+                    option.yAxis = [{
+                        type: 'value',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: yAxisFormatter },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: opts.yAxisName || ''
+                    }, {
+                        type: 'value',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: opts.yAxisFormatter2 || function(v) { return fmtKBM(v); } },
+                        splitLine: { show: false },
+                        name: opts.yAxisName2 || ''
+                    }];
+                }
                 return option;
             }
 
             function getCompositeOpt(xData, barSeries, lineSeries, title, opts) {
                 opts = opts || {};
                 var allSeries = [];
-                barSeries.forEach(function(s,i){ allSeries.push({ name:s.name, type:'bar', data:s.data, stack:s.stack||'', yAxisIndex:0, itemStyle:{ color:COLORS[i%COLORS.length], borderColor:'transparent', borderWidth:0 }, barMaxWidth:opts.barMaxWidth||30, emphasis:{ focus:'series' } }); });
-                lineSeries.forEach(function(s,i){ allSeries.push({ name:s.name, type:'line', data:s.data, yAxisIndex:s.yAxisIndex!==undefined?s.yAxisIndex:1, symbol:'circle', symbolSize:4, lineStyle:{ width:2, color:COLORS[(barSeries.length+i)%COLORS.length] }, itemStyle:{ color:COLORS[(barSeries.length+i)%COLORS.length] }, emphasis:{ focus:'series' }, smooth:opts.smooth!==false }); });
-                var legendSelected = {}; if(allSeries.length>3){ for(var i=0;i<allSeries.length;i++){ legendSelected[allSeries[i].name]=i<3; } }
-                var option = {
-                    tooltip: { trigger:'axis', backgroundColor:'rgba(0,0,0,0.7)', borderColor:'transparent', textStyle:{ color:'#fff' }, axisPointer:{ type:'cross' } },
-                    legend: { type:'scroll', bottom:0, textStyle:{ fontSize:10, color:'#333' }, data: allSeries.map(function(s){ return s.name; }), selected: legendSelected },
-                    grid: { left:55, right:60, top:25, bottom:55 },
-                    xAxis: { type:'category', data:xData, axisLine:{ lineStyle:{ color:'#ccc' } }, axisTick:{ show:false }, axisLabel:{ fontSize:10, color:'#666', rotate:opts.xRotate||0, interval:opts.xInterval||'auto' } },
-                    yAxis: [{ type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:opts.yAxisFormatter1||function(v){ return fmtKBM(v); } }, splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } }, name:opts.yAxisName1||'' },{ type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:opts.yAxisFormatter2||function(v){ return fmtKBM(v); } }, splitLine:{ show:false }, name:opts.yAxisName2||'' }],
+                barSeries.forEach(function(s, i) {
+                    allSeries.push({
+                        name: s.name,
+                        type: 'bar',
+                        data: s.data,
+                        stack: s.stack || '',
+                        yAxisIndex: 0,
+                        itemStyle: { color: COLORS[i % COLORS.length], borderColor: 'transparent', borderWidth: 0 },
+                        barMaxWidth: opts.barMaxWidth || 30,
+                        emphasis: { focus: 'series' }
+                    });
+                });
+                lineSeries.forEach(function(s, i) {
+                    allSeries.push({
+                        name: s.name,
+                        type: 'line',
+                        data: s.data,
+                        yAxisIndex: s.yAxisIndex !== undefined ? s.yAxisIndex : 1,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[(barSeries.length + i) % COLORS.length] },
+                        itemStyle: { color: COLORS[(barSeries.length + i) % COLORS.length] },
+                        emphasis: { focus: 'series' },
+                        smooth: opts.smooth !== false
+                    });
+                });
+                var legendSelected = {};
+                if (allSeries.length > 3) {
+                    for (var i = 0; i < allSeries.length; i++) {
+                        legendSelected[allSeries[i].name] = i < 3;
+                    }
+                }
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'cross' }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        textStyle: { fontSize: 10, color: '#333' },
+                        data: allSeries.map(function(s) { return s.name; }),
+                        selected: legendSelected
+                    },
+                    grid: { left: 55, right: 60, top: 25, bottom: 55 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { fontSize: 10, color: '#666', rotate: opts.xRotate || 0, interval: opts.xInterval || 'auto' }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: opts.yAxisFormatter1 || function(v) { return fmtKBM(v); } },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: opts.yAxisName1 || ''
+                    }, {
+                        type: 'value',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: opts.yAxisFormatter2 || function(v) { return fmtKBM(v); } },
+                        splitLine: { show: false },
+                        name: opts.yAxisName2 || ''
+                    }],
                     series: allSeries
                 };
-                return option;
             }
 
+            // ========== 图表配置数组 (共21项) ==========
             const chartOpts = [];
 
-            // 图1-20 (保持原有配置，此处省略，实际代码包含)
-            (function(){
-                var data=[['传统离线相机',14244],['近场无线相机',11177],['蜂窝传输相机',9302],['智能监控相机',4811]];
-                chartOpts.push(getPieOpt(data,'分款销量占比'));
-            })();
-            (function(){
-                var data=[['4G LTE蜂窝',14113],['WiFi+蓝牙',11177],['非联网型',14244]];
-                chartOpts.push(getPieOpt(data,'核心连接方式销量分布'));
-            })();
-            (function(){
-                var data=[['AA电池',13962],['AA电池(可外接太阳能)',153],['AA电池(太阳能另购)',9875],['锂电池',458],['锂电池（太阳能另购）',3550],['锂电池+太阳能集成',11536]];
-                chartOpts.push(getPieOpt(data,'供电方案销量分布'));
-            })();
-            (function(){
-                var data=[['SD卡+云存储（订阅制）',1016],['SD卡+云可选',1612],['纯SD卡本地存储',19647],['附赠SD卡',11009],['内置+SD卡',2772],['内置+云存储（订阅制）',2080],['内置存储（无云）',1398]];
-                chartOpts.push(getPieOpt(data,'数据存储与服务模式销量占比图'));
-            })();
-            // ... 图5-20的构建代码与之前相同，此处省略以保证可读性，实际运行需保留完整逻辑。
-            // 为满足字数限制，这里用占位示意，完整版已包含全部图表配置。
-            // 下面直接给出第21个图表的构建代码。
+            // 图1
+            chartOpts.push(getPieOpt([['传统离线相机',14244],['近场无线相机',11177],['蜂窝传输相机',9302],['智能监控相机',4811]]));
+            // 图2
+            chartOpts.push(getPieOpt([['4G LTE蜂窝',14113],['WiFi+蓝牙',11177],['非联网型',14244]]));
+            // 图3
+            chartOpts.push(getPieOpt([['AA电池',13962],['AA电池(可外接太阳能)',153],['AA电池(太阳能另购)',9875],['锂电池',458],['锂电池（太阳能另购）',3550],['锂电池+太阳能集成',11536]]));
+            // 图4
+            chartOpts.push(getPieOpt([['SD卡+云存储（订阅制）',1016],['SD卡+云可选',1612],['纯SD卡本地存储',19647],['附赠SD卡',11009],['内置+SD卡',2772],['内置+云存储（订阅制）',2080],['内置存储（无云）',1398]]));
 
-            // 图21：产品月销量排名
+            // 图5 关键词搜索量趋势
+            (function(){
+                var months = [];
+                for(var y=2017; y<=2026; y++){
+                    var endM = (y===2026)?4:12;
+                    for(var m=1; m<=endM; m++) months.push(y+'-'+(m<10?'0'+m:m));
+                }
+                var trailRaw = {'2017-01':196247,'2017-02':159667,'2017-03':154323,'2017-04':135272,'2017-05':164016,'2017-06':228362,'2017-07':336166,'2017-08':409938,'2017-09':391274,'2017-10':400380,'2017-11':341162,'2017-12':254779,'2018-01':210591,'2018-02':290973,'2018-03':306951,'2018-04':241393,'2018-05':183813,'2018-06':238753,'2018-07':364275,'2018-08':446747,'2018-09':414225,'2018-10':515050,'2018-11':264044,'2018-12':251570,'2019-01':233909,'2019-02':186438,'2019-03':174529,'2019-04':165746,'2019-05':181492,'2019-06':405247,'2019-07':269574,'2019-08':329177,'2019-09':316629,'2019-10':295976,'2019-11':290592,'2019-12':226166,'2020-01':159084,'2020-02':148521,'2020-03':118202,'2020-04':88907,'2020-05':144036,'2020-06':197087,'2020-07':222352,'2020-08':286838,'2020-09':296694,'2020-10':278004,'2020-11':283192,'2020-12':178418,'2021-01':132838,'2021-02':103930,'2021-03':118262,'2021-04':111174,'2021-05':117228,'2021-06':104137,'2021-07':171300,'2021-08':216564,'2021-09':238148,'2021-10':212548,'2021-11':221269,'2021-12':171337,'2022-01':115815,'2022-02':98548,'2022-03':117363,'2022-04':110106,'2022-05':114605,'2022-06':141655,'2022-07':164806,'2022-08':188852,'2022-09':197196,'2022-10':201247,'2022-11':192691,'2022-12':129412,'2023-01':105986,'2023-02':123768,'2023-03':92784,'2023-04':85353,'2023-05':86967,'2023-06':139511,'2023-07':164894,'2023-08':191094,'2023-09':191225,'2023-10':200879,'2023-11':213744,'2023-12':167706,'2024-01':133924,'2024-02':136947,'2024-03':143160,'2024-04':138668,'2024-05':136624,'2024-06':153258,'2024-07':192579,'2024-08':227926,'2024-09':266032,'2024-10':287224,'2024-11':226702,'2024-12':168620,'2025-01':109670,'2025-02':108855,'2025-03':116900,'2025-04':114969,'2025-05':116658,'2025-06':138868,'2025-07':170252,'2025-08':199010,'2025-09':231682,'2025-10':229293,'2025-11':241513,'2025-12':172544,'2026-01':114267,'2026-02':115896,'2026-03':96577,'2026-04':98290};
+                var gameRaw = {'2017-01':133241,'2017-02':85053,'2017-03':72258,'2017-04':74416,'2017-05':80436,'2017-06':112362,'2017-07':146862,'2017-08':180341,'2017-09':186658,'2017-10':186595,'2017-11':182832,'2017-12':116258,'2018-01':66293,'2018-02':71446,'2018-03':59642,'2018-04':67023,'2018-05':74355,'2018-06':94064,'2018-07':148249,'2018-08':206398,'2018-09':217029,'2018-10':274028,'2018-11':155847,'2018-12':116573,'2019-01':85993,'2019-02':75587,'2019-03':59645,'2019-04':59906,'2019-05':62235,'2019-06':188511,'2019-07':115688,'2019-08':142190,'2019-09':155591,'2019-10':146608,'2019-11':151227,'2019-12':109868,'2020-01':81848,'2020-02':70892,'2020-03':54250,'2020-04':44690,'2020-05':56287,'2020-06':82090,'2020-07':97588,'2020-08':145513,'2020-09':153130,'2020-10':145053,'2020-11':123330,'2020-12':66451,'2021-01':41332,'2021-02':34418,'2021-03':37892,'2021-04':39980,'2021-05':49414,'2021-06':58260,'2021-07':61190,'2021-08':75292,'2021-09':86864,'2021-10':72397,'2021-11':70179,'2021-12':50364,'2022-01':33611,'2022-02':31215,'2022-03':31746,'2022-04':33552,'2022-05':33042,'2022-06':40535,'2022-07':57787,'2022-08':58205,'2022-09':65414,'2022-10':57358,'2022-11':58269,'2022-12':34131,'2023-01':30048,'2023-02':35129,'2023-03':21660,'2023-04':26098,'2023-05':22063,'2023-06':31602,'2023-07':41394,'2023-08':77845,'2023-09':72191,'2023-10':85928,'2023-11':74308,'2023-12':59222,'2024-01':38231,'2024-02':37655,'2024-03':40109,'2024-04':43339,'2024-05':46523,'2024-06':54049,'2024-07':70854,'2024-08':77981,'2024-09':97761,'2024-10':95814,'2024-11':75855,'2024-12':56728,'2025-01':36961,'2025-02':33154,'2025-03':37827,'2025-04':36165,'2025-05':40343,'2025-06':44994,'2025-07':58309,'2025-08':71249,'2025-09':84380,'2025-10':82210,'2025-11':84251,'2025-12':56917,'2026-01':36815,'2026-02':32878,'2026-03':28536,'2026-04':30741};
+                var longRaw = {'2017-01':0,'2017-02':0,'2017-03':0,'2017-04':0,'2017-05':0,'2017-06':0,'2017-07':0,'2017-08':0,'2017-09':0,'2017-10':0,'2017-11':0,'2017-12':0,'2018-01':0,'2018-02':0,'2018-03':0,'2018-04':3459,'2018-05':8856,'2018-06':13628,'2018-07':14455,'2018-08':15524,'2018-09':16355,'2018-10':42104,'2018-11':51359,'2018-12':46558,'2019-01':26228,'2019-02':25950,'2019-03':19152,'2019-04':20428,'2019-05':23890,'2019-06':14354,'2019-07':34583,'2019-08':32464,'2019-09':33310,'2019-10':32763,'2019-11':40426,'2019-12':48348,'2020-01':38841,'2020-02':19099,'2020-03':19852,'2020-04':15876,'2020-05':26704,'2020-06':27468,'2020-07':24859,'2020-08':30908,'2020-09':37446,'2020-10':41180,'2020-11':27209,'2020-12':21896,'2021-01':12045,'2021-02':7913,'2021-03':11198,'2021-04':14217,'2021-05':20802,'2021-06':43101,'2021-07':27050,'2021-08':22250,'2021-09':25983,'2021-10':35047,'2021-11':32543,'2021-12':27421,'2022-01':14235,'2022-02':15947,'2022-03':22364,'2022-04':16463,'2022-05':20967,'2022-06':26441,'2022-07':30261,'2022-08':31594,'2022-09':34509,'2022-10':31194,'2022-11':27133,'2022-12':15404,'2023-01':13457,'2023-02':17041,'2023-03':17360,'2023-04':33699,'2023-05':49414,'2023-06':39793,'2023-07':32397,'2023-08':55829,'2023-09':75672,'2023-10':81547,'2023-11':82321,'2023-12':85376,'2024-01':39168,'2024-02':37102,'2024-03':47034,'2024-04':53659,'2024-05':62684,'2024-06':59483,'2024-07':54386,'2024-08':52957,'2024-09':62338,'2024-10':72079,'2024-11':63527,'2024-12':59598,'2025-01':47614,'2025-02':37940,'2025-03':41346,'2025-04':48360,'2025-05':52786,'2025-06':59316,'2025-07':61111,'2025-08':49837,'2025-09':41172,'2025-10':41516,'2025-11':42286,'2025-12':34604,'2026-01':30313,'2026-02':37959,'2026-03':40300,'2026-04':48404};
+                var xLabels = months.slice();
+                chartOpts.push(getLineOpt(xLabels, [
+                    { name:'trail camera', data: months.map(m=>trailRaw[m]||null) },
+                    { name:'game camera', data: months.map(m=>gameRaw[m]||null) },
+                    { name:'trail cameras with night vision motion activated waterproof', data: months.map(m=>longRaw[m]||null) }
+                ], '', {
+                    yAxisFormatter: v=>fmtKBM(v), yAxisName:'月搜索量', xRotate:45, xInterval:5,
+                    tooltipFormatter: function(params){
+                        var s = params[0].axisValue + '<br/>';
+                        params.forEach(p=>{ s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+p.color+';margin-right:6px;"></span>'+p.seriesName+': '+p.value.toLocaleString()+'<br/>'; });
+                        return s;
+                    }
+                }));
+            })();
+
+            // 图6 关键词ABA排名趋势
+            (function(){
+                var months = [];
+                for(var y=2017; y<=2026; y++){
+                    var endM = (y===2026)?4:12;
+                    for(var m=1; m<=endM; m++) months.push(y+'-'+(m<10?'0'+m:m));
+                }
+                var trailRaw = {'2017-01':2743,'2017-02':3506,'2017-03':3650,'2017-04':4607,'2017-05':3706,'2017-06':2085,'2017-07':1233,'2017-08':896,'2017-09':943,'2017-10':903,'2017-11':1160,'2017-12':1798,'2018-01':2412,'2018-02':1520,'2018-03':1433,'2018-04':1913,'2018-05':3128,'2018-06':2071,'2018-07':1066,'2018-08':765,'2018-09':852,'2018-10':597,'2018-11':1686,'2018-12':1912,'2019-01':2081,'2019-02':3008,'2019-03':3124,'2019-04':3493,'2019-05':3134,'2019-06':896,'2019-07':1709,'2019-08':1213,'2019-09':1311,'2019-10':1457,'2019-11':1478,'2019-12':2178,'2020-01':3847,'2020-02':3930,'2020-03':5364,'2020-04':7530,'2020-05':4034,'2020-06':2687,'2020-07':2293,'2020-08':1559,'2020-09':1414,'2020-10':1645,'2020-11':1550,'2020-12':3050,'2021-01':4928,'2021-02':6269,'2021-03':5798,'2021-04':5783,'2021-05':5692,'2021-06':6115,'2021-07':3418,'2021-08':2498,'2021-09':2079,'2021-10':2513,'2021-11':2409,'2021-12':3424,'2022-01':5619,'2022-02':6434,'2022-03':5900,'2022-04':6009,'2022-05':6056,'2022-06':4521,'2022-07':3464,'2022-08':3021,'2022-09':2678,'2022-10':2744,'2022-11':2831,'2022-12':4917,'2023-01':6081,'2023-02':5601,'2023-03':7000,'2023-04':7943,'2023-05':7651,'2023-06':4776,'2023-07':3694,'2023-08':3355,'2023-09':3244,'2023-10':3050,'2023-11':2599,'2023-12':5054,'2024-01':7207,'2024-02':7059,'2024-03':7100,'2024-04':7451,'2024-05':7574,'2024-06':5518,'2024-07':3537,'2024-08':2978,'2024-09':2304,'2024-10':2111,'2024-11':2431,'2024-12':3931,'2025-01':7948,'2025-02':8247,'2025-03':8211,'2025-04':8312,'2025-05':7106,'2025-06':5811,'2025-07':4034,'2025-08':2901,'2025-09':2378,'2025-10':2408,'2025-11':2340,'2025-12':3918,'2026-01':7311,'2026-02':8267,'2026-03':9804,'2026-04':9353};
+                var gameRaw = {'2017-01':4991,'2017-02':7941,'2017-03':9544,'2017-04':9222,'2017-05':8403,'2017-06':5900,'2017-07':4200,'2017-08':3016,'2017-09':3050,'2017-10':2870,'2017-11':3147,'2017-12':5704,'2018-01':10705,'2018-02':9740,'2018-03':12205,'2018-04':10358,'2018-05':9285,'2018-06':6990,'2018-07':3962,'2018-08':2601,'2018-09':2412,'2018-10':1707,'2018-11':3740,'2018-12':5768,'2019-01':7752,'2019-02':9174,'2019-03':11987,'2019-04':11982,'2019-05':11310,'2019-06':3016,'2019-07':5533,'2019-08':4269,'2019-09':3684,'2019-10':4220,'2019-11':4051,'2019-12':5838,'2020-01':8301,'2020-02':9722,'2020-03':13537,'2020-04':16640,'2020-05':13023,'2020-06':8160,'2020-07':6509,'2020-08':4412,'2020-09':3680,'2020-10':4049,'2020-11':4989,'2020-12':10722,'2021-01':18659,'2021-02':22534,'2021-03':20290,'2021-04':18762,'2021-05':15129,'2021-06':12244,'2021-07':11685,'2021-08':9095,'2021-09':7738,'2021-10':9564,'2021-11':9903,'2021-12':14459,'2022-01':23482,'2022-02':24464,'2022-03':24479,'2022-04':23355,'2022-05':24146,'2022-06':18530,'2022-07':12664,'2022-08':12268,'2022-09':10877,'2022-10':12461,'2022-11':12534,'2022-12':22691,'2023-01':26166,'2023-02':21715,'2023-03':38388,'2023-04':30067,'2023-05':35530,'2023-06':24337,'2023-07':18137,'2023-08':14978,'2023-09':16688,'2023-10':12689,'2023-11':15680,'2023-12':21690,'2024-01':37073,'2024-02':39103,'2024-03':40072,'2024-04':36827,'2024-05':34100,'2024-06':28246,'2024-07':19466,'2024-08':16660,'2024-09':11572,'2024-10':12195,'2024-11':14693,'2024-12':23219,'2025-01':41091,'2025-02':46308,'2025-03':39924,'2025-04':42754,'2025-05':36323,'2025-06':31983,'2025-07':22103,'2025-08':16235,'2025-09':12430,'2025-10':12856,'2025-11':12447,'2025-12':22597,'2026-01':41355,'2026-02':46391,'2026-03':54374,'2026-04':49747};
+                var longRaw = {'2017-01':0,'2017-02':0,'2017-03':0,'2017-04':0,'2017-05':0,'2017-06':0,'2017-07':0,'2017-08':0,'2017-09':0,'2017-10':0,'2017-11':0,'2017-12':0,'2018-01':0,'2018-02':0,'2018-03':0,'2018-04':409759,'2018-05':121569,'2018-06':68598,'2018-07':58726,'2018-08':52667,'2018-09':53150,'2018-10':18024,'2018-11':14369,'2018-12':16036,'2019-01':30117,'2019-02':31066,'2019-03':41851,'2019-04':38263,'2019-05':32581,'2019-06':58726,'2019-07':22517,'2019-08':24557,'2019-09':22939,'2019-10':23775,'2019-11':18689,'2019-12':15550,'2020-01':19800,'2020-02':43315,'2020-03':40625,'2020-04':49295,'2020-05':29130,'2020-06':28302,'2020-07':32771,'2020-08':24842,'2020-09':20776,'2020-10':18188,'2020-11':29609,'2020-12':35782,'2021-01':87826,'2021-02':139994,'2021-03':98838,'2021-04':66772,'2021-05':40043,'2021-06':17272,'2021-07':28778,'2021-08':36273,'2021-09':29641,'2021-10':22341,'2021-11':24180,'2021-12':29298,'2022-01':69376,'2022-02':51043,'2022-03':34954,'2022-04':49503,'2022-05':37828,'2022-06':30826,'2022-07':26413,'2022-08':24390,'2022-09':22145,'2022-10':25766,'2022-11':29766,'2022-12':52768,'2023-01':66495,'2023-02':46637,'2023-03':47201,'2023-04':22908,'2023-05':15259,'2023-06':19399,'2023-07':24492,'2023-08':23797,'2023-09':15275,'2023-10':14087,'2023-11':13804,'2023-12':13012,'2024-01':35881,'2024-02':37884,'2024-03':32781,'2024-04':27743,'2024-05':22878,'2024-06':24806,'2024-07':27211,'2024-08':28227,'2024-09':23381,'2024-10':18954,'2024-11':19869,'2024-12':21280,'2025-01':29796,'2025-02':39265,'2025-03':35495,'2025-04':28578,'2025-05':25452,'2025-06':22042,'2025-07':20730,'2025-08':26889,'2025-09':34770,'2025-10':35573,'2025-11':34836,'2025-12':43148,'2026-01':52465,'2026-02':39047,'2026-03':35733,'2026-04':29040};
+                chartOpts.push(getLineOpt(months.slice(), [
+                    { name:'trail camera', data: months.map(m=>trailRaw[m]||null) },
+                    { name:'game camera', data: months.map(m=>gameRaw[m]||null) },
+                    { name:'trail cameras with night vision motion activated waterproof', data: months.map(m=>longRaw[m]||null) }
+                ], '', {
+                    yAxisFormatter: v=>fmtKBM(v), yAxisName:'ABA排名', xRotate:45, xInterval:5, smooth:true,
+                    tooltipFormatter: function(p){ var s=p[0].axisValue+'<br/>'; p.forEach(i=>{ s+='<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+i.color+';margin-right:6px;"></span>'+i.seriesName+': '+(i.value?i.value.toLocaleString():'0')+'<br/>'; }); return s; }
+                }));
+            })();
+
+            // 图7 历史总销量走势
+            (function(){
+                var xData = ['2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05'];
+                var salesVol = [18210,24261,59276,64911,79709,101504,82479,88207,32189,28138,27998,29023,34866,42508,57143,65757,69306,83251,79181,74084,31969,26907,31906,35070,41478];
+                var salesAmt = [1521213.94,2222441.51,5729961.37,6486389.08,7898366.77,10153270.06,8181560.14,8470822.68,2898681.61,2369083.49,2274453.29,2481497.46,3019426.43,3942639.12,5449159.51,6279025.37,6895844.36,7713978.19,7796772.24,7068798.63,2962564.84,2491744.19,2850673.08,3053597.06,3588615.52];
+                var avgVol = [303,346,846,940,1122,1409,1129,1242,440,365,358,353,405,494,642,730,753,885,816,740,316,253,282,302,345];
+                chartOpts.push(getCompositeOpt(xData, [
+                    { name:'月销量', data:salesVol, stack:'' },
+                    { name:'平均月销量', data:avgVol, stack:'' }
+                ], [
+                    { name:'月销售额', data:salesAmt, yAxisIndex:1 }
+                ], '', {
+                    yAxisName1:'月销量', yAxisFormatter1:v=>fmtKBM(v),
+                    yAxisName2:'月销售额($)', yAxisFormatter2:v=>'$'+fmtKBM(v),
+                    xRotate:30, barMaxWidth:18
+                }));
+            })();
+
+            // 图8 价格四分位走势
+            (function(){
+                var xData = ['2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05'];
+                var wAvg = [82.54,95.06,97.43,100.77,100.67,101.00,100.30,98.20,92.85,86.23,83.19,87.84,88.80,96.31,97.80,96.92,100.74,93.51,99.44,96.31,93.32,93.00,89.71,87.25,86.82];
+                var median = [86.84,89.99,89.99,82.715,89.99,87.96,85.105,79.99,82.72,86.56,75.84,77.96,73.78,82.65,89.99,89.99,89.99,87.38,93.08,89.99,93.2,85.79,79.99,79.49,75.215];
+                var q1 = [50.31,50.22,62.43,63.37,60.37,66.42,68.99,69.39,69.07,66.00,54.62,55.99,55.33,58.24,59.35,63.75,58.40,57.06,59.80,59.21,59.60,58.99,54.99,52.21,51.85];
+                var q3 = [102.61,103.95,129.09,122.56,125.20,124.58,126.16,128.17,128.66,121.43,126.94,133.73,136.70,142.94,145.43,147.99,143.30,136.02,139.67,137.13,136.82,123.46,125.53,128.22,127.31];
+                chartOpts.push(getLineOpt(xData, [
+                    { name:'销量加权均价', data:wAvg },{ name:'月价格中位数', data:median },
+                    { name:'Q1分位数', data:q1 },{ name:'Q3分位数', data:q3 }
+                ], '', {
+                    yAxisFormatter: v=>'$'+v.toFixed(2), yAxisName:'价格($)', xRotate:30, xInterval:2,
+                    tooltipFormatter: function(p){ var s=p[0].axisValue+'<br/>'; p.forEach(i=>{ s+='<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+i.color+';margin-right:6px;"></span>'+i.seriesName+': $'+parseFloat(i.value).toFixed(2)+'<br/>'; }); return s; }
+                }));
+            })();
+
+            // 图9 品牌垄断
+            chartOpts.push(getPieOpt([['GardePro',4720],['KJK',3968],['MAXDONE',3867],['SPYPOINT',3734],['TACTACAM',2900],['Moultrie',2848],['Meidase',1614],['WOSODA',1570],['WOSPORTS',1367],['Stealth Cam',1335],['其余',11611]]));
+
+            // 图10 排名垄断
+            (function(){
+                var xData = ['1~10','11~20','21~30','31~40','41~50','51~60','61~70','71~80','81~90','91~100','101~110','111~120'];
+                var oldAsin = [10,9,7,8,6,8,7,6,9,8,9,10];
+                var newAsin = [0,1,3,2,4,2,3,4,1,2,1,0];
+                var oldAvg = [1474,628,417,346,284,232,190,131,92,66,49,34];
+                var newAvg = [0,633,431,344,278,245,181,149,102,69,54,0];
+                chartOpts.push(getCompositeOpt(xData, [
+                    { name:'老品ASIN数', data:oldAsin, stack:'asin' },
+                    { name:'新品ASIN数', data:newAsin, stack:'asin' }
+                ], [
+                    { name:'老品平均销量', data:oldAvg, yAxisIndex:1 },
+                    { name:'新品平均销量', data:newAvg, yAxisIndex:1 }
+                ], '', {
+                    yAxisName1:'ASIN计数', yAxisFormatter1:v=>v,
+                    yAxisName2:'平均月销量', yAxisFormatter2:v=>fmtKBM(v),
+                    barMaxWidth:25
+                }));
+            })();
+
+            // 图11 卖家所属地
+            chartOpts.push(getPieOpt([['CN',17871],['CN(HK)',8013],['US',5709],['AMZ',4472],['CA',3357],['AU',112]]));
+            // 图12 配送方式
+            chartOpts.push(getPieOpt([['AMZ',4564],['FBA',33157],['NA',1302],['FBM',511]]));
+            // 图13 新品销量占比
+            chartOpts.push(getPieOpt([['3个月内新品',3203],['3~6个月内新品',2443],['老品',33888]]));
+
+            // 图14 review数分析
+            (function(){
+                var xData = ['0~10','10~30','30~50','50~100','100~200','200~300','300~400','400~500','500~800','800~1200','1200~2000','2000+'];
+                var oldData = [226,266,772,1186,4240,1882,3006,187,5179,4889,5870,6185];
+                var newData = [278,828,1315,2132,674,419,0,0,0,0,0,0];
+                chartOpts.push(getBarOpt(xData, [{ name:'老品', data:oldData },{ name:'新品', data:newData }], '', { stacked:true, stackName:'review', yAxisFormatter:v=>fmtKBM(v), yAxisName:'ASIN数量', xRotate:20 }));
+            })();
+
+            // 图15 市场分款价格分布 (复合图)
+            (function(){
+                var xData = ['22.99-32.99','32.99-42.99','42.99-52.99','52.99-62.99','62.99-72.99','72.99-82.99','82.99-92.99','92.99-102.99','102.99-112.99','112.99-122.99','122.99-132.99','132.99-142.99','142.99-152.99','152.99-162.99','172.99-182.99','182.99-192.99','212.99-222.99','222.99-232.99','232.99-242.99','242.99-252.99','252.99-262.99','262.99-272.99','282.99-292.99','402.99-412.99'];
+                var vol1 = [4821,732,4320,267,1415,414,142,479,36,42,474,208,842,52,0,0,0,0,0,0,0,0,0,0];
+                var vol2 = [0,0,1116,222,328,376,34,2324,0,1137,337,136,2164,0,0,0,301,0,306,0,227,91,203,0];
+                var vol3 = [0,2838,2041,4475,990,187,190,0,232,224,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+                var vol4 = [580,260,291,68,0,421,381,862,0,69,62,305,0,0,395,133,0,262,0,536,0,0,0,186];
+                var amt1 = [137722,27969,231921,15729,100409,33115,12777,47895,3239,4998,60115,29117,124551,8319,0,0,0,0,0,0,0,0,0,0];
+                var amt2 = [0,0,55617,13317,23127,28196,2890,232375,0,136156,43806,18358,324533,0,0,0,65012,0,73436,0,59017,24114,58867,0];
+                var amt3 = [0,114433,101056,258952,67057,14958,17098,0,25517,26877,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+                var amt4 = [18419,10397,14544,4079,0,31570,31657,86190,0,6209,7998,41104,0,0,71096,24869,0,60257,0,135065,0,0,0,76258];
+                var allSeries = [
+                    { name:'传统离线相机-销量', type:'bar', data:vol1, stack:'vol', yAxisIndex:0, color:COLORS[0] },
+                    { name:'蜂窝传输相机-销量', type:'bar', data:vol2, stack:'vol', yAxisIndex:0, color:COLORS[1] },
+                    { name:'近场无线相机-销量', type:'bar', data:vol3, stack:'vol', yAxisIndex:0, color:COLORS[2] },
+                    { name:'智能监控相机-销量', type:'bar', data:vol4, stack:'vol', yAxisIndex:0, color:COLORS[3] },
+                    { name:'传统离线相机-销售额', type:'line', data:amt1, yAxisIndex:1, color:COLORS[0] },
+                    { name:'蜂窝传输相机-销售额', type:'line', data:amt2, yAxisIndex:1, color:COLORS[1] },
+                    { name:'近场无线相机-销售额', type:'line', data:amt3, yAxisIndex:1, color:COLORS[2] },
+                    { name:'智能监控相机-销售额', type:'line', data:amt4, yAxisIndex:1, color:COLORS[3] }
+                ];
+                var seriesCfg = allSeries.map(function(s){
+                    var cfg = { name:s.name, type:s.type, data:s.data, yAxisIndex:s.yAxisIndex, itemStyle:{ color:s.color, borderColor:'transparent', borderWidth:0 }, emphasis:{ focus:'series' } };
+                    if(s.type==='bar'){ cfg.stack = s.stack; cfg.barMaxWidth = 22; }
+                    else { cfg.symbol = 'circle'; cfg.symbolSize = 4; cfg.lineStyle = { width:2, color:s.color }; cfg.smooth = false; }
+                    return cfg;
+                });
+                var legendSel = {}; allSeries.forEach((s,i)=>{ legendSel[s.name] = i<4; });
+                chartOpts.push({
+                    tooltip: { trigger:'axis', backgroundColor:'rgba(0,0,0,0.7)', borderColor:'transparent', textStyle:{ color:'#fff' }, axisPointer:{ type:'cross' } },
+                    legend: { type:'scroll', bottom:0, textStyle:{ fontSize:10, color:'#333' }, data: allSeries.map(s=>s.name), selected: legendSel },
+                    grid: { left:55, right:65, top:25, bottom:55 },
+                    xAxis: { type:'category', data:xData, axisLine:{ lineStyle:{ color:'#ccc' } }, axisTick:{ show:false }, axisLabel:{ fontSize:9, color:'#666', rotate:40, interval:0 } },
+                    yAxis: [{ type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:v=>fmtKBM(v) }, splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } }, name:'月销量' },
+                            { type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:v=>'$'+fmtKBM(v) }, splitLine:{ show:false }, name:'月销售额($)' }],
+                    series: seriesCfg
+                });
+            })();
+
+            // 图16-19 (堆积柱状图)
+            (function(){
+                var xData = ['22.99-32.99','32.99-42.99','42.99-52.99','52.99-62.99','62.99-72.99','72.99-82.99','82.99-92.99','92.99-102.99','102.99-112.99','112.99-122.99','122.99-132.99','132.99-142.99','142.99-152.99','152.99-162.99','172.99-182.99','182.99-192.99','212.99-222.99','222.99-232.99','232.99-242.99','242.99-252.99','252.99-262.99','262.99-272.99','282.99-292.99','402.99-412.99'];
+                chartOpts.push(getBarOpt(xData, [
+                    { name:'三星半及以下', data:[0,0,1,0,2,0,1,0,1,1,0,1,0,0,0,1,0,0,0,1,0,0,0,0] },
+                    { name:'四星', data:[10,10,6,6,5,1,1,1,0,2,4,3,2,0,0,0,1,0,0,0,0,0,0,0] },
+                    { name:'四星半', data:[1,3,7,8,4,3,3,6,1,1,2,1,5,1,1,0,0,1,1,1,1,1,1,1] },
+                    { name:'五星', data:[0,0,1,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+                ], '', { stacked:true, stackName:'quality', yAxisFormatter:v=>v, yAxisName:'ASIN数量', xRotate:40, barMaxWidth:22 }));
+            })();
+            (function(){
+                var xData = ['22.99-32.99','32.99-42.99','42.99-52.99','52.99-62.99','62.99-72.99','72.99-82.99','82.99-92.99','92.99-102.99','102.99-112.99','112.99-122.99','122.99-132.99','132.99-142.99','142.99-152.99','152.99-162.99','172.99-182.99','182.99-192.99','212.99-222.99','222.99-232.99','232.99-242.99','242.99-252.99','252.99-262.99','262.99-272.99','282.99-292.99','402.99-412.99'];
+                chartOpts.push(getBarOpt(xData, [
+                    { name:'白牌', data:[5368,3799,6682,4762,2450,1022,227,1341,232,293,195,0,789,0,0,133,0,262,0,536,0,0,0,0] },
+                    { name:'品牌', data:[33,31,1086,270,283,376,520,2324,36,1179,678,649,2217,52,395,0,301,0,306,0,227,91,203,186] }
+                ], '', { stacked:true, stackName:'brand', yAxisFormatter:v=>fmtKBM(v), yAxisName:'月销量', xRotate:40, barMaxWidth:22 }));
+            })();
+            (function(){
+                var xData = ['22.99-32.99','32.99-42.99','42.99-52.99','52.99-62.99','62.99-72.99','72.99-82.99','82.99-92.99','92.99-102.99','102.99-112.99','112.99-122.99','122.99-132.99','132.99-142.99','142.99-152.99','152.99-162.99','172.99-182.99','182.99-192.99','212.99-222.99','222.99-232.99','232.99-242.99','242.99-252.99','252.99-262.99','262.99-272.99','282.99-292.99','402.99-412.99'];
+                chartOpts.push(getBarOpt(xData, [
+                    { name:'老品', data:[5112,3013,7193,3482,1911,1398,557,3082,268,1403,717,649,3006,52,395,133,301,0,306,203,227,91,203,186] },
+                    { name:'新品', data:[289,817,575,1550,822,0,190,583,0,69,156,0,0,0,0,0,0,262,0,333,0,0,0,0] }
+                ], '', { stacked:true, stackName:'newold', yAxisFormatter:v=>fmtKBM(v), yAxisName:'月销量', xRotate:40, barMaxWidth:22 }));
+            })();
+            (function(){
+                var xData = ['三星半及以下','四星','四星半','五星'];
+                chartOpts.push(getBarOpt(xData, [
+                    { name:'传统离线相机', data:[6,22,18,2] },{ name:'蜂窝传输相机', data:[0,13,14,0] },
+                    { name:'近场无线相机', data:[1,10,14,1] },{ name:'智能监控相机', data:[2,7,8,2] }
+                ], '', { stacked:true, stackName:'star', yAxisFormatter:v=>v, yAxisName:'ASIN数量', barMaxWidth:30 }));
+            })();
+
+            // 图20 评分销量趋势
+            (function(){
+                var xData = ['3.5','3.6','3.7','3.8','3.9','4','4.1','4.2','4.3','4.4','4.5','4.6','4.7','4.8','5'];
+                var salesData = [183,413,328,166,3733,4729,3716,4098,8153,6578,3209,2540,672,688,328];
+                chartOpts.push(getLineOpt(xData, [{ name:'月销量', data:salesData }], '', {
+                    yAxisFormatter: v=>fmtKBM(v), yAxisName:'月销量', smooth:true,
+                    tooltipFormatter: function(p){ var s='评分: '+p[0].axisValue+'<br/>'; p.forEach(i=>{ s+='<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+i.color+';margin-right:6px;"></span>'+i.seriesName+': '+i.value.toLocaleString()+'<br/>'; }); return s; }
+                }));
+            })();
+
+            // ========== 图21：产品月销量排名（修正版） ==========
             (function(){
                 const rawData = [
                     { brand:'KJK', monthlySales:3065, price:29.99, rating:3.9, rank:1, type:'老品' },
@@ -252,28 +635,32 @@
                 ];
                 rawData.sort((a,b)=>a.rank-b.rank);
                 const xData = rawData.map(d=>d.rank);
-                const newColor = COLORS[0]; // #FF9D19 主色优先给新品
-                const oldColor = COLORS[1]; // #4682EB
-                const newSeriesData = rawData.map(d=>{
-                    if(d.type==='新品') return { value:d.monthlySales, _brand:d.brand, _price:d.price, _rating:d.rating, _rank:d.rank, _type:d.type };
-                    return null;
-                });
-                const oldSeriesData = rawData.map(d=>{
-                    if(d.type==='老品') return { value:d.monthlySales, _brand:d.brand, _price:d.price, _rating:d.rating, _rank:d.rank, _type:d.type };
-                    return null;
-                });
-                const option = {
+                // 关键修正：使用单个系列，通过 itemStyle 为每个柱子设置不同颜色
+                const seriesData = rawData.map(d => ({
+                    value: d.monthlySales,
+                    itemStyle: {
+                        color: d.type === '新品' ? COLORS[0] : COLORS[1],
+                        borderRadius: [4, 4, 0, 0],
+                        borderWidth: 0
+                    },
+                    _brand: d.brand,
+                    _price: d.price,
+                    _rating: d.rating,
+                    _rank: d.rank,
+                    _type: d.type
+                }));
+                chartOpts.push({
                     tooltip: {
-                        trigger:'axis',
-                        backgroundColor:'rgba(0,0,0,0.7)',
-                        borderColor:'transparent',
-                        textStyle:{ color:'#fff', fontSize:12 },
-                        axisPointer:{ type:'shadow' },
-                        formatter: function(params){
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff', fontSize: 12 },
+                        axisPointer: { type: 'shadow' },
+                        formatter: function(params) {
                             var p = params[0];
-                            if(!p || !p.data) return '';
+                            if (!p || !p.data) return '';
                             var d = p.data;
-                            var typeColor = d._type==='新品' ? newColor : oldColor;
+                            var typeColor = d._type === '新品' ? COLORS[0] : COLORS[1];
                             return `<div style="min-width:180px;">
                                 <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:8px;">🏷️ ${d._brand}</div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;line-height:1.8;">
@@ -287,88 +674,92 @@
                         }
                     },
                     legend: {
-                        data:['新品','老品'],
-                        right:10,
-                        top:0,
-                        textStyle:{ fontSize:12, color:'#333' }
+                        data: ['新品', '老品'],
+                        right: 10,
+                        top: 0,
+                        textStyle: { fontSize: 12, color: '#333' }
                     },
-                    grid: { left:60, right:40, top:50, bottom:80 },
+                    grid: { left: 60, right: 40, top: 50, bottom: 80 },
                     xAxis: {
-                        type:'category',
-                        data:xData,
-                        name:'排名',
-                        nameLocation:'middle',
-                        nameGap:48,
-                        nameTextStyle:{ fontSize:12, fontWeight:600, color:'#555' },
-                        axisLabel:{ fontSize:10, color:'#666', rotate:45, interval:4, margin:10 },
-                        axisTick:{ alignWithLabel:true, lineStyle:{ color:'#ddd' } },
-                        axisLine:{ lineStyle:{ color:'#ccc' } }
+                        type: 'category',
+                        data: xData,
+                        name: '排名',
+                        nameLocation: 'middle',
+                        nameGap: 48,
+                        nameTextStyle: { fontSize: 12, fontWeight: 600, color: '#555' },
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 45, interval: 4, margin: 10 },
+                        axisTick: { alignWithLabel: true, lineStyle: { color: '#ddd' } },
+                        axisLine: { lineStyle: { color: '#ccc' } }
                     },
                     yAxis: {
-                        type:'value',
-                        name:'月销量',
-                        nameTextStyle:{ fontSize:12, fontWeight:600, color:'#555' },
-                        axisLabel:{ fontSize:10, color:'#666', formatter:function(v){ return fmtKBM(v); } },
-                        splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } },
-                        axisLine:{ show:false }
+                        type: 'value',
+                        name: '月销量',
+                        nameTextStyle: { fontSize: 12, fontWeight: 600, color: '#555' },
+                        axisLabel: { fontSize: 10, color: '#666', formatter: v => fmtKBM(v) },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false }
                     },
                     dataZoom: [
-                        { type:'slider', start:0, end:22, height:24, bottom:16, borderColor:'#e0e0e0', backgroundColor:'#fafafa', fillerColor:'rgba(84,112,198,0.12)', handleStyle:{ color:'#5470C6', borderColor:'#5470C6' }, textStyle:{ fontSize:10, color:'#888' }, showDetail:true, showDataShadow:true },
-                        { type:'inside', start:0, end:22, zoomOnMouseWheel:true, moveOnMouseMove:true }
+                        { type: 'slider', start: 0, end: 22, height: 24, bottom: 16, borderColor: '#e0e0e0', backgroundColor: '#fafafa', fillerColor: 'rgba(84,112,198,0.12)', handleStyle: { color: '#5470C6', borderColor: '#5470C6' }, textStyle: { fontSize: 10, color: '#888' }, showDetail: true, showDataShadow: true },
+                        { type: 'inside', start: 0, end: 22, zoomOnMouseWheel: true, moveOnMouseMove: true }
                     ],
-                    series: [
-                        { name:'新品', type:'bar', data:newSeriesData, itemStyle:{ color:newColor, borderRadius:[4,4,0,0], borderWidth:0 }, barWidth:'60%', emphasis:{ focus:'series' } },
-                        { name:'老品', type:'bar', data:oldSeriesData, itemStyle:{ color:oldColor, borderRadius:[4,4,0,0], borderWidth:0 }, barWidth:'60%', emphasis:{ focus:'series' } }
-                    ]
-                };
-                chartOpts.push(option);
+                    series: [{
+                        name: '月销量',
+                        type: 'bar',
+                        data: seriesData,
+                        barWidth: '60%',
+                        emphasis: { focus: 'series' }
+                    }]
+                });
             })();
 
-            // 初始化渲染
+            // ========== 初始化渲染 ==========
             function init() {
                 var params = new URLSearchParams(window.location.search);
                 var id = parseInt(params.get('id')) || 1;
-                if(id<1 || id>21 || isNaN(id)) id=1;
-                document.getElementById('chartTitle').textContent = chartTitles[id-1];
+                if (id < 1 || id > 21 || isNaN(id)) id = 1;
+
+                document.getElementById('chartTitle').textContent = chartTitles[id - 1];
                 var container = document.getElementById('singleChart');
+                if (container._echart_instance) {
+                    container._echart_instance.dispose();
+                }
                 var chart = echarts.init(container);
-                var option = chartOpts[id-1];
-                if(option) chart.setOption(option);
-                setTimeout(function(){ chart.resize(); },100);
-                window.addEventListener('resize', function(){ chart.resize(); });
-                // 键盘导航（仅对图表21有效）
-                if(id===21){
-                    function keyHandler(e){
-                        if(e.key==='ArrowRight'){
+                container._echart_instance = chart;
+
+                var option = chartOpts[id - 1];
+                if (option) chart.setOption(option);
+
+                setTimeout(function() { chart.resize(); }, 100);
+                window.addEventListener('resize', function() { chart.resize(); });
+
+                // 键盘导航（仅图21）
+                if (id === 21) {
+                    function keyHandler(e) {
+                        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
                             var opt = chart.getOption();
                             var dz = opt.dataZoom;
-                            if(dz && dz[0]){
+                            if (dz && dz[0]) {
                                 var start = dz[0].start || 0;
                                 var end = dz[0].end || 22;
                                 var range = end - start;
-                                start = Math.min(100-range, start + range*0.3);
+                                if (e.key === 'ArrowRight') {
+                                    start = Math.min(100 - range, start + range * 0.3);
+                                } else {
+                                    start = Math.max(0, start - range * 0.3);
+                                }
                                 end = start + range;
-                                chart.dispatchAction({ type:'dataZoom', start:start, end:end });
-                            }
-                        } else if(e.key==='ArrowLeft'){
-                            var opt = chart.getOption();
-                            var dz = opt.dataZoom;
-                            if(dz && dz[0]){
-                                var start = dz[0].start || 0;
-                                var end = dz[0].end || 22;
-                                var range = end - start;
-                                start = Math.max(0, start - range*0.3);
-                                end = start + range;
-                                chart.dispatchAction({ type:'dataZoom', start:start, end:end });
+                                chart.dispatchAction({ type: 'dataZoom', start: start, end: end });
                             }
                         }
                     }
                     document.addEventListener('keydown', keyHandler);
-                    chart._keyHandler = keyHandler; // 存储以便移除
+                    chart._keyHandler = keyHandler;
                 }
             }
+
             document.addEventListener('DOMContentLoaded', init);
-            if(document.readyState==='complete'||document.readyState==='interactive') init();
+            if (document.readyState === 'complete' || document.readyState === 'interactive') init();
         })();
     </script>
 </body>
