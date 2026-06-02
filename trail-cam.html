@@ -124,13 +124,13 @@
                         formatter: opts.tooltipFormatter || null
                     },
                     legend: {
-                        type: 'scroll',
-                        bottom: 0,
-                        textStyle: { fontSize: 11, color: '#333' },
-                        data: seriesArr.map(function(s) { return s.name; }),
-                        selected: legendSelected
-                    },
-                    grid: { left: 50, right: 30, top: 25, bottom: 50 },
+    type: 'scroll',
+    top: 5,                            // ✅ 图例移至顶部
+    textStyle: { fontSize: 11, color: '#333' },
+    data: seriesArr.map(function(s) { return s.name; }),
+    selected: legendSelected
+},
+grid: { left: 50, right: 30, top: 40, bottom: 40 },   // ✅ top 增大给图例空间，bottom 可减小
                     xAxis: {
                         type: 'category',
                         data: xData,
@@ -140,11 +140,12 @@
                         axisLabel: { fontSize: 10, color: '#666', rotate: opts.xRotate || 0, interval: opts.xInterval || 'auto' }
                     },
                     yAxis: {
-                        type: 'value',
-                        axisLabel: { fontSize: 10, color: '#666', formatter: yAxisFormatter },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        name: opts.yAxisName || ''
-                    },
+    type: 'value',
+    inverse: opts.yAxisInverse === true,  // ✅ 新增：支持倒置 Y 轴
+    axisLabel: { fontSize: 10, color: '#666', formatter: yAxisFormatter },
+    splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+    name: opts.yAxisName || ''
+},
                     series: seriesArr.map(function(s, i) {
                         return {
                             name: s.name,
@@ -174,12 +175,12 @@
                         axisPointer: { type: 'shadow' }
                     },
                     legend: {
-                        type: 'scroll',
-                        bottom: 0,
-                        textStyle: { fontSize: 11, color: '#333' },
-                        data: seriesArr.map(function(s) { return s.name; })
-                    },
-                    grid: { left: 55, right: 30, top: 25, bottom: 50 },
+    type: 'scroll',
+    top: 5,                            // ✅ 图例移至顶部
+    textStyle: { fontSize: 11, color: '#333' },
+    data: seriesArr.map(function(s) { return s.name; })
+},
+grid: { left: 55, right: 30, top: 40, bottom: 40 },   // ✅ 调整边距
                     xAxis: {
                         type: 'category',
                         data: xData,
@@ -270,13 +271,13 @@
                         axisPointer: { type: 'cross' }
                     },
                     legend: {
-                        type: 'scroll',
-                        bottom: 0,
-                        textStyle: { fontSize: 10, color: '#333' },
-                        data: allSeries.map(function(s) { return s.name; }),
-                        selected: legendSelected
-                    },
-                    grid: { left: 55, right: 60, top: 25, bottom: 55 },
+    type: 'scroll',
+    top: 5,                            // ✅ 图例移至顶部
+    textStyle: { fontSize: 10, color: '#333' },
+    data: allSeries.map(function(s) { return s.name; }),
+    selected: legendSelected
+},
+grid: { left: 55, right: 60, top: 45, bottom: 45 },   // ✅ top 增大，bottom 可减小
                     xAxis: {
                         type: 'category',
                         data: xData,
@@ -351,7 +352,7 @@
                     { name:'game camera', data: months.map(m=>gameRaw[m]||null) },
                     { name:'trail cameras with night vision motion activated waterproof', data: months.map(m=>longRaw[m]||null) }
                 ], '', {
-                    yAxisFormatter: v=>fmtKBM(v), yAxisName:'ABA排名', xRotate:45, xInterval:5, smooth:true,
+                    yAxisFormatter: v=>fmtKBM(v), yAxisName:'ABA排名', yAxisInverse: true, xRotate:45, xInterval:5, smooth:true,
                     tooltipFormatter: function(p){ var s=p[0].axisValue+'<br/>'; p.forEach(i=>{ s+='<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+i.color+';margin-right:6px;"></span>'+i.seriesName+': '+(i.value?i.value.toLocaleString():'0')+'<br/>'; }); return s; }
                 }));
             })();
@@ -459,8 +460,8 @@ var amt4 = [3898,0,0,0,0,0,0,17998,0,6209,7998,0,0,0,0,24869,0,60257,0,135065,0,
                 var legendSel = {}; allSeries.forEach((s,i)=>{ legendSel[s.name] = i<4; });
                 chartOpts.push({
                     tooltip: { trigger:'axis', backgroundColor:'rgba(0,0,0,0.7)', borderColor:'transparent', textStyle:{ color:'#fff' }, axisPointer:{ type:'cross' } },
-                    legend: { type:'scroll', bottom:0, textStyle:{ fontSize:10, color:'#333' }, data: allSeries.map(s=>s.name), selected: legendSel },
-                    grid: { left:55, right:65, top:25, bottom:55 },
+                    legend: { type:'scroll', top:5, textStyle:{ fontSize:10, color:'#333' }, data: allSeries.map(s=>s.name), selected: legendSel },
+grid: { left:55, right:65, top:45, bottom:45 },
                     xAxis: { type:'category', data:xData, axisLine:{ lineStyle:{ color:'#ccc' } }, axisTick:{ show:false }, axisLabel:{ fontSize:9, color:'#666', rotate:40, interval:0 } },
                     yAxis: [{ type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:v=>fmtKBM(v) }, splitLine:{ lineStyle:{ color:'#E9ECEF', type:'dashed' } }, name:'月销量' },
                             { type:'value', axisLabel:{ fontSize:10, color:'#666', formatter:v=>'$'+fmtKBM(v) }, splitLine:{ show:false }, name:'月销售额($)' }],
