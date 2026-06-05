@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>关键词趋势图表 | 月搜索量 & ABA排名</title>
+    <title>市场分析图表仪表盘</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
     </script>
     <style>
@@ -15,7 +15,7 @@
         html,
         body {
             height: 100%;
-            background: #f5f7fa;
+            background: transparent;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         }
         .wrapper {
@@ -23,27 +23,20 @@
             flex-direction: column;
             height: 100vh;
             width: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #ffffff;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
-            border-radius: 16px;
-            overflow: hidden;
         }
         .chart-title {
             flex-shrink: 0;
             text-align: center;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
             color: #1a1a2e;
-            padding: 20px 20px 8px;
-            letter-spacing: 0.3px;
+            margin: 16px 0 8px;
         }
         .chart-subtitle {
             text-align: center;
             font-size: 13px;
-            color: #64748b;
-            margin-bottom: 8px;
+            color: #555;
+            margin-bottom: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -65,16 +58,14 @@
         .chart-container {
             flex: 1;
             width: 100%;
-            min-height: 500px;
-            padding: 0 8px 8px;
+            min-height: 300px;
         }
         @media (max-width: 768px) {
             .chart-title {
-                font-size: 17px;
-                padding: 16px 12px 4px;
+                font-size: 16px;
             }
             .chart-container {
-                min-height: 400px;
+                min-height: 250px;
             }
         }
     </style>
@@ -111,7 +102,7 @@
                 return n.toString();
             }
 
-            // ========== 构建通用折线图配置 ==========
+            // ========== 通用折线图配置（完全参照示例） ==========
             function getLineOpt(xData, seriesArr, title, opts) {
                 opts = opts || {};
                 var yAxisFormatter = opts.yAxisFormatter || function(v) { return fmtKBM(v); };
@@ -124,19 +115,22 @@
                 return {
                     tooltip: {
                         trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.75)',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
                         borderColor: 'transparent',
                         textStyle: { color: '#fff' },
                         formatter: opts.tooltipFormatter || null
                     },
                     legend: {
-                        type: 'scroll',
+                        type: 'scroll', // 单行滚动，绝不换行
+                        orient: 'horizontal',
                         top: 5,
                         textStyle: { fontSize: 12, color: '#333' },
                         data: seriesArr.map(function(s) { return s.name; }),
-                        selected: legendSelected
+                        selected: legendSelected,
+                        // 确保图例可点击交互（默认true，显式声明）
+                        selectedMode: true
                     },
-                    grid: { left: 60, right: 30, top: 45, bottom: 50 },
+                    grid: { left: 55, right: 30, top: 45, bottom: 50 },
                     xAxis: {
                         type: 'category',
                         data: xData,
@@ -153,7 +147,7 @@
                     yAxis: {
                         type: 'value',
                         inverse: opts.yAxisInverse === true,
-                        axisLabel: { fontSize: 11, color: '#666', formatter: yAxisFormatter },
+                        axisLabel: { fontSize: 10, color: '#666', formatter: yAxisFormatter },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
                         name: opts.yAxisName || '',
                         nameTextStyle: { fontSize: 12, fontWeight: '600', color: '#555' }
@@ -516,7 +510,6 @@
                     'christian gifts for women': {},
                     'bible verse bracelets': {}
                 };
-
                 for (const line of lines) {
                     const parts = line.trim().split(',');
                     if (parts.length < 4) continue;
@@ -525,7 +518,6 @@
                     const rankStr = parts[2].trim();
                     const volumeStr = parts[3].trim();
                     if (!dataMap[keyword]) continue;
-
                     let rank = null;
                     if (rankStr !== '' && rankStr !== '0') {
                         const r = parseInt(rankStr, 10);
@@ -543,7 +535,7 @@
 
             const dataMap = parseRawData();
 
-            // 生成完整月份序列（2017-01 至 2026-04）
+            // 生成完整月份序列
             function generateMonths() {
                 const months = [];
                 for (let y = 2017; y <= 2026; y++) {
@@ -556,7 +548,6 @@
             }
             const allMonths = generateMonths();
 
-            // 提取三个关键词的系列数据
             function buildSeries(key, field) {
                 return allMonths.map(m => {
                     const entry = dataMap[key] && dataMap[key][m];
@@ -578,11 +569,11 @@
                 { name: 'bible verse bracelets', data: buildSeries('bible verse bracelets', 'rank') }
             ];
 
-            // ========== 图表配置数组 (ID 1 和 ID 2) ==========
+            // ========== 两个图表配置 ==========
             const chartOpts = [];
 
-            // 图1：月搜索量趋势
-            chartOpts.push(getLineOpt(allMonths, volumeSeriesArr, '关键词月搜索量趋势', {
+            // ID 1：月搜索量趋势
+            chartOpts.push(getLineOpt(allMonths, volumeSeriesArr, '', {
                 yAxisFormatter: v => fmtKBM(v),
                 yAxisName: '月搜索量',
                 xRotate: 45,
@@ -600,8 +591,8 @@
                 }
             }));
 
-            // 图2：ABA排名趋势（倒置Y轴）
-            chartOpts.push(getLineOpt(allMonths, rankSeriesArr, '关键词ABA排名趋势（倒置）', {
+            // ID 2：ABA排名趋势（倒置Y轴）
+            chartOpts.push(getLineOpt(allMonths, rankSeriesArr, '', {
                 yAxisFormatter: v => {
                     if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
                     if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
@@ -624,7 +615,7 @@
                 }
             }));
 
-            // ========== 初始化渲染 (根据URL参数id切换) ==========
+            // ========== 初始化渲染 ==========
             function init() {
                 const params = new URLSearchParams(window.location.search);
                 let id = parseInt(params.get('id')) || 1;
@@ -643,7 +634,7 @@
                 const option = chartOpts[id - 1];
                 if (option) chart.setOption(option);
 
-                setTimeout(() => chart.resize(), 80);
+                setTimeout(() => chart.resize(), 100);
                 window.addEventListener('resize', () => chart.resize());
             }
 
