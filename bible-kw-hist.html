@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关键词趋势图表 | 月搜索量 & ABA排名</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            background: #f5f7fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .chart-title {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a2e;
+            padding: 20px 20px 8px;
+            letter-spacing: 0.3px;
+        }
+        .chart-subtitle {
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .chart-subtitle span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            min-height: 500px;
+            padding: 0 8px 8px;
+        }
+        @media (max-width: 768px) {
+            .chart-title {
+                font-size: 17px;
+                padding: 16px 12px 4px;
+            }
+            .chart-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="chart-title" id="chartTitle">关键词月搜索量趋势</div>
+        <div class="chart-subtitle" id="chartSubtitle">
+            <span><span class="dot" style="background:#4682EB;"></span> bible verse jar</span>
+            <span><span class="dot" style="background:#FF9D19;"></span> christian gifts for women</span>
+            <span><span class="dot" style="background:#52C41A;"></span> bible verse bracelets</span>
+        </div>
+        <div class="chart-container" id="singleChart"></div>
+    </div>
+
+    <script>
+        (function() {
+            // ========== 全局配色与工具函数 ==========
+            const COLORS = ['#4682EB', '#FF9D19', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1', '#EB2F96',
+                '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
+            ];
+
+            function parseNum(v) {
+                if (typeof v === 'string') return parseFloat(v.replace(/,/g, '')) || 0;
+                if (typeof v === 'number') return v;
+                return 0;
+            }
+
+            function fmtKBM(v) {
+                var n = parseNum(v);
+                if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+                if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+                if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+                return n.toString();
+            }
+
+            // ========== 构建通用折线图配置 ==========
+            function getLineOpt(xData, seriesArr, title, opts) {
+                opts = opts || {};
+                var yAxisFormatter = opts.yAxisFormatter || function(v) { return fmtKBM(v); };
+                var legendSelected = {};
+                if (seriesArr.length > 3) {
+                    for (var i = 0; i < seriesArr.length; i++) {
+                        legendSelected[seriesArr[i].name] = i < 3;
+                    }
+                }
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.75)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: opts.tooltipFormatter || null
+                    },
+                    legend: {
+                        type: 'scroll',
+                        top: 5,
+                        textStyle: { fontSize: 12, color: '#333' },
+                        data: seriesArr.map(function(s) { return s.name; }),
+                        selected: legendSelected
+                    },
+                    grid: { left: 60, right: 30, top: 45, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        boundaryGap: false,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: {
+                            fontSize: 10,
+                            color: '#666',
+                            rotate: opts.xRotate || 0,
+                            interval: opts.xInterval || 'auto'
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        inverse: opts.yAxisInverse === true,
+                        axisLabel: { fontSize: 11, color: '#666', formatter: yAxisFormatter },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        name: opts.yAxisName || '',
+                        nameTextStyle: { fontSize: 12, fontWeight: '600', color: '#555' }
+                    },
+                    series: seriesArr.map(function(s, i) {
+                        return {
+                            name: s.name,
+                            type: 'line',
+                            data: s.data,
+                            symbol: 'circle',
+                            symbolSize: 3,
+                            lineStyle: { width: 2, color: COLORS[i % COLORS.length] },
+                            itemStyle: { color: COLORS[i % COLORS.length] },
+                            emphasis: { focus: 'series' },
+                            smooth: opts.smooth !== false,
+                            connectNulls: false
+                        };
+                    })
+                };
+            }
+
+            // ========== 原始数据解析 ==========
+            function parseRawData() {
+                const rawCSV = `
+        2026-04,bible verse jar,59954,27431
+        2026-03,bible verse jar,44046,34021
+        2026-02,bible verse jar,37435,39002
+        2026-01,bible verse jar,38383,38473
+        2025-12,bible verse jar,5953,127015
+        2025-11,bible verse jar,17473,69106
+        2025-10,bible verse jar,39595,38321
+        2025-09,bible verse jar,34963,42035
+        2025-08,bible verse jar,60490,26470
+        2025-07,bible verse jar,81350,20136
+        2025-06,bible verse jar,70325,22489
+        2025-05,bible verse jar,30195,45722
+        2025-04,bible verse jar,13770,79472
+        2025-03,bible verse jar,32021,43898
+        2025-02,bible verse jar,29484,47830
+        2025-01,bible verse jar,27668,49860
+        2024-12,bible verse jar,6057,123419
+        2024-11,bible verse jar,9652,97103
+        2024-10,bible verse jar,7983,135021
+        2024-09,bible verse jar,15964,80668
+        2024-08,bible verse jar,43882,37939
+        2024-07,bible verse jar,59712,28705
+        2024-06,bible verse jar,87962,20381
+        2024-05,bible verse jar,47148,35001
+        2024-04,bible verse jar,35146,45001
+        2024-03,bible verse jar,59309,29066
+        2024-02,bible verse jar,105337,15600
+        2024-01,bible verse jar,394672,3954
+        2023-12,bible verse jar,515931,3309
+        2023-11,bible verse jar,866797,2105
+        2023-10,bible verse jar,524782,3297
+        2023-04,bible verse jar,0,0
+        2023-03,bible verse jar,0,0
+        2023-02,bible verse jar,0,0
+        2023-01,bible verse jar,0,0
+        2022-12,bible verse jar,0,0
+        2022-11,bible verse jar,0,0
+        2022-10,bible verse jar,0,0
+        2022-09,bible verse jar,0,0
+        2022-08,bible verse jar,0,0
+        2022-07,bible verse jar,0,0
+        2022-06,bible verse jar,0,0
+        2022-05,bible verse jar,0,0
+        2022-04,bible verse jar,0,0
+        2022-03,bible verse jar,0,0
+        2022-02,bible verse jar,0,0
+        2022-01,bible verse jar,0,0
+        2021-12,bible verse jar,0,0
+        2021-11,bible verse jar,0,0
+        2021-10,bible verse jar,0,0
+        2021-09,bible verse jar,0,0
+        2021-08,bible verse jar,0,0
+        2021-07,bible verse jar,0,0
+        2021-06,bible verse jar,0,0
+        2021-05,bible verse jar,0,0
+        2021-04,bible verse jar,0,0
+        2021-03,bible verse jar,0,0
+        2021-02,bible verse jar,0,0
+        2021-01,bible verse jar,0,0
+        2020-12,bible verse jar,0,0
+        2020-11,bible verse jar,0,0
+        2020-10,bible verse jar,0,0
+        2020-09,bible verse jar,0,0
+        2020-08,bible verse jar,0,0
+        2020-07,bible verse jar,0,0
+        2020-06,bible verse jar,0,0
+        2020-05,bible verse jar,0,0
+        2020-04,bible verse jar,0,0
+        2020-03,bible verse jar,0,0
+        2020-02,bible verse jar,0,0
+        2020-01,bible verse jar,0,0
+        2019-12,bible verse jar,0,0
+        2019-11,bible verse jar,0,0
+        2019-10,bible verse jar,0,0
+        2019-09,bible verse jar,0,0
+        2019-08,bible verse jar,0,0
+        2019-07,bible verse jar,0,0
+        2019-06,bible verse jar,0,0
+        2019-05,bible verse jar,0,0
+        2019-04,bible verse jar,0,0
+        2019-03,bible verse jar,0,0
+        2019-02,bible verse jar,0,0
+        2019-01,bible verse jar,0,0
+        2018-12,bible verse jar,0,0
+        2018-11,bible verse jar,0,0
+        2018-10,bible verse jar,0,0
+        2018-09,bible verse jar,0,0
+        2018-08,bible verse jar,0,0
+        2018-07,bible verse jar,0,0
+        2018-06,bible verse jar,0,0
+        2018-05,bible verse jar,0,0
+        2018-04,bible verse jar,0,0
+        2018-03,bible verse jar,0,0
+        2018-02,bible verse jar,0,0
+        2018-01,bible verse jar,0,0
+        2017-12,bible verse jar,0,0
+        2017-11,bible verse jar,0,0
+        2017-10,bible verse jar,0,0
+        2017-09,bible verse jar,0,0
+        2017-08,bible verse jar,0,0
+        2017-07,bible verse jar,0,0
+        2017-06,bible verse jar,0,0
+        2017-05,bible verse jar,0,0
+        2017-04,bible verse jar,0,0
+        2017-03,bible verse jar,0,0
+        2017-02,bible verse jar,0,0
+        2017-01,bible verse jar,0,0
+        2026-04,christian gifts for women,6510,125837
+        2026-03,christian gifts for women,7305,122532
+        2026-02,christian gifts for women,7807,121912
+        2026-01,christian gifts for women,10512,92267
+        2025-12,christian gifts for women,1404,344421
+        2025-11,christian gifts for women,3406,182887
+        2025-10,christian gifts for women,7540,118286
+        2025-09,christian gifts for women,7696,122118
+        2025-08,christian gifts for women,12384,85364
+        2025-07,christian gifts for women,14996,74886
+        2025-06,christian gifts for women,13603,79816
+        2025-05,christian gifts for women,6658,123764
+        2025-04,christian gifts for women,7787,120988
+        2025-03,christian gifts for women,9964,96069
+        2025-02,christian gifts for women,8795,106600
+        2025-01,christian gifts for women,13673,80647
+        2024-12,christian gifts for women,1961,271228
+        2024-11,christian gifts for women,4601,149676
+        2024-10,christian gifts for women,9532,111174
+        2024-09,christian gifts for women,9242,115666
+        2024-08,christian gifts for women,10808,112593
+        2024-07,christian gifts for women,14826,83555
+        2024-06,christian gifts for women,14742,83661
+        2024-05,christian gifts for women,7344,126424
+        2024-04,christian gifts for women,8449,123753
+        2024-03,christian gifts for women,11580,98166
+        2024-02,christian gifts for women,11787,91162
+        2024-01,christian gifts for women,14382,80122
+        2023-12,christian gifts for women,3327,200710
+        2023-11,christian gifts for women,4931,168468
+        2023-10,christian gifts for women,20610,62196
+        2023-09,christian gifts for women,63524,24537
+        2023-08,christian gifts for women,22198,57714
+        2023-07,christian gifts for women,26390,30599
+        2023-06,christian gifts for women,26370,29533
+        2023-05,christian gifts for women,40872,19833
+        2023-04,christian gifts for women,12936,56124
+        2023-03,christian gifts for women,3125,181508
+        2023-02,christian gifts for women,11288,63575
+        2023-01,christian gifts for women,13862,52831
+        2022-12,christian gifts for women,2476,209612
+        2022-11,christian gifts for women,5293,122079
+        2022-10,christian gifts for women,7844,85870
+        2022-09,christian gifts for women,8757,77696
+        2022-08,christian gifts for women,11008,64815
+        2022-07,christian gifts for women,14433,51412
+        2022-06,christian gifts for women,14145,51478
+        2022-05,christian gifts for women,7189,91384
+        2022-04,christian gifts for women,8606,79572
+        2022-03,christian gifts for women,12815,57268
+        2022-02,christian gifts for women,13862,53406
+        2022-01,christian gifts for women,18789,41368
+        2021-12,christian gifts for women,2167,233974
+        2021-11,christian gifts for women,4967,126906
+        2021-10,christian gifts for women,11768,60545
+        2021-09,christian gifts for women,12749,57530
+        2021-08,christian gifts for women,14636,49776
+        2021-07,christian gifts for women,19028,40505
+        2021-06,christian gifts for women,33325,23542
+        2021-05,christian gifts for women,11150,64044
+        2021-04,christian gifts for women,11090,63391
+        2021-03,christian gifts for women,13999,52068
+        2021-02,christian gifts for women,15251,48168
+        2021-01,christian gifts for women,17836,42816
+        2020-12,christian gifts for women,2644,196664
+        2020-11,christian gifts for women,6126,107686
+        2020-10,christian gifts for women,13572,54111
+        2020-09,christian gifts for women,11005,64414
+        2020-08,christian gifts for women,11707,61613
+        2020-07,christian gifts for women,15672,48176
+        2020-06,christian gifts for women,35355,22750
+        2020-05,christian gifts for women,18694,41508
+        2020-04,christian gifts for women,17993,42619
+        2020-03,christian gifts for women,12298,59099
+        2020-02,christian gifts for women,8700,78763
+        2020-01,christian gifts for women,14270,51766
+        2019-12,christian gifts for women,1955,247791
+        2019-11,christian gifts for women,4942,126371
+        2019-10,christian gifts for women,12111,59026
+        2019-09,christian gifts for women,10224,68424
+        2019-08,christian gifts for women,13396,54676
+        2019-07,christian gifts for women,17205,43177
+        2019-06,christian gifts for women,18927,39913
+        2019-05,christian gifts for women,4487,137880
+        2019-04,christian gifts for women,5674,118901
+        2019-03,christian gifts for women,14994,49000
+        2019-02,christian gifts for women,6935,93034
+        2019-01,christian gifts for women,7440,88971
+        2018-12,christian gifts for women,1382,315214
+        2018-11,christian gifts for women,2887,191428
+        2018-10,christian gifts for women,6637,96146
+        2018-09,christian gifts for women,6926,94088
+        2018-08,christian gifts for women,7661,86300
+        2018-07,christian gifts for women,10200,68965
+        2018-06,christian gifts for women,11196,63814
+        2018-05,christian gifts for women,4232,141114
+        2018-04,christian gifts for women,5216,124244
+        2018-03,christian gifts for women,6706,95549
+        2018-02,christian gifts for women,8014,83648
+        2018-01,christian gifts for women,9565,72824
+        2017-12,christian gifts for women,1671,273969
+        2017-11,christian gifts for women,3702,162233
+        2017-10,christian gifts for women,7446,89700
+        2017-09,christian gifts for women,8978,76640
+        2017-08,christian gifts for women,9826,70843
+        2017-07,christian gifts for women,11121,63626
+        2017-06,christian gifts for women,12361,58525
+        2017-05,christian gifts for women,5292,125694
+        2017-04,christian gifts for women,7605,87883
+        2017-03,christian gifts for women,12790,56504
+        2017-02,christian gifts for women,14260,50797
+        2017-01,christian gifts for women,22529,34496
+        2026-04,bible verse bracelets,53076,30126
+        2026-03,bible verse bracelets,50044,31273
+        2026-02,bible verse bracelets,64388,25271
+        2026-01,bible verse bracelets,69993,22638
+        2025-12,bible verse bracelets,21082,60056
+        2025-11,bible verse bracelets,36171,39800
+        2025-10,bible verse bracelets,47625,32293
+        2025-09,bible verse bracelets,37794,38513
+        2025-08,bible verse bracelets,53626,28860
+        2025-07,bible verse bracelets,58344,27189
+        2025-06,bible verse bracelets,49411,31534
+        2025-05,bible verse bracelets,41068,37133
+        2025-04,bible verse bracelets,23409,56028
+        2025-03,bible verse bracelets,33297,43422
+        2025-02,bible verse bracelets,28657,47894
+        2025-01,bible verse bracelets,22323,58830
+        2024-12,bible verse bracelets,10339,94109
+        2024-11,bible verse bracelets,23920,55334
+        2024-10,bible verse bracelets,44611,37679
+        2024-09,bible verse bracelets,59316,29180
+        2024-08,bible verse bracelets,111111,15836
+        2024-07,bible verse bracelets,145834,12575
+        2024-06,bible verse bracelets,153370,12162
+        2024-05,bible verse bracelets,158661,11982
+        2024-04,bible verse bracelets,167943,10783
+        2024-03,bible verse bracelets,145577,12603
+        2024-02,bible verse bracelets,148160,11250
+        2024-01,bible verse bracelets,193964,7674
+        2023-12,bible verse bracelets,155823,9720
+        2023-11,bible verse bracelets,173439,8750
+        2023-10,bible verse bracelets,165898,9155
+        2023-09,bible verse bracelets,168542,9021
+        2023-08,bible verse bracelets,157811,9569
+        2023-07,bible verse bracelets,188395,6058
+        2023-06,bible verse bracelets,179223,6449
+        2023-05,bible verse bracelets,161212,7038
+        2023-04,bible verse bracelets,155431,7280
+        2023-03,bible verse bracelets,207220,5686
+        2023-02,bible verse bracelets,263438,4876
+        2023-01,bible verse bracelets,331650,4023
+        2022-12,bible verse bracelets,226592,5300
+        2022-11,bible verse bracelets,277642,4704
+        2022-10,bible verse bracelets,228944,5377
+        2022-09,bible verse bracelets,231240,5346
+        2022-08,bible verse bracelets,250291,4929
+        2022-07,bible verse bracelets,293251,4513
+        2022-06,bible verse bracelets,304135,4412
+        2022-05,bible verse bracelets,313692,4311
+        2022-04,bible verse bracelets,248762,5099
+        2022-03,bible verse bracelets,313021,4203
+        2022-02,bible verse bracelets,372100,3706
+        2022-01,bible verse bracelets,563471,2570
+        2021-12,bible verse bracelets,332879,4024
+        2021-11,bible verse bracelets,306416,4282
+        2021-10,bible verse bracelets,385726,3511
+        2021-09,bible verse bracelets,305169,4275
+        2021-08,bible verse bracelets,311626,4193
+        2021-07,bible verse bracelets,345901,3877
+        2021-06,bible verse bracelets,420685,3260
+        2021-05,bible verse bracelets,335789,4003
+        2021-04,bible verse bracelets,396957,3572
+        2021-03,bible verse bracelets,567859,2549
+        2021-02,bible verse bracelets,573662,2524
+        2021-01,bible verse bracelets,678295,2090
+        2020-12,bible verse bracelets,265444,4764
+        2020-11,bible verse bracelets,383820,3655
+        2020-10,bible verse bracelets,1838932,548
+        2020-09,bible verse bracelets,,0
+        2020-08,bible verse bracelets,,0
+        2020-07,bible verse bracelets,1197272,939
+        2020-06,bible verse bracelets,1555063,664
+        2020-05,bible verse bracelets,,0
+        2020-04,bible verse bracelets,1478921,704
+        2020-03,bible verse bracelets,,0
+        2020-02,bible verse bracelets,1017118,1352
+        2020-01,bible verse bracelets,900407,1535
+        2019-12,bible verse bracelets,480943,2964
+        2019-11,bible verse bracelets,503434,2765
+        2019-10,bible verse bracelets,610303,2374
+        2019-09,bible verse bracelets,660089,2143
+        2019-08,bible verse bracelets,531820,2643
+        2019-07,bible verse bracelets,974394,1377
+        2019-06,bible verse bracelets,882865,1494
+        2019-05,bible verse bracelets,653033,2186
+        2019-04,bible verse bracelets,881909,1470
+        2019-03,bible verse bracelets,0,0
+        2019-02,bible verse bracelets,0,0
+        2019-01,bible verse bracelets,0,0
+        2018-12,bible verse bracelets,0,0
+        2018-11,bible verse bracelets,0,0
+        2018-10,bible verse bracelets,0,0
+        2018-09,bible verse bracelets,0,0
+        2018-08,bible verse bracelets,0,0
+        2018-07,bible verse bracelets,0,0
+        2018-06,bible verse bracelets,0,0
+        2018-05,bible verse bracelets,0,0
+        2018-04,bible verse bracelets,0,0
+        2018-03,bible verse bracelets,,0
+        2018-02,bible verse bracelets,,0
+        2018-01,bible verse bracelets,,0
+        2017-12,bible verse bracelets,,0
+        2017-11,bible verse bracelets,,0
+        2017-10,bible verse bracelets,,0
+        2017-09,bible verse bracelets,,0
+        2017-08,bible verse bracelets,,0
+        2017-07,bible verse bracelets,,0
+        2017-06,bible verse bracelets,,0
+        2017-05,bible verse bracelets,,0
+        2017-04,bible verse bracelets,,0
+        2017-03,bible verse bracelets,,0
+        2017-02,bible verse bracelets,,0
+        2017-01,bible verse bracelets,,0
+        `;
+                const lines = rawCSV.trim().split('\n').filter(l => l.trim());
+                const dataMap = {
+                    'bible verse jar': {},
+                    'christian gifts for women': {},
+                    'bible verse bracelets': {}
+                };
+
+                for (const line of lines) {
+                    const parts = line.trim().split(',');
+                    if (parts.length < 4) continue;
+                    const month = parts[0].trim();
+                    const keyword = parts[1].trim();
+                    const rankStr = parts[2].trim();
+                    const volumeStr = parts[3].trim();
+                    if (!dataMap[keyword]) continue;
+
+                    let rank = null;
+                    if (rankStr !== '' && rankStr !== '0') {
+                        const r = parseInt(rankStr, 10);
+                        if (!isNaN(r) && r > 0) rank = r;
+                    }
+                    let volume = null;
+                    if (volumeStr !== '') {
+                        const v = parseInt(volumeStr, 10);
+                        if (!isNaN(v)) volume = v;
+                    }
+                    dataMap[keyword][month] = { rank, volume };
+                }
+                return dataMap;
+            }
+
+            const dataMap = parseRawData();
+
+            // 生成完整月份序列（2017-01 至 2026-04）
+            function generateMonths() {
+                const months = [];
+                for (let y = 2017; y <= 2026; y++) {
+                    const endM = (y === 2026) ? 4 : 12;
+                    for (let m = 1; m <= endM; m++) {
+                        months.push(y + '-' + (m < 10 ? '0' + m : m));
+                    }
+                }
+                return months;
+            }
+            const allMonths = generateMonths();
+
+            // 提取三个关键词的系列数据
+            function buildSeries(key, field) {
+                return allMonths.map(m => {
+                    const entry = dataMap[key] && dataMap[key][m];
+                    if (!entry) return null;
+                    const val = entry[field];
+                    return (val !== null && val !== undefined) ? val : null;
+                });
+            }
+
+            const volumeSeriesArr = [
+                { name: 'bible verse jar', data: buildSeries('bible verse jar', 'volume') },
+                { name: 'christian gifts for women', data: buildSeries('christian gifts for women', 'volume') },
+                { name: 'bible verse bracelets', data: buildSeries('bible verse bracelets', 'volume') }
+            ];
+
+            const rankSeriesArr = [
+                { name: 'bible verse jar', data: buildSeries('bible verse jar', 'rank') },
+                { name: 'christian gifts for women', data: buildSeries('christian gifts for women', 'rank') },
+                { name: 'bible verse bracelets', data: buildSeries('bible verse bracelets', 'rank') }
+            ];
+
+            // ========== 图表配置数组 (ID 1 和 ID 2) ==========
+            const chartOpts = [];
+
+            // 图1：月搜索量趋势
+            chartOpts.push(getLineOpt(allMonths, volumeSeriesArr, '关键词月搜索量趋势', {
+                yAxisFormatter: v => fmtKBM(v),
+                yAxisName: '月搜索量',
+                xRotate: 45,
+                xInterval: 4,
+                smooth: true,
+                tooltipFormatter: function(params) {
+                    let s = '<strong>' + params[0].axisValue + '</strong><br/>';
+                    params.forEach(p => {
+                        const val = p.value !== null ? p.value.toLocaleString() : '无数据';
+                        s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                            p.color + ';margin-right:6px;"></span>' +
+                            p.seriesName + ': ' + val + '<br/>';
+                    });
+                    return s;
+                }
+            }));
+
+            // 图2：ABA排名趋势（倒置Y轴）
+            chartOpts.push(getLineOpt(allMonths, rankSeriesArr, '关键词ABA排名趋势（倒置）', {
+                yAxisFormatter: v => {
+                    if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+                    if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
+                    return v;
+                },
+                yAxisName: 'ABA排名 (越小越热 ↑)',
+                yAxisInverse: true,
+                xRotate: 45,
+                xInterval: 4,
+                smooth: true,
+                tooltipFormatter: function(params) {
+                    let s = '<strong>' + params[0].axisValue + '</strong><br/>';
+                    params.forEach(p => {
+                        const val = p.value !== null ? p.value.toLocaleString() : '无数据';
+                        s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                            p.color + ';margin-right:6px;"></span>' +
+                            p.seriesName + ': ' + val + '<br/>';
+                    });
+                    return s;
+                }
+            }));
+
+            // ========== 初始化渲染 (根据URL参数id切换) ==========
+            function init() {
+                const params = new URLSearchParams(window.location.search);
+                let id = parseInt(params.get('id')) || 1;
+                if (id < 1 || id > 2 || isNaN(id)) id = 1;
+
+                const titles = ['关键词月搜索量趋势', '关键词ABA排名趋势（倒置）'];
+                document.getElementById('chartTitle').textContent = titles[id - 1];
+
+                const container = document.getElementById('singleChart');
+                if (container._echart_instance) {
+                    container._echart_instance.dispose();
+                }
+                const chart = echarts.init(container);
+                container._echart_instance = chart;
+
+                const option = chartOpts[id - 1];
+                if (option) chart.setOption(option);
+
+                setTimeout(() => chart.resize(), 80);
+                window.addEventListener('resize', () => chart.resize());
+            }
+
+            document.addEventListener('DOMContentLoaded', init);
+            if (document.readyState === 'complete' || document.readyState === 'interactive') init();
+        })();
+    </script>
+</body>
+</html>
