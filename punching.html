@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据可视化图表</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+        .chart-title {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 16px 0 12px;
+        }
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            min-height: 300px;
+        }
+        @media (max-width:768px) {
+            .chart-title {
+                font-size: 16px;
+            }
+            .chart-container {
+                min-height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="chart-title" id="chartTitle">分款销量占比</div>
+        <div class="chart-container" id="singleChart"></div>
+    </div>
+    <script>
+        (function() {
+            // ============ 16色调色板 ============
+            const COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1', '#EB2F96',
+                '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
+            ];
+
+            // ============ 工具函数 ============
+            function parseNum(val) {
+                if (typeof val === 'string') return parseFloat(val.replace(/,/g, '')) || 0;
+                if (typeof val === 'number') return val;
+                return 0;
+            }
+
+            function fmtYaxis(value) {
+                if (Math.abs(value) >= 10000) {
+                    return (value / 10000).toFixed(1) + '万';
+                }
+                return value;
+            }
+
+            function fmtPrice(value) {
+                return '$' + parseNum(value).toFixed(2);
+            }
+
+            // ============ 图表标题数组 ============
+            const chartTitles = [
+                '分款销量占比', // 1
+                '感应靶数量-销量分布', // 2
+                '', // 3 无
+                '', // 4 无
+                '关键词搜索量趋势', // 5
+                '关键词ABA排名趋势', // 6
+                '历史总销量走势', // 7
+                '价格四分位走势', // 8
+                '品牌垄断', // 9
+                '排名垄断', // 10
+                '卖家所属地', // 11
+                '配送方式', // 12
+                '新品销量占比', // 13
+                'review数分布', // 14
+                '市场分款价格分布', // 15
+                '价格质量联动分析', // 16
+                '品牌价格分布', // 17
+                '新老品价格分布', // 18
+                '分款评分星级分布', // 19
+                '评分销量趋势' // 20
+            ];
+
+            // ============ 图表配置数组 ============
+            const chartOpts = [];
+
+            // ---------- 图表1：分款销量占比-饼图 ----------
+            chartOpts[1] = function() {
+                const data = [
+                    { name: '音乐拳击机', value: 16775 },
+                    { name: '儿童充气拳击袋', value: 12630 },
+                    { name: '不倒翁拳击袋', value: 6302 },
+                    { name: '儿童电子计分充气拳击袋', value: 3677 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        textStyle: { color: '#333' },
+                        type: 'scroll'
+                    } : { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
+                                return '{dot' + p.dataIndex + '|●} ' + p.name + '\n' + p.percent +
+                                    '%';
+                            },
+                            rich: showLegend ? {} : buildDotRich(catCount)
+                        },
+                        labelLine: { show: true, length: 20, length2: 30 },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
+                    }]
+                };
+            };
+
+            function buildDotRich(count) {
+                const rich = {};
+                for (let i = 0; i < count; i++) {
+                    rich['dot' + i] = { color: COLORS[i], fontSize: 14, fontWeight: 'bold' };
+                }
+                return rich;
+            }
+
+            // ---------- 图表2：感应靶数量-销量分布-饼图 ----------
+            chartOpts[2] = function() {
+                const data = [
+                    { name: '0个', value: 18932 },
+                    { name: '4个', value: 4840 },
+                    { name: '5个', value: 6169 },
+                    { name: '6个', value: 4945 },
+                    { name: '7个', value: 821 },
+                    { name: '8个', value: 3677 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return '感应靶位数: ' + p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        textStyle: { color: '#333' },
+                        type: 'scroll'
+                    } : { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
+                                return '{dot' + p.dataIndex + '|●} ' + p.name + '\n' + p.percent +
+                                    '%';
+                            },
+                            rich: showLegend ? {} : buildDotRich(catCount)
+                        },
+                        labelLine: { show: true, length: 20, length2: 30 },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
+                    }]
+                };
+            };
+
+            // ---------- 图表3：空 ----------
+            chartOpts[3] = function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    series: []
+                };
+            };
+
+            // ---------- 图表4：空 ----------
+            chartOpts[4] = function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    series: []
+                };
+            };
+
+            // ---------- 图表5：关键词搜索量趋势-多系列折线图 ----------
+            chartOpts[5] = function() {
+                const rawData = [
+                    ['2026-05', 'punching bag for kids', 61134],
+                    ['2026-04', 'punching bag for kids', 63431],
+                    ['2026-03', 'punching bag for kids', 73305],
+                    ['2026-02', 'punching bag for kids', 73474],
+                    ['2026-01', 'punching bag for kids', 68040],
+                    ['2025-12', 'punching bag for kids', 172742],
+                    ['2025-11', 'punching bag for kids', 127021],
+                    ['2025-10', 'punching bag for kids', 66473],
+                    ['2025-09', 'punching bag for kids', 64492],
+                    ['2025-08', 'punching bag for kids', 59589],
+                    ['2025-07', 'punching bag for kids', 51598],
+                    ['2025-06', 'punching bag for kids', 53787],
+                    ['2025-05', 'punching bag for kids', 52132],
+                    ['2025-04', 'punching bag for kids', 54368],
+                    ['2025-03', 'punching bag for kids', 60967],
+                    ['2025-02', 'punching bag for kids', 59886],
+                    ['2025-01', 'punching bag for kids', 49894],
+                    ['2024-12', 'punching bag for kids', 139661],
+                    ['2024-11', 'punching bag for kids', 123530],
+                    ['2024-10', 'punching bag for kids', 74520],
+                    ['2024-09', 'punching bag for kids', 70177],
+                    ['2024-08', 'punching bag for kids', 64925],
+                    ['2024-07', 'punching bag for kids', 63105],
+                    ['2024-06', 'punching bag for kids', 60470],
+                    ['2024-05', 'punching bag for kids', 59467],
+                    ['2024-04', 'punching bag for kids', 62148],
+                    ['2024-03', 'punching bag for kids', 67102],
+                    ['2024-02', 'punching bag for kids', 55794],
+                    ['2024-01', 'punching bag for kids', 50647],
+                    ['2023-12', 'punching bag for kids', 134058],
+                    ['2023-11', 'punching bag for kids', 126366],
+                    ['2023-10', 'punching bag for kids', 41772],
+                    ['2023-09', 'punching bag for kids', 43614],
+                    ['2023-08', 'punching bag for kids', 50996],
+                    ['2023-07', 'punching bag for kids', 26953],
+                    ['2023-06', 'punching bag for kids', 27008],
+                    ['2023-05', 'punching bag for kids', 17145],
+                    ['2023-04', 'punching bag for kids', 32838],
+                    ['2023-03', 'punching bag for kids', 36252],
+                    ['2023-02', 'punching bag for kids', 40607],
+                    ['2023-01', 'punching bag for kids', 34919],
+                    ['2022-12', 'punching bag for kids', 87936],
+                    ['2022-11', 'punching bag for kids', 91224],
+                    ['2022-10', 'punching bag for kids', 50534],
+                    ['2022-09', 'punching bag for kids', 47168],
+                    ['2022-08', 'punching bag for kids', 44265],
+                    ['2022-07', 'punching bag for kids', 37583],
+                    ['2022-06', 'punching bag for kids', 39663],
+                    ['2022-05', 'punching bag for kids', 41782],
+                    ['2022-04', 'punching bag for kids', 48062],
+                    ['2022-03', 'punching bag for kids', 54702],
+                    ['2022-02', 'punching bag for kids', 52281],
+                    ['2022-01', 'punching bag for kids', 53698],
+                    ['2026-05', 'music boxing machine', 39052],
+                    ['2026-04', 'music boxing machine', 27224],
+                    ['2026-03', 'music boxing machine', 43523],
+                    ['2026-02', 'music boxing machine', 65657],
+                    ['2026-01', 'music boxing machine', 49256],
+                    ['2025-12', 'music boxing machine', 200745],
+                    ['2025-11', 'music boxing machine', 200657],
+                    ['2025-10', 'music boxing machine', 83935],
+                    ['2025-09', 'music boxing machine', 64256],
+                    ['2025-08', 'music boxing machine', 43861],
+                    ['2025-07', 'music boxing machine', 49004],
+                    ['2025-06', 'music boxing machine', 48049],
+                    ['2025-05', 'music boxing machine', 70408],
+                    ['2025-04', 'music boxing machine', 45979],
+                    ['2025-03', 'music boxing machine', 44936],
+                    ['2025-02', 'music boxing machine', 51958],
+                    ['2025-01', 'music boxing machine', 74616],
+                    ['2024-12', 'music boxing machine', 371914],
+                    ['2024-11', 'music boxing machine', 145596],
+                    ['2024-10', 'music boxing machine', 151195],
+                    ['2024-09', 'music boxing machine', 140575],
+                    ['2024-08', 'music boxing machine', 136940],
+                    ['2024-07', 'music boxing machine', 139352],
+                    ['2024-06', 'music boxing machine', 120970],
+                    ['2024-05', 'music boxing machine', 181613],
+                    ['2024-04', 'music boxing machine', 465933],
+                    ['2024-03', 'music boxing machine', 134019],
+                    ['2024-02', 'music boxing machine', 95866],
+                    ['2024-01', 'music boxing machine', 121318],
+                    ['2023-12', 'music boxing machine', 166695],
+                    ['2023-11', 'music boxing machine', 125260],
+                    ['2023-10', 'music boxing machine', 81178],
+                    ['2023-09', 'music boxing machine', 93270],
+                    ['2023-08', 'music boxing machine', 29435],
+                    ['2023-07', 'music boxing machine', 6328],
+                    ['2023-06', 'music boxing machine', 14234],
+                    ['2023-05', 'music boxing machine', 18793],
+                    ['2023-04', 'music boxing machine', 12992],
+                    ['2023-03', 'music boxing machine', 8913],
+                    ['2023-02', 'music boxing machine', 10005],
+                    ['2023-01', 'music boxing machine', 13519],
+                    ['2022-12', 'music boxing machine', 17927],
+                    ['2022-11', 'music boxing machine', 4751],
+                    ['2022-10', 'music boxing machine', 9491],
+                    ['2022-09', 'music boxing machine', 0],
+                    ['2022-08', 'music boxing machine', 0],
+                    ['2022-07', 'music boxing machine', 0],
+                    ['2022-06', 'music boxing machine', 0],
+                    ['2022-05', 'music boxing machine', 0],
+                    ['2022-04', 'music boxing machine', 0],
+                    ['2022-03', 'music boxing machine', 0],
+                    ['2022-02', 'music boxing machine', 0],
+                    ['2022-01', 'music boxing machine', 0],
+                    ['2026-05', 'inflatable punching bag for kids', 6019],
+                    ['2026-04', 'inflatable punching bag for kids', 6139],
+                    ['2026-03', 'inflatable punching bag for kids', 8365],
+                    ['2026-02', 'inflatable punching bag for kids', 7179],
+                    ['2026-01', 'inflatable punching bag for kids', 5446],
+                    ['2025-12', 'inflatable punching bag for kids', 17816],
+                    ['2025-11', 'inflatable punching bag for kids', 10068],
+                    ['2025-10', 'inflatable punching bag for kids', 6090],
+                    ['2025-09', 'inflatable punching bag for kids', 5013],
+                    ['2025-08', 'inflatable punching bag for kids', 5035],
+                    ['2025-07', 'inflatable punching bag for kids', 5191],
+                    ['2025-06', 'inflatable punching bag for kids', 5222],
+                    ['2025-05', 'inflatable punching bag for kids', 4652],
+                    ['2025-04', 'inflatable punching bag for kids', 6068],
+                    ['2025-03', 'inflatable punching bag for kids', 7358],
+                    ['2025-02', 'inflatable punching bag for kids', 7705],
+                    ['2025-01', 'inflatable punching bag for kids', 5316],
+                    ['2024-12', 'inflatable punching bag for kids', 20614],
+                    ['2024-11', 'inflatable punching bag for kids', 12969],
+                    ['2024-10', 'inflatable punching bag for kids', 6414],
+                    ['2024-09', 'inflatable punching bag for kids', 6626],
+                    ['2024-08', 'inflatable punching bag for kids', 4217],
+                    ['2024-07', 'inflatable punching bag for kids', 4026],
+                    ['2024-06', 'inflatable punching bag for kids', 4183],
+                    ['2024-05', 'inflatable punching bag for kids', 3822],
+                    ['2024-04', 'inflatable punching bag for kids', 4520],
+                    ['2024-03', 'inflatable punching bag for kids', 5185],
+                    ['2024-02', 'inflatable punching bag for kids', 4548],
+                    ['2024-01', 'inflatable punching bag for kids', 4713],
+                    ['2023-12', 'inflatable punching bag for kids', 17847],
+                    ['2023-11', 'inflatable punching bag for kids', 7936],
+                    ['2023-10', 'inflatable punching bag for kids', 2347],
+                    ['2023-05', 'inflatable punching bag for kids', 0],
+                    ['2023-04', 'inflatable punching bag for kids', 0],
+                    ['2023-03', 'inflatable punching bag for kids', 0],
+                    ['2023-02', 'inflatable punching bag for kids', 0],
+                    ['2023-01', 'inflatable punching bag for kids', 501],
+                    ['2022-12', 'inflatable punching bag for kids', 1745],
+                    ['2022-11', 'inflatable punching bag for kids', 942],
+                    ['2022-10', 'inflatable punching bag for kids', 658],
+                    ['2022-09', 'inflatable punching bag for kids', 675],
+                    ['2022-08', 'inflatable punching bag for kids', 0],
+                    ['2022-07', 'inflatable punching bag for kids', 0],
+                    ['2022-06', 'inflatable punching bag for kids', 628],
+                    ['2022-05', 'inflatable punching bag for kids', 713],
+                    ['2022-04', 'inflatable punching bag for kids', 939],
+                    ['2022-03', 'inflatable punching bag for kids', 758],
+                    ['2022-02', 'inflatable punching bag for kids', 750],
+                    ['2022-01', 'inflatable punching bag for kids', 0]
+                ];
+                const seriesNames = ['punching bag for kids', 'music boxing machine',
+                    'inflatable punching bag for kids'
+                ];
+                const monthsSet = new Set();
+                const dataMap = {};
+                seriesNames.forEach(sn => { dataMap[sn] = {}; });
+                rawData.forEach(r => {
+                    const month = r[0];
+                    const sn = r[1];
+                    const val = parseNum(r[2]);
+                    monthsSet.add(month);
+                    dataMap[sn][month] = val;
+                });
+                const months = Array.from(monthsSet).sort();
+                const seriesData = seriesNames.map((sn, idx) => ({
+                    name: sn,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[idx] },
+                    itemStyle: { color: COLORS[idx] },
+                    data: months.map(m => dataMap[sn][m] !== undefined ? dataMap[sn][m] :
+                        null),
+                    connectNulls: false
+                }));
+                const numSeries = seriesData.length;
+                const legendSelected = {};
+                seriesNames.forEach((sn, i) => {
+                    legendSelected[sn] = i < 3;
+                });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s += p.marker + ' ' + p.seriesName + ': ' + (p.value !==
+                                    null ? p.value.toLocaleString() : '-') + '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: seriesNames,
+                        top: 0,
+                        textStyle: { color: '#333', fontSize: 12 },
+                        selected: numSeries > 3 ? legendSelected : undefined
+                    },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: months,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月搜索量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: seriesData
+                };
+            };
+
+            // ---------- 图表6：关键词ABA排名趋势 ----------
+            chartOpts[6] = function() {
+                const rawData = [
+                    ['2026-05', 'punching bag for kids', 20848],
+                    ['2026-04', 'punching bag for kids', 19833],
+                    ['2026-03', 'punching bag for kids', 15804],
+                    ['2026-02', 'punching bag for kids', 15453],
+                    ['2026-01', 'punching bag for kids', 18006],
+                    ['2025-12', 'punching bag for kids', 3824],
+                    ['2025-11', 'punching bag for kids', 6770],
+                    ['2025-10', 'punching bag for kids', 18119],
+                    ['2025-09', 'punching bag for kids', 19035],
+                    ['2025-08', 'punching bag for kids', 21793],
+                    ['2025-07', 'punching bag for kids', 25708],
+                    ['2025-06', 'punching bag for kids', 25213],
+                    ['2025-05', 'punching bag for kids', 25295],
+                    ['2025-04', 'punching bag for kids', 24300],
+                    ['2025-03', 'punching bag for kids', 21035],
+                    ['2025-02', 'punching bag for kids', 21637],
+                    ['2025-01', 'punching bag for kids', 27029],
+                    ['2024-12', 'punching bag for kids', 5381],
+                    ['2024-11', 'punching bag for kids', 7346],
+                    ['2024-10', 'punching bag for kids', 17957],
+                    ['2024-09', 'punching bag for kids', 19645],
+                    ['2024-08', 'punching bag for kids', 21619],
+                    ['2024-07', 'punching bag for kids', 23111],
+                    ['2024-06', 'punching bag for kids', 24344],
+                    ['2024-05', 'punching bag for kids', 24663],
+                    ['2024-04', 'punching bag for kids', 23436],
+                    ['2024-03', 'punching bag for kids', 20848],
+                    ['2024-02', 'punching bag for kids', 23282],
+                    ['2024-01', 'punching bag for kids', 26616],
+                    ['2023-12', 'punching bag for kids', 7003],
+                    ['2023-11', 'punching bag for kids', 7957],
+                    ['2023-10', 'punching bag for kids', 34388],
+                    ['2023-09', 'punching bag for kids', 31467],
+                    ['2023-08', 'punching bag for kids', 26519],
+                    ['2023-07', 'punching bag for kids', 29165],
+                    ['2023-06', 'punching bag for kids', 28773],
+                    ['2023-05', 'punching bag for kids', 46255],
+                    ['2023-04', 'punching bag for kids', 24106],
+                    ['2023-03', 'punching bag for kids', 21019],
+                    ['2023-02', 'punching bag for kids', 18962],
+                    ['2023-01', 'punching bag for kids', 22160],
+                    ['2022-12', 'punching bag for kids', 7546],
+                    ['2022-11', 'punching bag for kids', 7134],
+                    ['2022-10', 'punching bag for kids', 14584],
+                    ['2022-09', 'punching bag for kids', 16067],
+                    ['2022-08', 'punching bag for kids', 16723],
+                    ['2022-07', 'punching bag for kids', 20380],
+                    ['2022-06', 'punching bag for kids', 19063],
+                    ['2022-05', 'punching bag for kids', 18503],
+                    ['2022-04', 'punching bag for kids', 15402],
+                    ['2022-03', 'punching bag for kids', 13308],
+                    ['2022-02', 'punching bag for kids', 14036],
+                    ['2022-01', 'punching bag for kids', 13831],
+                    ['2026-05', 'music boxing machine', 38782],
+                    ['2026-04', 'music boxing machine', 58143],
+                    ['2026-03', 'music boxing machine', 33282],
+                    ['2026-02', 'music boxing machine', 18765],
+                    ['2026-01', 'music boxing machine', 27853],
+                    ['2025-12', 'music boxing machine', 2904],
+                    ['2025-11', 'music boxing machine', 2930],
+                    ['2025-10', 'music boxing machine', 12341],
+                    ['2025-09', 'music boxing machine', 19277],
+                    ['2025-08', 'music boxing machine', 32700],
+                    ['2025-07', 'music boxing machine', 28191],
+                    ['2025-06', 'music boxing machine', 28523],
+                    ['2025-05', 'music boxing machine', 16632],
+                    ['2025-04', 'music boxing machine', 30417],
+                    ['2025-03', 'music boxing machine', 31997],
+                    ['2025-02', 'music boxing machine', 26056],
+                    ['2025-01', 'music boxing machine', 15294],
+                    ['2024-12', 'music boxing machine', 1125],
+                    ['2024-11', 'music boxing machine', 5213],
+                    ['2024-10', 'music boxing machine', 5576],
+                    ['2024-09', 'music boxing machine', 5719],
+                    ['2024-08', 'music boxing machine', 7527],
+                    ['2024-07', 'music boxing machine', 6512],
+                    ['2024-06', 'music boxing machine', 8818],
+                    ['2024-05', 'music boxing machine', 4288],
+                    ['2024-04', 'music boxing machine', 1034],
+                    ['2024-03', 'music boxing machine', 6900],
+                    ['2024-02', 'music boxing machine', 10855],
+                    ['2024-01', 'music boxing machine', 7863],
+                    ['2023-12', 'music boxing machine', 4538],
+                    ['2023-11', 'music boxing machine', 8087],
+                    ['2023-10', 'music boxing machine', 14069],
+                    ['2023-09', 'music boxing machine', 11356],
+                    ['2023-08', 'music boxing machine', 51269],
+                    ['2023-07', 'music boxing machine', 183608],
+                    ['2023-06', 'music boxing machine', 68370],
+                    ['2023-05', 'music boxing machine', 43677],
+                    ['2023-04', 'music boxing machine', 78739],
+                    ['2023-03', 'music boxing machine', 118990],
+                    ['2023-02', 'music boxing machine', 102551],
+                    ['2023-01', 'music boxing machine', 69961],
+                    ['2022-12', 'music boxing machine', 44079],
+                    ['2022-11', 'music boxing machine', 275225],
+                    ['2022-10', 'music boxing machine', 111230],
+                    ['2022-09', 'music boxing machine', 0],
+                    ['2022-08', 'music boxing machine', 0],
+                    ['2022-07', 'music boxing machine', 0],
+                    ['2022-06', 'music boxing machine', 0],
+                    ['2022-05', 'music boxing machine', 0],
+                    ['2022-04', 'music boxing machine', 0],
+                    ['2022-03', 'music boxing machine', 0],
+                    ['2022-02', 'music boxing machine', 0],
+                    ['2022-01', 'music boxing machine', 0],
+                    ['2026-05', 'inflatable punching bag for kids', 259678],
+                    ['2026-04', 'inflatable punching bag for kids', 251781],
+                    ['2026-03', 'inflatable punching bag for kids', 193655],
+                    ['2026-02', 'inflatable punching bag for kids', 221669],
+                    ['2026-01', 'inflatable punching bag for kids', 282470],
+                    ['2025-12', 'inflatable punching bag for kids', 96910],
+                    ['2025-11', 'inflatable punching bag for kids', 160730],
+                    ['2025-10', 'inflatable punching bag for kids', 257816],
+                    ['2025-09', 'inflatable punching bag for kids', 304894],
+                    ['2025-08', 'inflatable punching bag for kids', 306201],
+                    ['2025-07', 'inflatable punching bag for kids', 291961],
+                    ['2025-06', 'inflatable punching bag for kids', 295317],
+                    ['2025-05', 'inflatable punching bag for kids', 327240],
+                    ['2025-04', 'inflatable punching bag for kids', 259354],
+                    ['2025-03', 'inflatable punching bag for kids', 218593],
+                    ['2025-02', 'inflatable punching bag for kids', 209021],
+                    ['2025-01', 'inflatable punching bag for kids', 285983],
+                    ['2024-12', 'inflatable punching bag for kids', 80851],
+                    ['2024-11', 'inflatable punching bag for kids', 139201],
+                    ['2024-10', 'inflatable punching bag for kids', 254715],
+                    ['2024-09', 'inflatable punching bag for kids', 249919],
+                    ['2024-08', 'inflatable punching bag for kids', 360267],
+                    ['2024-07', 'inflatable punching bag for kids', 381391],
+                    ['2024-06', 'inflatable punching bag for kids', 364815],
+                    ['2024-05', 'inflatable punching bag for kids', 400645],
+                    ['2024-04', 'inflatable punching bag for kids', 348095],
+                    ['2024-03', 'inflatable punching bag for kids', 304469],
+                    ['2024-02', 'inflatable punching bag for kids', 328249],
+                    ['2024-01', 'inflatable punching bag for kids', 308332],
+                    ['2023-12', 'inflatable punching bag for kids', 92254],
+                    ['2023-11', 'inflatable punching bag for kids', 189724],
+                    ['2023-10', 'inflatable punching bag for kids', 743623],
+                    ['2023-05', 'inflatable punching bag for kids', 0],
+                    ['2023-04', 'inflatable punching bag for kids', 0],
+                    ['2023-03', 'inflatable punching bag for kids', 0],
+                    ['2023-02', 'inflatable punching bag for kids', 0],
+                    ['2023-01', 'inflatable punching bag for kids', 1952928],
+                    ['2022-12', 'inflatable punching bag for kids', 772478],
+                    ['2022-11', 'inflatable punching bag for kids', 1195049],
+                    ['2022-10', 'inflatable punching bag for kids', 1572994],
+                    ['2022-09', 'inflatable punching bag for kids', 1529955],
+                    ['2022-08', 'inflatable punching bag for kids', 0],
+                    ['2022-07', 'inflatable punching bag for kids', 0],
+                    ['2022-06', 'inflatable punching bag for kids', 1643586],
+                    ['2022-05', 'inflatable punching bag for kids', 1466806],
+                    ['2022-04', 'inflatable punching bag for kids', 1196804],
+                    ['2022-03', 'inflatable punching bag for kids', 1408240],
+                    ['2022-02', 'inflatable punching bag for kids', 1417055],
+                    ['2022-01', 'inflatable punching bag for kids', 0]
+                ];
+                const seriesNames = ['punching bag for kids', 'music boxing machine',
+                    'inflatable punching bag for kids'
+                ];
+                const monthsSet = new Set();
+                const dataMap = {};
+                seriesNames.forEach(sn => { dataMap[sn] = {}; });
+                rawData.forEach(r => {
+                    const month = r[0];
+                    const sn = r[1];
+                    const val = parseNum(r[2]);
+                    monthsSet.add(month);
+                    dataMap[sn][month] = val;
+                });
+                const months = Array.from(monthsSet).sort();
+                const seriesData = seriesNames.map((sn, idx) => ({
+                    name: sn,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[idx] },
+                    itemStyle: { color: COLORS[idx] },
+                    data: months.map(m => dataMap[sn][m] !== undefined ? dataMap[sn][m] :
+                        null),
+                    connectNulls: false
+                }));
+                const numSeries = seriesData.length;
+                const legendSelected = {};
+                seriesNames.forEach((sn, i) => { legendSelected[sn] = i < 3; });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s += p.marker + ' ' + p.seriesName + ': ' + (p.value !==
+                                    null ? p.value.toLocaleString() : '-') + '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: {
+                        data: seriesNames,
+                        top: 0,
+                        textStyle: { color: '#333', fontSize: 12 },
+                        selected: numSeries > 3 ? legendSelected : undefined
+                    },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: months,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ABA排名',
+                        inverse: true,
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: seriesData
+                };
+            };
+
+            // ---------- 图表7：历史销量趋势-复合图 ----------
+            chartOpts[7] = function() {
+                const rawData = [
+                    ['2024-06', 11324, 460352.15, 514],
+                    ['2024-07', 15469, 768564.47, 644],
+                    ['2024-08', 11612, 426984.23, 400],
+                    ['2024-09', 15609, 683607.27, 433],
+                    ['2024-10', 29986, 1853955.4, 749],
+                    ['2024-11', 54817, 3577877.2, 1337],
+                    ['2024-12', 106248, 5300958.56, 2361],
+                    ['2025-01', 23944, 1402891.68, 498],
+                    ['2025-02', 24465, 1299461.72, 520],
+                    ['2025-03', 25899, 1278646.11, 551],
+                    ['2025-04', 21066, 983504.111, 448],
+                    ['2025-05', 21281, 891994.24, 434],
+                    ['2025-06', 22077, 947493.08, 408],
+                    ['2025-07', 26135, 1168401.66, 458],
+                    ['2025-08', 25143, 1064107.91, 392],
+                    ['2025-09', 23534, 1047697.01, 346],
+                    ['2025-10', 38593, 1774620.18, 536],
+                    ['2025-11', 108068, 5495321.64, 1403],
+                    ['2025-12', 215173, 12477506.35, 2689],
+                    ['2026-01', 37630, 1942533.47, 432],
+                    ['2026-02', 35711, 1783343.831, 388],
+                    ['2026-03', 40694, 1928227.55, 415],
+                    ['2026-04', 35775, 1641861.48, 347],
+                    ['2026-05', 38037, 1733834.68, 322],
+                    ['2026-06', 39300, 1788972.922, 327]
+                ];
+                const xData = rawData.map(r => r[0]);
+                const salesVolume = rawData.map(r => parseNum(r[1]));
+                const salesAmount = rawData.map(r => parseNum(r[2]));
+                const avgVolume = rawData.map(r => parseNum(r[3]));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s += p.marker + ' ' + p.seriesName + ': ' + p.value
+                                    .toLocaleString() + '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: { data: ['月销量', '月销售额', '平均月销量'], top: 0,
+                    textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '8%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    }],
+                    series: [{
+                        name: '月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        data: salesVolume,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '50%'
+                    }, {
+                        name: '月销售额',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[2] },
+                        itemStyle: { color: COLORS[2] },
+                        data: salesAmount
+                    }, {
+                        name: '平均月销量',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[1], type: 'dashed' },
+                        itemStyle: { color: COLORS[1] },
+                        data: avgVolume
+                    }]
+                };
+            };
+
+            // ---------- 图表8：价格四分位走势 ----------
+            chartOpts[8] = function() {
+                const rawData = [
+                    ['2024-06', 39.13, 32.8, 27.71, 35.48],
+                    ['2024-07', 49.30, 33.805, 27.43, 47.73],
+                    ['2024-08', 35.05, 35, 24.99, 54.99],
+                    ['2024-09', 41.58, 35.225, 25.94, 55.90],
+                    ['2024-10', 57.23, 36, 30.21, 41.69],
+                    ['2024-11', 63.33, 36.42, 31.65, 51.45],
+                    ['2024-12', 45.21, 39.25, 33.07, 50.81],
+                    ['2025-01', 56.95, 37, 30.36, 71.24],
+                    ['2025-02', 51.01, 38.63, 31.99, 52.04],
+                    ['2025-03', 47.61, 38, 30.56, 49.47],
+                    ['2025-04', 45.52, 38, 31.87, 49.99],
+                    ['2025-05', 39.95, 39.6, 32.91, 61.99],
+                    ['2025-06', 40.96, 39.99, 30.87, 56.42],
+                    ['2025-07', 43.46, 40, 30.08, 54.97],
+                    ['2025-08', 40.70, 39.99, 29.99, 54.59],
+                    ['2025-09', 42.89, 39.99, 29.99, 51.98],
+                    ['2025-10', 45.15, 39.99, 31.54, 51.51],
+                    ['2025-11', 50.14, 38.575, 31.06, 53.84],
+                    ['2025-12', 56.07, 42.1, 34.70, 65.78],
+                    ['2026-01', 49.94, 40, 33.31, 64.01],
+                    ['2026-02', 49.35, 40, 32.25, 64.99],
+                    ['2026-03', 46.53, 39.99, 32.09, 60.21],
+                    ['2026-04', 44.49, 39.18, 30.36, 59.99],
+                    ['2026-05', 44.28, 38.45, 30.45, 54.40],
+                    ['2026-06', 44.16, 39.18, 30.27, 53.43]
+                ];
+                const xData = rawData.map(r => r[0]);
+                const sNames = ['销量加权均价', '中位数', 'Q1分位数', 'Q3分位数'];
+                const seriesData = [0, 1, 2, 3].map(i => ({
+                    name: sNames[i],
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    data: rawData.map(r => parseNum(r[i + 1]))
+                }));
+                const legendSelected = {};
+                sNames.forEach((sn, i) => { legendSelected[sn] = i < 3; });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s += p.marker + ' ' + p.seriesName + ': $' + p.value
+                                    .toFixed(2) + '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: { data: sNames, top: 0, textStyle: { color: '#333', fontSize: 12 },
+                        selected: legendSelected },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10, rotate: 45 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '价格($)',
+                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(0); },
+                            color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: seriesData
+                };
+            };
+
+            // ---------- 图表9：品牌垄断-饼图(11类>8，隐藏图例) ----------
+            chartOpts[9] = function() {
+                const data = [
+                    { name: 'QPAU', value: 5125 },
+                    { name: 'Awinto', value: 3565 },
+                    { name: 'Marwan Sports', value: 3403 },
+                    { name: 'TGLLM', value: 2715 },
+                    { name: 'LOLBOX', value: 2319 },
+                    { name: 'HopeRock', value: 2254 },
+                    { name: 'JOYIN', value: 1610 },
+                    { name: 'Preferred Toys', value: 1412 },
+                    { name: 'Inflatable Dudes', value: 1125 },
+                    { name: 'Scvcid', value: 915 },
+                    { name: '其余', value: 14941 }
+                ];
+                const catCount = data.length;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['35%', '70%'],
+                        center: ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                return '{dot' + p.dataIndex + '|●} ' + p.name + '\n' + p
+                                    .percent + '%';
+                            },
+                            rich: buildDotRich(catCount)
+                        },
+                        labelLine: { show: true, length: 15, length2: 25 },
+                        emphasis: { label: { fontSize: 13, fontWeight: 'bold' } },
+                        data: data
+                    }]
+                };
+            };
+
+            // ---------- 图表10：排名垄断-复合图 ----------
+            chartOpts[10] = function() {
+                const xData = ['1~10', '11~20', '21~30', '31~40', '41~50', '51~60', '61~70', '71~80', '81~90',
+                    '91~100', '101~110', '111~120'
+                ];
+                const oldAsin = [10, 10, 6, 8, 4, 6, 5, 9, 8, 6, 5, 4];
+                const newAsin = [0, 0, 4, 2, 6, 4, 5, 1, 2, 4, 5, 6];
+                const oldAvg = [2060, 533, 355, 240, 198, 151, 106, 93, 74, 58, 45, 32];
+                const newAvg = [0, 0, 355, 223, 195, 142, 112, 100, 70, 57, 45, 34];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' }
+                    },
+                    legend: { data: ['老品ASIN数', '新品ASIN数', '老品平均销量', '新品平均销量'], top: 0,
+                        textStyle: { color: '#333', fontSize: 11 } },
+                    grid: { left: '3%', right: '8%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10 }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: 'ASIN计数',
+                        axisLabel: { color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    }, {
+                        type: 'value',
+                        name: '平均月销量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    }],
+                    series: [{
+                        name: '老品ASIN数',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        stack: 'asin',
+                        data: oldAsin,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '40%'
+                    }, {
+                        name: '新品ASIN数',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        stack: 'asin',
+                        data: newAsin,
+                        itemStyle: { color: COLORS[3] }
+                    }, {
+                        name: '老品平均销量',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { width: 2, color: COLORS[1] },
+                        itemStyle: { color: COLORS[1] },
+                        data: oldAvg
+                    }, {
+                        name: '新品平均销量',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 5,
+                        lineStyle: { width: 2, color: COLORS[4], type: 'dashed' },
+                        itemStyle: { color: COLORS[4] },
+                        data: newAvg
+                    }]
+                };
+            };
+
+            // ---------- 图表11：卖家所属地-饼图 ----------
+            chartOpts[11] = function() {
+                const data = [
+                    { name: 'CN', value: 26832 },
+                    { name: 'US', value: 5742 },
+                    { name: 'CA', value: 3403 },
+                    { name: 'CN(HK)', value: 2956 },
+                    { name: 'IL', value: 319 },
+                    { name: 'AMZ', value: 95 },
+                    { name: 'AU', value: 37 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        textStyle: { color: '#333' },
+                        type: 'scroll'
+                    } : { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
+                                return '{dot' + p.dataIndex + '|●} ' + p.name + '\n' + p
+                                    .percent + '%';
+                            },
+                            rich: showLegend ? {} : buildDotRich(catCount)
+                        },
+                        labelLine: { show: true, length: 20, length2: 30 },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
+                    }]
+                };
+            };
+
+            // ---------- 图表12：配送方式-饼图 ----------
+            chartOpts[12] = function() {
+                const data = [
+                    { name: 'AMZ', value: 95 },
+                    { name: 'FBA', value: 38671 },
+                    { name: 'NA', value: 581 },
+                    { name: 'FBM', value: 37 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        textStyle: { color: '#333' },
+                        type: 'scroll'
+                    } : { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
+                                return '{dot' + p.dataIndex + '|●} ' + p.name + '\n' + p
+                                    .percent + '%';
+                            },
+                            rich: showLegend ? {} : buildDotRich(catCount)
+                        },
+                        labelLine: { show: true, length: 20, length2: 30 },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
+                    }]
+                };
+            };
+
+            // ---------- 图表13：新品销量占比-饼图 ----------
+            chartOpts[13] = function() {
+                const data = [
+                    { name: '3个月内新品', value: 2843 },
+                    { name: '3~6个月内新品', value: 2209 },
+                    { name: '老品', value: 34332 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        textStyle: { color: '#333' },
+                        type: 'scroll'
+                    } : { show: false },
+                    color: COLORS,
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
+                                return '{dot' + p.dataIndex + '|●} ' + p.name + '\n' + p
+                                    .percent + '%';
+                            },
+                            rich: showLegend ? {} : buildDotRich(catCount)
+                        },
+                        labelLine: { show: true, length: 20, length2: 30 },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+                        data: data
+                    }]
+                };
+            };
+
+            // ---------- 图表14：review数分布-堆积柱状图 ----------
+            chartOpts[14] = function() {
+                const xData = ['0~10', '10~30', '30~50', '50~100', '100~200', '200~300', '300~400', '400~500',
+                    '500~800', '800~1200', '1200~2000', '2000+'
+                ];
+                const oldData = [95, 0, 253, 2289, 3294, 2833, 2910, 294, 149, 1558, 7767, 12890];
+                const newData = [535, 2108, 795, 1205, 41, 0, 368, 0, 0, 0, 0, 0];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: { data: ['老品', '新品'], top: 0, textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10, rotate: 30 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: [{
+                        name: '老品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: oldData,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '50%'
+                    }, {
+                        name: '新品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: newData,
+                        itemStyle: { color: COLORS[3] }
+                    }]
+                };
+            };
+
+            // ---------- 图表15：市场分款价格分布-复合图 ----------
+            chartOpts[15] = function() {
+                const xData = ['17.09-22.09', '22.09-27.09', '27.09-32.09', '32.09-37.09', '37.09-42.09',
+                    '42.09-47.09', '47.09-52.09', '52.09-57.09', '57.09-62.09', '62.09-67.09', '67.09-72.09',
+                    '72.09-77.09', '77.09-82.09', '82.09-87.09', '87.09-92.09', '117.09-122.09', '137.09-142.09',
+                    '142.09-147.09', '177.09-182.09', '187.09-192.09', '197.09-202.09', '237.09-242.09'
+                ];
+                const s1Vol = [0, 0, 5130, 990, 1340, 0, 1649, 39, 2536, 348, 3319, 278, 223, 207, 186, 79, 156, 66,
+                    83, 55, 41, 50
+                ];
+                const s2Vol = [611, 1716, 4575, 1996, 574, 3121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 0];
+                const s3Vol = [0, 0, 0, 0, 0, 1061, 362, 0, 2254, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const s4Vol = [1541, 511, 1032, 2052, 1166, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const s1Amt = [0, 0, 152434, 35213, 51319, 0, 79095, 2183, 151990, 22726, 232294, 20427, 17804,
+                    17343, 16737, 9479, 21837, 9503, 12548, 10449, 8199, 11999
+                ];
+                const s2Amt = [11504, 45473, 136471, 68163, 22855, 133129, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    6955, 0
+                ];
+                const s3Amt = [0, 0, 0, 0, 0, 47424, 18093, 0, 135216, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const s4Amt = [30427, 12339, 25789, 66734, 45819, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const allNames = ['音乐拳击机-月销量', '儿童充气拳击袋-月销量', '儿童电子计分充气拳击袋-月销量', '不倒翁拳击袋-月销量',
+                    '音乐拳击机-月销售额', '儿童充气拳击袋-月销售额', '儿童电子计分充气拳击袋-月销售额', '不倒翁拳击袋-月销售额'
+                ];
+                const legendSelected = {};
+                allNames.forEach((n, i) => { legendSelected[n] = i < 7; });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: { data: allNames, top: 0, textStyle: { color: '#333', fontSize: 10 },
+                        selected: legendSelected, type: 'scroll' },
+                    grid: { left: '3%', right: '8%', top: 50, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 9, rotate: 45 }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    }],
+                    series: [{
+                        name: '音乐拳击机-月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        stack: 'vol',
+                        data: s1Vol,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '60%'
+                    }, {
+                        name: '儿童充气拳击袋-月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        stack: 'vol',
+                        data: s2Vol,
+                        itemStyle: { color: COLORS[1] }
+                    }, {
+                        name: '儿童电子计分充气拳击袋-月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        stack: 'vol',
+                        data: s3Vol,
+                        itemStyle: { color: COLORS[2] }
+                    }, {
+                        name: '不倒翁拳击袋-月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        stack: 'vol',
+                        data: s4Vol,
+                        itemStyle: { color: COLORS[3] }
+                    }, {
+                        name: '音乐拳击机-月销售额',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: false,
+                        symbol: 'circle',
+                        symbolSize: 3,
+                        lineStyle: { width: 2, color: COLORS[0] },
+                        itemStyle: { color: COLORS[0] },
+                        data: s1Amt
+                    }, {
+                        name: '儿童充气拳击袋-月销售额',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: false,
+                        symbol: 'diamond',
+                        symbolSize: 3,
+                        lineStyle: { width: 2, color: COLORS[1] },
+                        itemStyle: { color: COLORS[1] },
+                        data: s2Amt
+                    }, {
+                        name: '儿童电子计分充气拳击袋-月销售额',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: false,
+                        symbol: 'triangle',
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[2] },
+                        itemStyle: { color: COLORS[2] },
+                        data: s3Amt
+                    }, {
+                        name: '不倒翁拳击袋-月销售额',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        smooth: false,
+                        symbol: 'rect',
+                        symbolSize: 3,
+                        lineStyle: { width: 2, color: COLORS[3], type: 'dashed' },
+                        itemStyle: { color: COLORS[3] },
+                        data: s4Amt
+                    }]
+                };
+            };
+
+            // ---------- 图表16：价格质量联动分析-多系列堆积柱状图 ----------
+            chartOpts[16] = function() {
+                const xData = ['17.09-22.09', '22.09-27.09', '27.09-32.09', '32.09-37.09', '37.09-42.09',
+                    '42.09-47.09', '47.09-52.09', '52.09-57.09', '57.09-62.09', '62.09-67.09', '67.09-72.09',
+                    '72.09-77.09', '77.09-82.09', '82.09-87.09', '87.09-92.09', '117.09-122.09', '137.09-142.09',
+                    '142.09-147.09', '177.09-182.09', '187.09-192.09', '197.09-202.09', '237.09-242.09'
+                ];
+                const s1 = [1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+                const s2 = [5, 3, 11, 9, 4, 4, 5, 0, 4, 1, 3, 0, 2, 2, 1, 0, 2, 0, 0, 0, 1, 0];
+                const s3 = [1, 6, 10, 6, 7, 5, 8, 1, 1, 1, 2, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0];
+                const s4 = [0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                const sNames = ['三星半及以下', '四星', '四星半', '五星'];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: { data: sNames, top: 0, textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 9, rotate: 45 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: [
+                        { name: sNames[0], type: 'bar', stack: 'total', data: s1,
+                            itemStyle: { color: COLORS[3] }, barWidth: '60%' },
+                        { name: sNames[1], type: 'bar', stack: 'total', data: s2,
+                            itemStyle: { color: COLORS[5] } },
+                        { name: sNames[2], type: 'bar', stack: 'total', data: s3,
+                            itemStyle: { color: COLORS[1] } },
+                        { name: sNames[3], type: 'bar', stack: 'total', data: s4,
+                            itemStyle: { color: COLORS[2] } }
+                    ]
+                };
+            };
+
+            // ---------- 图表17：品牌价格分布-堆积柱状图 ----------
+            chartOpts[17] = function() {
+                const xData = ['17.09-22.09', '22.09-27.09', '27.09-32.09', '32.09-37.09', '37.09-42.09',
+                    '42.09-47.09', '47.09-52.09', '52.09-57.09', '57.09-62.09', '62.09-67.09', '67.09-72.09',
+                    '72.09-77.09', '77.09-82.09', '82.09-87.09', '87.09-92.09', '117.09-122.09', '137.09-142.09',
+                    '142.09-147.09', '177.09-182.09', '187.09-192.09', '197.09-202.09', '237.09-242.09'
+                ];
+                const s1 = [1065, 2132, 9705, 4846, 3080, 4182, 2011, 39, 4790, 348, 3319, 278, 223, 207, 186, 79, 156,
+                    66, 83, 55, 41, 50
+                ];
+                const s2 = [1087, 95, 1032, 192, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 0];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: { data: ['白牌', '品牌'], top: 0, textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 9, rotate: 45 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: [
+                        { name: '白牌', type: 'bar', stack: 'total', data: s1, itemStyle: { color: COLORS[0] },
+                            barWidth: '60%' },
+                        { name: '品牌', type: 'bar', stack: 'total', data: s2, itemStyle: { color: COLORS[1] } }
+                    ]
+                };
+            };
+
+            // ---------- 图表18：新老品价格分布-堆积柱状图 ----------
+            chartOpts[18] = function() {
+                const xData = ['17.09-22.09', '22.09-27.09', '27.09-32.09', '32.09-37.09', '37.09-42.09',
+                    '42.09-47.09', '47.09-52.09', '52.09-57.09', '57.09-62.09', '62.09-67.09', '67.09-72.09',
+                    '72.09-77.09', '77.09-82.09', '82.09-87.09', '87.09-92.09', '117.09-122.09', '137.09-142.09',
+                    '142.09-147.09', '177.09-182.09', '187.09-192.09', '197.09-202.09', '237.09-242.09'
+                ];
+                const s1 = [2108, 1893, 10259, 4327, 2612, 3121, 1011, 39, 4532, 237, 2918, 278, 223, 207, 186, 79, 61,
+                    66, 83, 55, 37, 0
+                ];
+                const s2 = [44, 334, 478, 711, 468, 1061, 1000, 0, 258, 111, 401, 0, 0, 0, 0, 0, 95, 0, 0, 0, 41, 50];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: { data: ['老品', '新品'], top: 0, textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 9, rotate: 45 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: [
+                        { name: '老品', type: 'bar', stack: 'total', data: s1, itemStyle: { color: COLORS[0] },
+                            barWidth: '60%' },
+                        { name: '新品', type: 'bar', stack: 'total', data: s2, itemStyle: { color: COLORS[3] } }
+                    ]
+                };
+            };
+
+            // ---------- 图表19：分款评分星级分布-堆积柱状图 ----------
+            chartOpts[19] = function() {
+                const xData = ['三星半及以下', '四星', '四星半', '五星'];
+                const s1 = [2, 25, 24, 2];
+                const s2 = [2, 17, 20, 0];
+                const s3 = [1, 6, 7, 0];
+                const s4 = [0, 9, 5, 0];
+                const sNames = ['音乐拳击机', '儿童充气拳击袋', '儿童电子计分充气拳击袋', '不倒翁拳击袋'];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: { data: sNames, top: 0, textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 11 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: [
+                        { name: sNames[0], type: 'bar', stack: 'total', data: s1,
+                            itemStyle: { color: COLORS[0] }, barWidth: '50%' },
+                        { name: sNames[1], type: 'bar', stack: 'total', data: s2,
+                            itemStyle: { color: COLORS[1] } },
+                        { name: sNames[2], type: 'bar', stack: 'total', data: s3,
+                            itemStyle: { color: COLORS[2] } },
+                        { name: sNames[3], type: 'bar', stack: 'total', data: s4,
+                            itemStyle: { color: COLORS[3] } }
+                    ]
+                };
+            };
+
+            // ---------- 图表20：评分销量趋势-折线图 ----------
+            chartOpts[20] = function() {
+                const rawData = [
+                    [3.1, 46],
+                    [3.3, 50],
+                    [3.6, 95],
+                    [3.7, 103],
+                    [3.8, 1239],
+                    [3.9, 513],
+                    [4.0, 1550],
+                    [4.1, 5012],
+                    [4.2, 14035],
+                    [4.3, 5227],
+                    [4.4, 5120],
+                    [4.5, 5607],
+                    [4.6, 173],
+                    [4.7, 445],
+                    [4.8, 132],
+                    [5.0, 37]
+                ];
+                const xData = rawData.map(r => r[0].toFixed(1));
+                const yData = rawData.map(r => parseNum(r[1]));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            const p = params[0];
+                            return '评分: ' + p.axisValue + '<br/>' + p.marker + ' 月销量: ' + p.value
+                                .toLocaleString();
+                        }
+                    },
+                    legend: { data: ['月销量'], top: 0, textStyle: { color: '#333', fontSize: 12 } },
+                    grid: { left: '3%', right: '5%', top: 40, bottom: '8%', containLabel: true },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        name: '评分',
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisTick: { show: false },
+                        axisLabel: { color: '#666', fontSize: 10 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: fmtYaxis, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
+                    series: [{
+                        name: '月销量',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2, color: COLORS[0] },
+                        itemStyle: { color: COLORS[0] },
+                        areaStyle: { color: 'rgba(255,157,25,0.1)' },
+                        data: yData
+                    }]
+                };
+            };
+
+            // ============ 主逻辑 ============
+            function getChartId() {
+                const params = new URLSearchParams(window.location.search);
+                const id = parseInt(params.get('id'));
+                if (id >= 1 && id <= 20 && chartOpts[id]) return id;
+                return 1;
+            }
+
+            const chartId = getChartId();
+            document.getElementById('chartTitle').textContent = chartTitles[chartId - 1] || '';
+
+            const chartDom = document.getElementById('singleChart');
+            const myChart = echarts.init(chartDom);
+
+            const optFn = chartOpts[chartId];
+            if (optFn) {
+                const option = optFn();
+                myChart.setOption(option);
+            } else {
+                myChart.setOption({
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } }
+                });
+            }
+
+            setTimeout(function() { myChart.resize(); }, 100);
+
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        })();
+    </script>
+</body>
+</html>
