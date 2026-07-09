@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据可视化图表</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+        .chart-title {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 16px 0 12px;
+        }
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            min-height: 300px;
+        }
+        @media (max-width:768px) {
+            .chart-title {
+                font-size: 16px;
+            }
+            .chart-container {
+                min-height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="chart-title" id="chartTitle"></div>
+        <div class="chart-container" id="singleChart"></div>
+    </div>
+    <script>
+        (function() {
+            const COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1',
+                '#EB2F96',
+                '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
+            ];
+
+            // 解析数字，去除逗号
+            function parseNum(v) {
+                if (typeof v === 'string') return parseFloat(v.replace(/,/g, '')) || 0;
+                if (typeof v === 'number') return v;
+                return 0;
+            }
+
+            // Y轴格式化：超过10000使用万
+            function formatYAxis(value) {
+                if (Math.abs(value) >= 10000) {
+                    return (value / 10000).toFixed(value % 10000 === 0 ? 0 : 1) + '万';
+                }
+                return value.toString();
+            }
+
+            // 金额格式化
+            function formatMoney(value) {
+                if (Math.abs(value) >= 1000000) {
+                    return '$' + (value / 1000000).toFixed(2) + 'M';
+                }
+                if (Math.abs(value) >= 1000) {
+                    return '$' + (value / 1000).toFixed(1) + 'K';
+                }
+                return '$' + value.toFixed(2);
+            }
+
+            const chartTitles = [
+                '分款销量占比', // 1
+                '', // 2 无数据
+                '', // 3 无数据
+                '', // 4 无数据
+                '关键词搜索量趋势', // 5
+                '关键词ABA排名趋势', // 6
+                '历史总销量走势', // 7
+                '价格四分位走势', // 8
+                '品牌垄断', // 9
+                '排名垄断', // 10
+                '卖家所属地', // 11
+                '配送方式', // 12
+                '新品销量占比', // 13
+                'review数分布', // 14
+                '市场分款价格分布', // 15
+                '价格质量联动分析', // 16
+                '品牌价格分布', // 17
+                '新老品价格分布', // 18
+                '分款评分星级分布', // 19
+                '评分销量趋势' // 20
+            ];
+
+            // ==================== 图表1：分款销量占比-饼图 ====================
+            function getChart1Opt() {
+                const data = [
+                    { name: '4G蜂窝相机', value: 22874 },
+                    { name: '传统离线相机', value: 18538 },
+                    { name: '固定WIFI相机', value: 15336 },
+                    { name: '4G云台相机', value: 3328 }
+                ];
+                const total = data.reduce((s, d) => s + d.value, 0);
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        textStyle: { fontSize: 12, color: '#333' },
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        itemGap: 8
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                if (!showLegend) {
+                                    return '{dot|●} ' + p.name + '\n{d}%';
+                                }
+                                return '{b}\n{d}%';
+                            },
+                            rich: {
+                                dot: {
+                                    fontSize: 14,
+                                    padding: [0, 4, 0, 0],
+                                    color: '#333'
+                                },
+                                d: { fontSize: 12, color: '#666' }
+                            },
+                            fontSize: 11,
+                            color: '#333',
+                            lineHeight: 16
+                        },
+                        labelLine: {
+                            show: true,
+                            length: 25,
+                            length2: 20,
+                            lineStyle: { color: '#999' }
+                        },
+                        emphasis: {
+                            label: { fontSize: 14, fontWeight: 'bold' },
+                            scaleSize: 8
+                        },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== 图表2-4：空数据 ====================
+            function getEmptyChartOpt() {
+                return {
+                    title: {
+                        text: '暂无数据',
+                        left: 'center',
+                        top: 'center',
+                        textStyle: { color: '#999', fontSize: 16, fontWeight: 'normal' }
+                    },
+                    series: []
+                };
+            }
+
+            // ==================== 图表5：关键词搜索量趋势-多系列折线图 ====================
+            function getChart5Opt() {
+                const rawData = [
+                    { month: '2026-06', keyword: 'trail camera', val: '128,526' },
+                    { month: '2026-05', keyword: 'trail camera', val: '112,131' },
+                    { month: '2026-04', keyword: 'trail camera', val: '98,290' },
+                    { month: '2026-03', keyword: 'trail camera', val: '96,577' },
+                    { month: '2026-02', keyword: 'trail camera', val: '115,896' },
+                    { month: '2026-01', keyword: 'trail camera', val: '114,267' },
+                    { month: '2025-12', keyword: 'trail camera', val: '172,544' },
+                    { month: '2025-11', keyword: 'trail camera', val: '241,513' },
+                    { month: '2025-10', keyword: 'trail camera', val: '229,293' },
+                    { month: '2025-09', keyword: 'trail camera', val: '231,682' },
+                    { month: '2025-08', keyword: 'trail camera', val: '199,010' },
+                    { month: '2025-07', keyword: 'trail camera', val: '170,252' },
+                    { month: '2025-06', keyword: 'trail camera', val: '138,868' },
+                    { month: '2025-05', keyword: 'trail camera', val: '116,658' },
+                    { month: '2025-04', keyword: 'trail camera', val: '114,969' },
+                    { month: '2025-03', keyword: 'trail camera', val: '116,900' },
+                    { month: '2025-02', keyword: 'trail camera', val: '108,855' },
+                    { month: '2025-01', keyword: 'trail camera', val: '109,670' },
+                    { month: '2024-12', keyword: 'trail camera', val: '168,620' },
+                    { month: '2024-11', keyword: 'trail camera', val: '226,702' },
+                    { month: '2024-10', keyword: 'trail camera', val: '287,224' },
+                    { month: '2024-09', keyword: 'trail camera', val: '266,032' },
+                    { month: '2024-08', keyword: 'trail camera', val: '227,926' },
+                    { month: '2024-07', keyword: 'trail camera', val: '192,579' },
+                    { month: '2024-06', keyword: 'trail camera', val: '153,258' },
+                    { month: '2024-05', keyword: 'trail camera', val: '136,624' },
+                    { month: '2024-04', keyword: 'trail camera', val: '138,668' },
+                    { month: '2024-03', keyword: 'trail camera', val: '143,160' },
+                    { month: '2024-02', keyword: 'trail camera', val: '136,947' },
+                    { month: '2024-01', keyword: 'trail camera', val: '133,924' },
+                    { month: '2023-12', keyword: 'trail camera', val: '167,706' },
+                    { month: '2023-11', keyword: 'trail camera', val: '213,744' },
+                    { month: '2023-10', keyword: 'trail camera', val: '200,879' },
+                    { month: '2023-09', keyword: 'trail camera', val: '191,225' },
+                    { month: '2023-08', keyword: 'trail camera', val: '191,094' },
+                    { month: '2023-07', keyword: 'trail camera', val: '164,894' },
+                    { month: '2023-06', keyword: 'trail camera', val: '139,511' },
+                    { month: '2023-05', keyword: 'trail camera', val: '86,967' },
+                    { month: '2023-04', keyword: 'trail camera', val: '85,353' },
+                    { month: '2023-03', keyword: 'trail camera', val: '92,784' },
+                    { month: '2023-02', keyword: 'trail camera', val: '123,768' },
+                    { month: '2023-01', keyword: 'trail camera', val: '105,986' },
+                    { month: '2022-12', keyword: 'trail camera', val: '129,412' },
+                    { month: '2022-11', keyword: 'trail camera', val: '192,691' },
+                    { month: '2022-10', keyword: 'trail camera', val: '201,247' },
+                    { month: '2022-09', keyword: 'trail camera', val: '197,196' },
+                    { month: '2022-08', keyword: 'trail camera', val: '188,852' },
+                    { month: '2022-07', keyword: 'trail camera', val: '164,806' },
+                    { month: '2022-06', keyword: 'trail camera', val: '141,655' },
+                    { month: '2022-05', keyword: 'trail camera', val: '114,605' },
+                    { month: '2022-04', keyword: 'trail camera', val: '110,106' },
+                    { month: '2022-03', keyword: 'trail camera', val: '117,363' },
+                    { month: '2022-02', keyword: 'trail camera', val: '98,548' },
+                    { month: '2022-01', keyword: 'trail camera', val: '115,815' },
+                    { month: '2026-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '53,702' },
+                    { month: '2026-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '57,154' },
+                    { month: '2026-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '48,404' },
+                    { month: '2026-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '40,300' },
+                    { month: '2026-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '37,959' },
+                    { month: '2026-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '30,313' },
+                    { month: '2025-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '34,604' },
+                    { month: '2025-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '42,286' },
+                    { month: '2025-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '41,516' },
+                    { month: '2025-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '41,172' },
+                    { month: '2025-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '49,837' },
+                    { month: '2025-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '61,111' },
+                    { month: '2025-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '59,316' },
+                    { month: '2025-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '52,786' },
+                    { month: '2025-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '48,360' },
+                    { month: '2025-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '41,346' },
+                    { month: '2025-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '37,940' },
+                    { month: '2025-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '47,614' },
+                    { month: '2024-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '59,598' },
+                    { month: '2024-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '63,527' },
+                    { month: '2024-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '72,079' },
+                    { month: '2024-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '62,338' },
+                    { month: '2024-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '52,957' },
+                    { month: '2024-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '54,386' },
+                    { month: '2024-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '59,483' },
+                    { month: '2024-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '62,684' },
+                    { month: '2024-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '53,659' },
+                    { month: '2024-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '47,034' },
+                    { month: '2024-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '37,102' },
+                    { month: '2024-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '39,168' },
+                    { month: '2023-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '85,376' },
+                    { month: '2023-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '82,321' },
+                    { month: '2023-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '81,547' },
+                    { month: '2023-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '75,672' },
+                    { month: '2023-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '55,829' },
+                    { month: '2023-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '32,397' },
+                    { month: '2023-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '39,793' },
+                    { month: '2023-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '49,414' },
+                    { month: '2023-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '33,699' },
+                    { month: '2023-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '17,360' },
+                    { month: '2023-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '17,041' },
+                    { month: '2023-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '13,457' },
+                    { month: '2022-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '15,404' },
+                    { month: '2022-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '27,133' },
+                    { month: '2022-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '31,194' },
+                    { month: '2022-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '34,509' },
+                    { month: '2022-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '31,594' },
+                    { month: '2022-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '30,261' },
+                    { month: '2022-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '26,441' },
+                    { month: '2022-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '20,967' },
+                    { month: '2022-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '16,463' },
+                    { month: '2022-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '22,364' },
+                    { month: '2022-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '15,947' },
+                    { month: '2022-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '14,235' },
+                    { month: '2026-05', keyword: 'game camera', val: '32,348' },
+                    { month: '2026-04', keyword: 'game camera', val: '30,741' },
+                    { month: '2026-03', keyword: 'game camera', val: '28,536' },
+                    { month: '2026-02', keyword: 'game camera', val: '32,878' },
+                    { month: '2026-01', keyword: 'game camera', val: '36,815' },
+                    { month: '2025-12', keyword: 'game camera', val: '56,917' },
+                    { month: '2025-11', keyword: 'game camera', val: '84,251' },
+                    { month: '2025-10', keyword: 'game camera', val: '82,210' },
+                    { month: '2025-09', keyword: 'game camera', val: '84,380' },
+                    { month: '2025-08', keyword: 'game camera', val: '71,249' },
+                    { month: '2025-07', keyword: 'game camera', val: '58,309' },
+                    { month: '2025-06', keyword: 'game camera', val: '44,994' },
+                    { month: '2025-05', keyword: 'game camera', val: '40,343' },
+                    { month: '2025-04', keyword: 'game camera', val: '36,165' },
+                    { month: '2025-03', keyword: 'game camera', val: '37,827' },
+                    { month: '2025-02', keyword: 'game camera', val: '33,154' },
+                    { month: '2025-01', keyword: 'game camera', val: '36,961' },
+                    { month: '2024-12', keyword: 'game camera', val: '56,728' },
+                    { month: '2024-11', keyword: 'game camera', val: '75,855' },
+                    { month: '2024-10', keyword: 'game camera', val: '95,814' },
+                    { month: '2024-09', keyword: 'game camera', val: '97,761' },
+                    { month: '2024-08', keyword: 'game camera', val: '77,981' },
+                    { month: '2024-07', keyword: 'game camera', val: '70,854' },
+                    { month: '2024-06', keyword: 'game camera', val: '54,049' },
+                    { month: '2024-05', keyword: 'game camera', val: '46,523' },
+                    { month: '2024-04', keyword: 'game camera', val: '43,339' },
+                    { month: '2024-03', keyword: 'game camera', val: '40,109' },
+                    { month: '2024-02', keyword: 'game camera', val: '37,655' },
+                    { month: '2024-01', keyword: 'game camera', val: '38,231' },
+                    { month: '2023-12', keyword: 'game camera', val: '59,222' },
+                    { month: '2023-11', keyword: 'game camera', val: '74,308' },
+                    { month: '2023-10', keyword: 'game camera', val: '85,928' },
+                    { month: '2023-09', keyword: 'game camera', val: '72,191' },
+                    { month: '2023-08', keyword: 'game camera', val: '77,845' },
+                    { month: '2023-07', keyword: 'game camera', val: '41,394' },
+                    { month: '2023-06', keyword: 'game camera', val: '31,602' },
+                    { month: '2023-05', keyword: 'game camera', val: '22,063' },
+                    { month: '2023-04', keyword: 'game camera', val: '26,098' },
+                    { month: '2023-03', keyword: 'game camera', val: '21,660' },
+                    { month: '2023-02', keyword: 'game camera', val: '35,129' },
+                    { month: '2023-01', keyword: 'game camera', val: '30,048' },
+                    { month: '2022-12', keyword: 'game camera', val: '34,131' },
+                    { month: '2022-11', keyword: 'game camera', val: '58,269' },
+                    { month: '2022-10', keyword: 'game camera', val: '57,358' },
+                    { month: '2022-09', keyword: 'game camera', val: '65,414' },
+                    { month: '2022-08', keyword: 'game camera', val: '58,205' },
+                    { month: '2022-07', keyword: 'game camera', val: '57,787' },
+                    { month: '2022-06', keyword: 'game camera', val: '40,535' },
+                    { month: '2022-05', keyword: 'game camera', val: '33,042' },
+                    { month: '2022-04', keyword: 'game camera', val: '33,552' },
+                    { month: '2022-03', keyword: 'game camera', val: '31,746' },
+                    { month: '2022-02', keyword: 'game camera', val: '31,215' },
+                    { month: '2022-01', keyword: 'game camera', val: '33,611' }
+                ];
+
+                const keywords = ['trail camera', 'trail cameras with night vision motion activated waterproof',
+                    'game camera'
+                ];
+                const monthSet = new Set();
+                const kwMonthMap = {};
+                keywords.forEach(k => { kwMonthMap[k] = {}; });
+                rawData.forEach(d => {
+                    monthSet.add(d.month);
+                    kwMonthMap[d.keyword][d.month] = parseNum(d.val);
+                });
+                const months = Array.from(monthSet).sort();
+                const series = keywords.map((kw, i) => ({
+                    name: kw,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { width: 2 },
+                    data: months.map(m => kwMonthMap[kw][m] !== undefined ? kwMonthMap[kw][m] :
+                        null),
+                    itemStyle: { color: COLORS[i] }
+                }));
+                const legendSelected = {};
+                series.forEach((s, i) => { legendSelected[s.name] = i < 3; });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let r = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                r += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                r += p.seriesName + ': ' + (p.value !== null ? p.value
+                                    .toLocaleString() : '-') + '<br/>';
+                            });
+                            return r;
+                        }
+                    },
+                    legend: {
+                        data: series.map(s => s.name),
+                        selected: legendSelected,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 55, right: 20, top: 40, bottom: 40 },
+                    xAxis: {
+                        type: 'category',
+                        data: months,
+                        boundaryGap: false,
+                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月搜索量',
+                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: series
+                };
+            }
+
+            // ==================== 图表6：关键词ABA排名趋势 ====================
+            function getChart6Opt() {
+                const rawData = [
+                    { month: '2026-06', keyword: 'trail camera', val: '6,156' },
+                    { month: '2026-05', keyword: 'trail camera', val: '8,729' },
+                    { month: '2026-04', keyword: 'trail camera', val: '9,353' },
+                    { month: '2026-03', keyword: 'trail camera', val: '9,804' },
+                    { month: '2026-02', keyword: 'trail camera', val: '8,267' },
+                    { month: '2026-01', keyword: 'trail camera', val: '7,311' },
+                    { month: '2025-12', keyword: 'trail camera', val: '3,918' },
+                    { month: '2025-11', keyword: 'trail camera', val: '2,340' },
+                    { month: '2025-10', keyword: 'trail camera', val: '2,408' },
+                    { month: '2025-09', keyword: 'trail camera', val: '2,378' },
+                    { month: '2025-08', keyword: 'trail camera', val: '2,901' },
+                    { month: '2025-07', keyword: 'trail camera', val: '4,034' },
+                    { month: '2025-06', keyword: 'trail camera', val: '5,811' },
+                    { month: '2025-05', keyword: 'trail camera', val: '7,106' },
+                    { month: '2025-04', keyword: 'trail camera', val: '8,312' },
+                    { month: '2025-03', keyword: 'trail camera', val: '8,211' },
+                    { month: '2025-02', keyword: 'trail camera', val: '8,247' },
+                    { month: '2025-01', keyword: 'trail camera', val: '7,948' },
+                    { month: '2024-12', keyword: 'trail camera', val: '3,931' },
+                    { month: '2024-11', keyword: 'trail camera', val: '2,431' },
+                    { month: '2024-10', keyword: 'trail camera', val: '2,111' },
+                    { month: '2024-09', keyword: 'trail camera', val: '2,304' },
+                    { month: '2024-08', keyword: 'trail camera', val: '2,978' },
+                    { month: '2024-07', keyword: 'trail camera', val: '3,537' },
+                    { month: '2024-06', keyword: 'trail camera', val: '5,518' },
+                    { month: '2024-05', keyword: 'trail camera', val: '7,574' },
+                    { month: '2024-04', keyword: 'trail camera', val: '7,451' },
+                    { month: '2024-03', keyword: 'trail camera', val: '7,100' },
+                    { month: '2024-02', keyword: 'trail camera', val: '7,059' },
+                    { month: '2024-01', keyword: 'trail camera', val: '7,207' },
+                    { month: '2023-12', keyword: 'trail camera', val: '5,054' },
+                    { month: '2023-11', keyword: 'trail camera', val: '2,599' },
+                    { month: '2023-10', keyword: 'trail camera', val: '3,050' },
+                    { month: '2023-09', keyword: 'trail camera', val: '3,244' },
+                    { month: '2023-08', keyword: 'trail camera', val: '3,355' },
+                    { month: '2023-07', keyword: 'trail camera', val: '3,694' },
+                    { month: '2023-06', keyword: 'trail camera', val: '4,776' },
+                    { month: '2023-05', keyword: 'trail camera', val: '7,651' },
+                    { month: '2023-04', keyword: 'trail camera', val: '7,943' },
+                    { month: '2023-03', keyword: 'trail camera', val: '7,000' },
+                    { month: '2023-02', keyword: 'trail camera', val: '5,601' },
+                    { month: '2023-01', keyword: 'trail camera', val: '6,081' },
+                    { month: '2022-12', keyword: 'trail camera', val: '4,917' },
+                    { month: '2022-11', keyword: 'trail camera', val: '2,831' },
+                    { month: '2022-10', keyword: 'trail camera', val: '2,744' },
+                    { month: '2022-09', keyword: 'trail camera', val: '2,678' },
+                    { month: '2022-08', keyword: 'trail camera', val: '3,021' },
+                    { month: '2022-07', keyword: 'trail camera', val: '3,464' },
+                    { month: '2022-06', keyword: 'trail camera', val: '4,521' },
+                    { month: '2022-05', keyword: 'trail camera', val: '6,056' },
+                    { month: '2022-04', keyword: 'trail camera', val: '6,009' },
+                    { month: '2022-03', keyword: 'trail camera', val: '5,900' },
+                    { month: '2022-02', keyword: 'trail camera', val: '6,434' },
+                    { month: '2022-01', keyword: 'trail camera', val: '5,619' },
+                    { month: '2026-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '25,049' },
+                    { month: '2026-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '23,040' },
+                    { month: '2026-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '29,040' },
+                    { month: '2026-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '35,733' },
+                    { month: '2026-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '39,047' },
+                    { month: '2026-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '52,465' },
+                    { month: '2025-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '43,148' },
+                    { month: '2025-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '34,836' },
+                    { month: '2025-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '35,573' },
+                    { month: '2025-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '34,770' },
+                    { month: '2025-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '26,889' },
+                    { month: '2025-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '20,730' },
+                    { month: '2025-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '22,042' },
+                    { month: '2025-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '25,452' },
+                    { month: '2025-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '28,578' },
+                    { month: '2025-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '35,495' },
+                    { month: '2025-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '39,265' },
+                    { month: '2025-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '29,796' },
+                    { month: '2024-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '21,280' },
+                    { month: '2024-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '19,869' },
+                    { month: '2024-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '18,954' },
+                    { month: '2024-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '23,381' },
+                    { month: '2024-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '28,227' },
+                    { month: '2024-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '27,211' },
+                    { month: '2024-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '24,806' },
+                    { month: '2024-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '22,878' },
+                    { month: '2024-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '27,743' },
+                    { month: '2024-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '32,781' },
+                    { month: '2024-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '37,884' },
+                    { month: '2024-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '35,881' },
+                    { month: '2023-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '13,012' },
+                    { month: '2023-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '13,804' },
+                    { month: '2023-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '14,087' },
+                    { month: '2023-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '15,275' },
+                    { month: '2023-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '23,797' },
+                    { month: '2023-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '24,492' },
+                    { month: '2023-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '19,399' },
+                    { month: '2023-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '15,259' },
+                    { month: '2023-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '22,908' },
+                    { month: '2023-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '47,201' },
+                    { month: '2023-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '46,637' },
+                    { month: '2023-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '66,495' },
+                    { month: '2022-12', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '52,768' },
+                    { month: '2022-11', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '29,766' },
+                    { month: '2022-10', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '25,766' },
+                    { month: '2022-09', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '22,145' },
+                    { month: '2022-08', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '24,390' },
+                    { month: '2022-07', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '26,413' },
+                    { month: '2022-06', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '30,826' },
+                    { month: '2022-05', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '37,828' },
+                    { month: '2022-04', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '49,503' },
+                    { month: '2022-03', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '34,954' },
+                    { month: '2022-02', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '51,043' },
+                    { month: '2022-01', keyword: 'trail cameras with night vision motion activated waterproof',
+                        val: '69,376' },
+                    { month: '2026-05', keyword: 'game camera', val: '46,232' },
+                    { month: '2026-04', keyword: 'game camera', val: '49,747' },
+                    { month: '2026-03', keyword: 'game camera', val: '54,374' },
+                    { month: '2026-02', keyword: 'game camera', val: '46,391' },
+                    { month: '2026-01', keyword: 'game camera', val: '41,355' },
+                    { month: '2025-12', keyword: 'game camera', val: '22,597' },
+                    { month: '2025-11', keyword: 'game camera', val: '12,447' },
+                    { month: '2025-10', keyword: 'game camera', val: '12,856' },
+                    { month: '2025-09', keyword: 'game camera', val: '12,430' },
+                    { month: '2025-08', keyword: 'game camera', val: '16,235' },
+                    { month: '2025-07', keyword: 'game camera', val: '22,103' },
+                    { month: '2025-06', keyword: 'game camera', val: '31,983' },
+                    { month: '2025-05', keyword: 'game camera', val: '36,323' },
+                    { month: '2025-04', keyword: 'game camera', val: '42,754' },
+                    { month: '2025-03', keyword: 'game camera', val: '39,924' },
+                    { month: '2025-02', keyword: 'game camera', val: '46,308' },
+                    { month: '2025-01', keyword: 'game camera', val: '41,091' },
+                    { month: '2024-12', keyword: 'game camera', val: '23,219' },
+                    { month: '2024-11', keyword: 'game camera', val: '14,693' },
+                    { month: '2024-10', keyword: 'game camera', val: '12,195' },
+                    { month: '2024-09', keyword: 'game camera', val: '11,572' },
+                    { month: '2024-08', keyword: 'game camera', val: '16,660' },
+                    { month: '2024-07', keyword: 'game camera', val: '19,466' },
+                    { month: '2024-06', keyword: 'game camera', val: '28,246' },
+                    { month: '2024-05', keyword: 'game camera', val: '34,100' },
+                    { month: '2024-04', keyword: 'game camera', val: '36,827' },
+                    { month: '2024-03', keyword: 'game camera', val: '40,072' },
+                    { month: '2024-02', keyword: 'game camera', val: '39,103' },
+                    { month: '2024-01', keyword: 'game camera', val: '37,073' },
+                    { month: '2023-12', keyword: 'game camera', val: '21,690' },
+                    { month: '2023-11', keyword: 'game camera', val: '15,680' },
+                    { month: '2023-10', keyword: 'game camera', val: '12,689' },
+                    { month: '2023-09', keyword: 'game camera', val: '16,688' },
+                    { month: '2023-08', keyword: 'game camera', val: '14,978' },
+                    { month: '2023-07', keyword: 'game camera', val: '18,137' },
+                    { month: '2023-06', keyword: 'game camera', val: '24,337' },
+                    { month: '2023-05', keyword: 'game camera', val: '35,530' },
+                    { month: '2023-04', keyword: 'game camera', val: '30,067' },
+                    { month: '2023-03', keyword: 'game camera', val: '38,388' },
+                    { month: '2023-02', keyword: 'game camera', val: '21,715' },
+                    { month: '2023-01', keyword: 'game camera', val: '26,166' },
+                    { month: '2022-12', keyword: 'game camera', val: '22,691' },
+                    { month: '2022-11', keyword: 'game camera', val: '12,534' },
+                    { month: '2022-10', keyword: 'game camera', val: '12,461' },
+                    { month: '2022-09', keyword: 'game camera', val: '10,877' },
+                    { month: '2022-08', keyword: 'game camera', val: '12,268' },
+                    { month: '2022-07', keyword: 'game camera', val: '12,664' },
+                    { month: '2022-06', keyword: 'game camera', val: '18,530' },
+                    { month: '2022-05', keyword: 'game camera', val: '24,146' },
+                    { month: '2022-04', keyword: 'game camera', val: '23,355' },
+                    { month: '2022-03', keyword: 'game camera', val: '24,479' },
+                    { month: '2022-02', keyword: 'game camera', val: '24,464' },
+                    { month: '2022-01', keyword: 'game camera', val: '23,482' }
+                ];
+                const keywords = ['trail camera', 'trail cameras with night vision motion activated waterproof',
+                    'game camera'
+                ];
+                const monthSet = new Set();
+                const kwMonthMap = {};
+                keywords.forEach(k => { kwMonthMap[k] = {}; });
+                rawData.forEach(d => {
+                    monthSet.add(d.month);
+                    kwMonthMap[d.keyword][d.month] = parseNum(d.val);
+                });
+                const months = Array.from(monthSet).sort();
+                const series = keywords.map((kw, i) => ({
+                    name: kw,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { width: 2 },
+                    data: months.map(m => kwMonthMap[kw][m] !== undefined ? kwMonthMap[kw][m] :
+                        null),
+                    itemStyle: { color: COLORS[i] }
+                }));
+                const legendSelected = {};
+                series.forEach((s, i) => { legendSelected[s.name] = i < 3; });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let r = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                r += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                r += p.seriesName + ': ' + (p.value !== null ? p.value
+                                    .toLocaleString() : '-') + '<br/>';
+                            });
+                            return r;
+                        }
+                    },
+                    legend: {
+                        data: series.map(s => s.name),
+                        selected: legendSelected,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 55, right: 20, top: 40, bottom: 40 },
+                    xAxis: {
+                        type: 'category',
+                        data: months,
+                        boundaryGap: false,
+                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ABA排名',
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' },
+                        inverse: false
+                    },
+                    series: series
+                };
+            }
+
+            // ==================== 图表7：历史总销量走势-复合图 ====================
+            function getChart7Opt() {
+                const rawData = [
+                    { time: '2024-07', sales: 52286, revenue: 5130182.21, avg: 1045 },
+                    { time: '2024-08', sales: 58115, revenue: 5927435.68, avg: 1186 },
+                    { time: '2024-09', sales: 74731, revenue: 7566359.80, avg: 1437 },
+                    { time: '2024-10', sales: 95906, revenue: 9724209.39, avg: 1844 },
+                    { time: '2024-11', sales: 78547, revenue: 7901491.15, avg: 1482 },
+                    { time: '2024-12', sales: 83262, revenue: 8139984.34, avg: 1601 },
+                    { time: '2025-01', sales: 30494, revenue: 2796636.78, avg: 564 },
+                    { time: '2025-02', sales: 26602, revenue: 2301609.50, avg: 466 },
+                    { time: '2025-03', sales: 26495, revenue: 2202638.66, avg: 456 },
+                    { time: '2025-04', sales: 27827, revenue: 2408457.17, avg: 479 },
+                    { time: '2025-05', sales: 33035, revenue: 2874493.33, avg: 532 },
+                    { time: '2025-06', sales: 40154, revenue: 3711669.05, avg: 617 },
+                    { time: '2025-07', sales: 54446, revenue: 5175314.00, avg: 800 },
+                    { time: '2025-08', sales: 63179, revenue: 6044517.98, avg: 915 },
+                    { time: '2025-09', sales: 66855, revenue: 6659931.20, avg: 941 },
+                    { time: '2025-10', sales: 80888, revenue: 7502518.49, avg: 1108 },
+                    { time: '2025-11', sales: 76599, revenue: 7528871.72, avg: 1021 },
+                    { time: '2025-12', sales: 71610, revenue: 6738217.63, avg: 918 },
+                    { time: '2026-01', sales: 30683, revenue: 2821390.00, avg: 388 },
+                    { time: '2026-02', sales: 25802, revenue: 2378035.85, avg: 307 },
+                    { time: '2026-03', sales: 30437, revenue: 2722762.77, avg: 341 },
+                    { time: '2026-04', sales: 32831, revenue: 2917336.74, avg: 356 },
+                    { time: '2026-05', sales: 38320, revenue: 3402750.77, avg: 399 },
+                    { time: '2026-06', sales: 56276, revenue: 5167368.72, avg: 562 },
+                    { time: '2026-07', sales: 65627, revenue: 5914790.07, avg: 656 }
+                ];
+                const times = rawData.map(d => d.time);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' }
+                    },
+                    legend: {
+                        data: ['月销量', '平均月销量', '月销售额'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 55, right: 65, top: 40, bottom: 40 },
+                    xAxis: {
+                        type: 'category',
+                        data: times,
+                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    }, {
+                        type: 'value',
+                        name: '月销售额',
+                        axisLabel: { formatter: function(v) { return formatMoney(v); }, fontSize: 10,
+                            color: '#666' },
+                        splitLine: { show: false },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    }],
+                    series: [{
+                        name: '月销量',
+                        type: 'bar',
+                        data: rawData.map(d => d.sales),
+                        itemStyle: { color: COLORS[0] },
+                        barMaxWidth: 20,
+                        yAxisIndex: 0
+                    }, {
+                        name: '平均月销量',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { width: 2 },
+                        data: rawData.map(d => d.avg),
+                        itemStyle: { color: COLORS[1] },
+                        yAxisIndex: 0
+                    }, {
+                        name: '月销售额',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 5,
+                        lineStyle: { width: 2 },
+                        data: rawData.map(d => d.revenue),
+                        itemStyle: { color: COLORS[2] },
+                        yAxisIndex: 1
+                    }]
+                };
+            }
+
+            // ==================== 图表8：价格四分位走势 ====================
+            function getChart8Opt() {
+                const rawData = [
+                    { time: '2024-07', wavg: 99.20, median: 93.69, q1: 62.52, q3: 129.99 },
+                    { time: '2024-08', wavg: 102.60, median: 89.91, q1: 64.52, q3: 129.99 },
+                    { time: '2024-09', wavg: 101.69, median: 89.77, q1: 60.18, q3: 127.79 },
+                    { time: '2024-10', wavg: 101.74, median: 87.32, q1: 66.08, q3: 129.86 },
+                    { time: '2024-11', wavg: 100.97, median: 86.88, q1: 68.99, q3: 128.76 },
+                    { time: '2024-12', wavg: 98.24, median: 88.06, q1: 68.86, q3: 130.11 },
+                    { time: '2025-01', wavg: 92.03, median: 89.99, q1: 69.05, q3: 128.99 },
+                    { time: '2025-02', wavg: 86.74, median: 87.21, q1: 67.29, q3: 123.82 },
+                    { time: '2025-03', wavg: 83.30, median: 79.52, q1: 58.08, q3: 127.45 },
+                    { time: '2025-04', wavg: 86.80, median: 77.99, q1: 58.99, q3: 137.86 },
+                    { time: '2025-05', wavg: 87.34, median: 74.65, q1: 56.01, q3: 133.44 },
+                    { time: '2025-06', wavg: 92.90, median: 79.47, q1: 58.17, q3: 139.99 },
+                    { time: '2025-07', wavg: 95.50, median: 81.90, q1: 59.19, q3: 145.10 },
+                    { time: '2025-08', wavg: 96.04, median: 89.81, q1: 58.58, q3: 149.29 },
+                    { time: '2025-09', wavg: 100.05, median: 88.16, q1: 58.42, q3: 143.02 },
+                    { time: '2025-10', wavg: 93.08, median: 86.62, q1: 57.91, q3: 139.99 },
+                    { time: '2025-11', wavg: 98.64, median: 85.93, q1: 59.65, q3: 139.83 },
+                    { time: '2025-12', wavg: 94.39, median: 89.83, q1: 59.53, q3: 135.71 },
+                    { time: '2026-01', wavg: 92.27, median: 91.60, q1: 59.80, q3: 136.03 },
+                    { time: '2026-02', wavg: 92.40, median: 79.99, q1: 59.24, q3: 125.48 },
+                    { time: '2026-03', wavg: 90.18, median: 84.99, q1: 56.24, q3: 129.41 },
+                    { time: '2026-04', wavg: 89.45, median: 82.69, q1: 55.42, q3: 129.99 },
+                    { time: '2026-05', wavg: 89.14, median: 78.43, q1: 52.17, q3: 130.13 },
+                    { time: '2026-06', wavg: 92.04, median: 70.16, q1: 57.20, q3: 121.38 },
+                    { time: '2026-07', wavg: 90.19, median: 69.99, q1: 49.99, q3: 121.99 }
+                ];
+                const times = rawData.map(d => d.time);
+                const seriesNames = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
+                const seriesData = [
+                    rawData.map(d => d.wavg),
+                    rawData.map(d => d.median),
+                    rawData.map(d => d.q1),
+                    rawData.map(d => d.q3)
+                ];
+                const legendSelected = {};
+                seriesNames.forEach((n, i) => { legendSelected[n] = i < 3; });
+                const series = seriesNames.map((name, i) => ({
+                    name: name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { width: 2 },
+                    data: seriesData[i],
+                    itemStyle: { color: COLORS[i] }
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let r = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                r += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                r += p.seriesName + ': $' + p.value.toFixed(2) + '<br/>';
+                            });
+                            return r;
+                        }
+                    },
+                    legend: {
+                        data: seriesNames,
+                        selected: legendSelected,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 55, right: 20, top: 40, bottom: 40 },
+                    xAxis: {
+                        type: 'category',
+                        data: times,
+                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '价格($)',
+                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(0); }, fontSize: 10,
+                            color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: series
+                };
+            }
+
+            // ==================== 图表9：品牌垄断-饼图 ====================
+            function getChart9Opt() {
+                const data = [
+                    { name: 'SPYPOINT', value: 9421 }, { name: 'GardePro', value: 7478 },
+                    { name: 'TACTACAM', value: 6126 }, { name: 'MAXDONE', value: 6026 },
+                    { name: 'Moultrie', value: 5264 }, { name: 'WOSODA', value: 3256 },
+                    { name: 'KJK', value: 3118 }, { name: 'WOSPORTS', value: 2418 },
+                    { name: 'Meidase', value: 1941 }, { name: 'Stealth Cam', value: 1889 },
+                    { name: '其余', value: 13139 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        itemGap: 6
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['35%', '65%'],
+                        center: showLegend ? ['38%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                if (!showLegend) {
+                                    const idx = p.dataIndex;
+                                    const color = COLORS[idx % COLORS.length];
+                                    return '{dot|●} ' + p.name + '\n{d}%';
+                                }
+                                return '{b}\n{d}%';
+                            },
+                            rich: {
+                                dot: {
+                                    fontSize: 12,
+                                    padding: [0, 4, 0, 0],
+                                    color: '#333'
+                                },
+                                d: { fontSize: 11, color: '#666' }
+                            },
+                            fontSize: 10,
+                            color: '#333',
+                            lineHeight: 15
+                        },
+                        labelLine: {
+                            show: true,
+                            length: 20,
+                            length2: 15,
+                            lineStyle: { color: '#999' }
+                        },
+                        emphasis: { scaleSize: 6 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== 图表10：排名垄断-复合图 ====================
+            function getChart10Opt() {
+                const rawData = [
+                    { rank: '1~10', oldAsin: 10, oldAvg: 2431, newAsin: 0, newAvg: 0 },
+                    { rank: '11~20', oldAsin: 8, oldAvg: 1094, newAsin: 2, newAvg: 1167 },
+                    { rank: '21~30', oldAsin: 9, oldAvg: 715, newAsin: 1, newAvg: 709 },
+                    { rank: '31~40', oldAsin: 7, oldAvg: 528, newAsin: 3, newAvg: 503 },
+                    { rank: '41~50', oldAsin: 8, oldAvg: 370, newAsin: 2, newAvg: 414 },
+                    { rank: '51~60', oldAsin: 4, oldAvg: 292, newAsin: 6, newAvg: 261 },
+                    { rank: '61~70', oldAsin: 9, oldAvg: 220, newAsin: 1, newAvg: 195 },
+                    { rank: '71~80', oldAsin: 8, oldAvg: 170, newAsin: 2, newAvg: 173 },
+                    { rank: '81~90', oldAsin: 7, oldAvg: 118, newAsin: 3, newAvg: 103 },
+                    { rank: '91~100', oldAsin: 8, oldAvg: 79, newAsin: 2, newAvg: 86 }
+                ];
+                const ranks = rawData.map(d => d.rank);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' }
+                    },
+                    legend: {
+                        data: ['老品ASIN数', '新品ASIN数', '老品平均销量', '新品平均销量'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 50, right: 60, top: 40, bottom: 35 },
+                    xAxis: {
+                        type: 'category',
+                        data: ranks,
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: 'ASIN计数',
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    }, {
+                        type: 'value',
+                        name: '平均月销量',
+                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
+                        splitLine: { show: false },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    }],
+                    series: [{
+                        name: '老品ASIN数',
+                        type: 'bar',
+                        stack: 'asin',
+                        data: rawData.map(d => d.oldAsin),
+                        itemStyle: { color: COLORS[0] },
+                        barMaxWidth: 28,
+                        yAxisIndex: 0
+                    }, {
+                        name: '新品ASIN数',
+                        type: 'bar',
+                        stack: 'asin',
+                        data: rawData.map(d => d.newAsin),
+                        itemStyle: { color: COLORS[1] },
+                        barMaxWidth: 28,
+                        yAxisIndex: 0
+                    }, {
+                        name: '老品平均销量',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2 },
+                        data: rawData.map(d => d.oldAvg),
+                        itemStyle: { color: COLORS[2] },
+                        yAxisIndex: 1
+                    }, {
+                        name: '新品平均销量',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 6,
+                        lineStyle: { width: 2 },
+                        data: rawData.map(d => d.newAvg),
+                        itemStyle: { color: COLORS[3] },
+                        yAxisIndex: 1
+                    }]
+                };
+            }
+
+            // ==================== 图表11：卖家所属地-饼图 ====================
+            function getChart11Opt() {
+                const data = [
+                    { name: 'CN', value: 24530 }, { name: 'US', value: 11390 },
+                    { name: 'CN(HK)', value: 10922 }, { name: 'CA', value: 9195 },
+                    { name: 'AMZ', value: 3813 }, { name: 'AU', value: 226 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 8,
+                        top: 'center',
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        itemGap: 6
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 11,
+                            color: '#333',
+                            lineHeight: 16
+                        },
+                        labelLine: { show: true, length: 22, length2: 16,
+                        lineStyle: { color: '#999' } },
+                        emphasis: { scaleSize: 6 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== 图表12：配送方式-饼图 ====================
+            function getChart12Opt() {
+                const data = [
+                    { name: 'NA', value: 9433 }, { name: 'FBA', value: 44053 },
+                    { name: 'AMZ', value: 3813 }, { name: 'FBM', value: 2777 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 8,
+                        top: 'center',
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        itemGap: 6
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 11,
+                            color: '#333',
+                            lineHeight: 16
+                        },
+                        labelLine: { show: true, length: 22, length2: 16,
+                        lineStyle: { color: '#999' } },
+                        emphasis: { scaleSize: 6 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== 图表13：新品销量占比-饼图 ====================
+            function getChart13Opt() {
+                const data = [
+                    { name: '3个月内新品', value: 3093 }, { name: '3~6个月内新品', value: 4872 },
+                    { name: '老品', value: 52111 }
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
+                                .percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 8,
+                        top: 'center',
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        itemGap: 6
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{b}\n{d}%',
+                            fontSize: 11,
+                            color: '#333',
+                            lineHeight: 16
+                        },
+                        labelLine: { show: true, length: 22, length2: 16,
+                        lineStyle: { color: '#999' } },
+                        emphasis: { scaleSize: 6 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== 图表14：review数分布-堆积柱状图 ====================
+            function getChart14Opt() {
+                const rawData = [
+                    { seg: '0~10', old: 279, newer: 250 }, { seg: '10~30', old: 489, newer: 1380 },
+                    { seg: '30~50', old: 298, newer: 412 }, { seg: '50~100', old: 2463, newer: 3499 },
+                    { seg: '100~200', old: 4937, newer: 94 }, { seg: '200~300', old: 4998, newer: 1360 },
+                    { seg: '300~400', old: 1995, newer: 709 }, { seg: '400~500', old: 1005, newer: 261 },
+                    { seg: '500~800', old: 11002, newer: 0 }, { seg: '800~1200', old: 7373, newer: 0 },
+                    { seg: '1200~2000', old: 5733, newer: 0 }, { seg: '2000+', old: 11539, newer: 0 }
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: {
+                        data: ['老品', '新品'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: rawData.map(d => d.seg),
+                        axisLabel: { rotate: 40, fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ASIN数',
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: [{
+                        name: '老品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: rawData.map(d => d.old),
+                        itemStyle: { color: COLORS[0] },
+                        barMaxWidth: 22
+                    }, {
+                        name: '新品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: rawData.map(d => d.newer),
+                        itemStyle: { color: COLORS[1] },
+                        barMaxWidth: 22
+                    }]
+                };
+            }
+
+            // ==================== 图表15：市场分款价格分布-堆积柱状+折线复合图 ====================
+            function getChart15Opt() {
+                const priceRanges = [
+                    '22.99-32.99', '32.99-42.99', '42.99-52.99', '52.99-62.99', '62.99-72.99',
+                    '72.99-82.99', '82.99-92.99', '92.99-102.99', '102.99-112.99', '112.99-122.99',
+                    '122.99-132.99', '132.99-142.99', '142.99-152.99', '172.99-182.99', '182.99-192.99',
+                    '222.99-232.99', '232.99-242.99', '262.99-272.99', '282.99-292.99'
+                ];
+                const styleNames = ['传统离线相机', '4G蜂窝相机', '固定WIFI相机', '4G云台相机'];
+                const salesData = [
+                    [2621, 488, 3809, 2131, 2851, 117, 0, 0, 0, 0, 430, 0, 78, 103, 0, 0, 0, 0, 0],
+                    [699, 0, 448, 891, 742, 233, 1637, 3108, 0, 0, 218, 1094, 987, 0, 0, 0, 189, 0, 0],
+                    [0, 2498, 5373, 1439, 1148, 3830, 264, 0, 272, 418, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 655, 0, 261, 0, 0, 0, 0, 0, 0, 0, 218, 94, 0, 415, 140]
+                ];
+                const revenueData = [
+                    [65721, 17731, 183609, 117943, 200867, 9358, 0, 0, 0, 0, 52958, 0, 11699, 18534, 0, 0, 0,
+                        0, 0
+                    ],
+                    [22061, 0, 22392, 49044, 50331, 18444, 147313, 310766, 0, 0, 28337, 200781, 148040, 0, 0, 0,
+                        45358, 0, 0
+                    ],
+                    [0, 102281, 262793, 81268, 79523, 287209, 23757, 0, 29917, 50155, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 45836, 0, 23482, 0, 0, 0, 0, 0, 0, 0, 40763, 21619, 0, 112875, 40598]
+                ];
+                const totalSeries = 8;
+                const barSeries = styleNames.map((name, i) => ({
+                    name: name + '-月销量',
+                    type: 'bar',
+                    stack: 'sales',
+                    data: salesData[i],
+                    itemStyle: { color: COLORS[i] },
+                    barMaxWidth: 18,
+                    yAxisIndex: 0
+                }));
+                const lineSeries = styleNames.map((name, i) => ({
+                    name: name + '-月销售额',
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { width: 2 },
+                    data: revenueData[i],
+                    itemStyle: { color: COLORS[i + 4] },
+                    yAxisIndex: 1
+                }));
+                const allSeries = [...barSeries, ...lineSeries];
+                const allNames = allSeries.map(s => s.name);
+                const legendSelected = {};
+                allNames.forEach((n, i) => {
+                    if (i < 4) { legendSelected[n] = true; } else if (i < 7) { legendSelected[n] =
+                            true; } else { legendSelected[n] = false; }
+                });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' }
+                    },
+                    legend: {
+                        data: allNames,
+                        selected: legendSelected,
+                        type: 'scroll',
+                        top: 0,
+                        textStyle: { fontSize: 10, color: '#333' },
+                        itemWidth: 12,
+                        itemHeight: 8,
+                        itemGap: 4
+                    },
+                    grid: { left: 50, right: 60, top: 55, bottom: 45 },
+                    xAxis: {
+                        type: 'category',
+                        data: priceRanges,
+                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: function(v) { return formatMoney(v); },
+                            fontSize: 10, color: '#666' },
+                        splitLine: { show: false },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    }],
+                    series: allSeries
+                };
+            }
+
+            // ==================== 图表16：价格质量联动分析-堆积柱状图 ====================
+            function getChart16Opt() {
+                const rawData = [
+                    { price: '22.99-32.99', s1: 1, s2: 7, s3: 1, s4: 0 },
+                    { price: '32.99-42.99', s1: 0, s2: 7, s3: 2, s4: 0 },
+                    { price: '42.99-52.99', s1: 0, s2: 8, s3: 7, s4: 0 },
+                    { price: '52.99-62.99', s1: 1, s2: 6, s3: 4, s4: 0 },
+                    { price: '62.99-72.99', s1: 0, s2: 4, s3: 6, s4: 0 },
+                    { price: '72.99-82.99', s1: 0, s2: 2, s3: 5, s4: 0 },
+                    { price: '82.99-92.99', s1: 0, s2: 2, s3: 2, s4: 1 },
+                    { price: '92.99-102.99', s1: 1, s2: 3, s3: 3, s4: 0 },
+                    { price: '102.99-112.99', s1: 0, s2: 0, s3: 1, s4: 0 },
+                    { price: '112.99-122.99', s1: 0, s2: 1, s3: 0, s4: 0 },
+                    { price: '122.99-132.99', s1: 0, s2: 3, s3: 1, s4: 1 },
+                    { price: '132.99-142.99', s1: 0, s2: 0, s3: 2, s4: 0 },
+                    { price: '142.99-152.99', s1: 0, s2: 1, s3: 3, s4: 0 },
+                    { price: '152.99-162.99', s1: 0, s2: 0, s3: 0, s4: 1 },
+                    { price: '162.99-172.99', s1: 0, s2: 0, s3: 1, s4: 0 },
+                    { price: '172.99-182.99', s1: 1, s2: 0, s3: 0, s4: 0 },
+                    { price: '182.99-192.99', s1: 1, s2: 0, s3: 0, s4: 0 },
+                    { price: '212.99-222.99', s1: 0, s2: 0, s3: 1, s4: 0 },
+                    { price: '222.99-232.99', s1: 0, s2: 1, s3: 2, s4: 0 },
+                    { price: '232.99-242.99', s1: 0, s2: 0, s3: 2, s4: 0 },
+                    { price: '262.99-272.99', s1: 0, s2: 1, s3: 0, s4: 0 },
+                    { price: '272.99-282.99', s1: 0, s2: 0, s3: 1, s4: 0 },
+                    { price: '282.99-292.99', s1: 1, s2: 0, s3: 0, s4: 0 },
+                    { price: '402.99-412.99', s1: 0, s2: 0, s3: 1, s4: 0 }
+                ];
+                const seriesNames = ['三星半及以下', '四星', '四星半', '五星'];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: {
+                        data: seriesNames,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: rawData.map(d => d.price),
+                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ASIN数',
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: [
+                        { name: seriesNames[0], type: 'bar', stack: 'total', data: rawData.map(d => d.s1),
+                            itemStyle: { color: COLORS[0] }, barMaxWidth: 18 },
+                        { name: seriesNames[1], type: 'bar', stack: 'total', data: rawData.map(d => d.s2),
+                            itemStyle: { color: COLORS[1] }, barMaxWidth: 18 },
+                        { name: seriesNames[2], type: 'bar', stack: 'total', data: rawData.map(d => d.s3),
+                            itemStyle: { color: COLORS[2] }, barMaxWidth: 18 },
+                        { name: seriesNames[3], type: 'bar', stack: 'total', data: rawData.map(d => d.s4),
+                            itemStyle: { color: COLORS[3] }, barMaxWidth: 18 }
+                    ]
+                };
+            }
+
+            // ==================== 图表17：品牌价格分布-堆积柱状图 ====================
+            function getChart17Opt() {
+                const rawData = [
+                    { price: '22.99-32.99', brand: 0, white: 5305 },
+                    { price: '32.99-42.99', brand: 69, white: 2917 },
+                    { price: '42.99-52.99', brand: 0, white: 9630 },
+                    { price: '52.99-62.99', brand: 813, white: 4313 },
+                    { price: '62.99-72.99', brand: 1287, white: 5932 },
+                    { price: '72.99-82.99', brand: 233, white: 4867 },
+                    { price: '82.99-92.99', brand: 8459, white: 525 },
+                    { price: '92.99-102.99', brand: 3638, white: 440 },
+                    { price: '102.99-112.99', brand: 0, white: 272 },
+                    { price: '112.99-122.99', brand: 0, white: 418 },
+                    { price: '122.99-132.99', brand: 1446, white: 0 },
+                    { price: '132.99-142.99', brand: 1094, white: 824 },
+                    { price: '142.99-152.99', brand: 2798, white: 295 },
+                    { price: '152.99-162.99', brand: 0, white: 160 },
+                    { price: '162.99-172.99', brand: 88, white: 0 },
+                    { price: '172.99-182.99', brand: 103, white: 0 },
+                    { price: '182.99-192.99', brand: 0, white: 218 },
+                    { price: '212.99-222.99', brand: 364, white: 0 },
+                    { price: '222.99-232.99', brand: 1517, white: 94 },
+                    { price: '232.99-242.99', brand: 794, white: 0 },
+                    { price: '262.99-272.99', brand: 0, white: 415 },
+                    { price: '272.99-282.99', brand: 329, white: 0 },
+                    { price: '282.99-292.99', brand: 0, white: 140 },
+                    { price: '402.99-412.99', brand: 279, white: 0 }
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: {
+                        data: ['品牌', '白牌'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: rawData.map(d => d.price),
+                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: [
+                        { name: '品牌', type: 'bar', stack: 'total', data: rawData.map(d => d.brand),
+                            itemStyle: { color: COLORS[0] }, barMaxWidth: 18 },
+                        { name: '白牌', type: 'bar', stack: 'total', data: rawData.map(d => d.white),
+                            itemStyle: { color: COLORS[1] }, barMaxWidth: 18 }
+                    ]
+                };
+            }
+
+            // ==================== 图表18：新老品价格分布-堆积柱状图 ====================
+            function getChart18Opt() {
+                const rawData = [
+                    { price: '22.99-32.99', old: 4768, newer: 537 },
+                    { price: '32.99-42.99', old: 2737, newer: 249 },
+                    { price: '42.99-52.99', old: 6559, newer: 3071 },
+                    { price: '52.99-62.99', old: 4031, newer: 1095 },
+                    { price: '62.99-72.99', old: 6697, newer: 522 },
+                    { price: '72.99-82.99', old: 4229, newer: 871 },
+                    { price: '82.99-92.99', old: 8459, newer: 525 },
+                    { price: '92.99-102.99', old: 3984, newer: 94 },
+                    { price: '102.99-112.99', old: 272, newer: 0 },
+                    { price: '112.99-122.99', old: 418, newer: 0 },
+                    { price: '122.99-132.99', old: 954, newer: 492 },
+                    { price: '132.99-142.99', old: 1918, newer: 0 },
+                    { price: '142.99-152.99', old: 3093, newer: 0 },
+                    { price: '152.99-162.99', old: 160, newer: 0 },
+                    { price: '162.99-172.99', old: 88, newer: 0 },
+                    { price: '172.99-182.99', old: 103, newer: 0 },
+                    { price: '182.99-192.99', old: 218, newer: 0 },
+                    { price: '212.99-222.99', old: 364, newer: 0 },
+                    { price: '222.99-232.99', old: 1517, newer: 94 },
+                    { price: '232.99-242.99', old: 794, newer: 0 },
+                    { price: '262.99-272.99', old: 0, newer: 415 },
+                    { price: '272.99-282.99', old: 329, newer: 0 },
+                    { price: '282.99-292.99', old: 140, newer: 0 },
+                    { price: '402.99-412.99', old: 279, newer: 0 }
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: {
+                        data: ['老品', '新品'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: rawData.map(d => d.price),
+                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: [
+                        { name: '老品', type: 'bar', stack: 'total', data: rawData.map(d => d.old),
+                            itemStyle: { color: COLORS[0] }, barMaxWidth: 18 },
+                        { name: '新品', type: 'bar', stack: 'total', data: rawData.map(d => d.newer),
+                            itemStyle: { color: COLORS[1] }, barMaxWidth: 18 }
+                    ]
+                };
+            }
+
+            // ==================== 图表19：分款评分星级分布-堆积柱状图 ====================
+            function getChart19Opt() {
+                const rawData = [
+                    { star: '三星半及以下', a: 2, b: 1, c: 1, d: 2 },
+                    { star: '四星', a: 16, b: 11, c: 14, d: 5 },
+                    { star: '四星半', a: 15, b: 18, c: 9, d: 3 },
+                    { star: '五星', a: 1, b: 1, c: 1, d: 0 }
+                ];
+                const seriesNames = ['传统离线相机', '4G蜂窝相机', '固定WIFI相机', '4G云台相机'];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        axisPointer: { type: 'shadow' }
+                    },
+                    legend: {
+                        data: seriesNames,
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 50, right: 15, top: 40, bottom: 30 },
+                    xAxis: {
+                        type: 'category',
+                        data: rawData.map(d => d.star),
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ASIN数',
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: [
+                        { name: seriesNames[0], type: 'bar', stack: 'total', data: rawData.map(d => d.a),
+                            itemStyle: { color: COLORS[0] }, barMaxWidth: 32 },
+                        { name: seriesNames[1], type: 'bar', stack: 'total', data: rawData.map(d => d.b),
+                            itemStyle: { color: COLORS[1] }, barMaxWidth: 32 },
+                        { name: seriesNames[2], type: 'bar', stack: 'total', data: rawData.map(d => d.c),
+                            itemStyle: { color: COLORS[2] }, barMaxWidth: 32 },
+                        { name: seriesNames[3], type: 'bar', stack: 'total', data: rawData.map(d => d.d),
+                            itemStyle: { color: COLORS[3] }, barMaxWidth: 32 }
+                    ]
+                };
+            }
+
+            // ==================== 图表20：评分销量趋势-折线图 ====================
+            function getChart20Opt() {
+                const rawData = [
+                    { score: 3.3, sales: 250 }, { score: 3.4, sales: 78 }, { score: 3.5, sales: 103 },
+                    { score: 3.6, sales: 218 }, { score: 3.7, sales: 234 }, { score: 3.8, sales: 1179 },
+                    { score: 3.9, sales: 2779 }, { score: 4.0, sales: 4936 }, { score: 4.1, sales: 10669 },
+                    { score: 4.2, sales: 6464 }, { score: 4.3, sales: 10873 }, { score: 4.4, sales: 14212 },
+                    { score: 4.5, sales: 3238 }, { score: 4.6, sales: 3927 }, { score: 4.8, sales: 916 }
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            const p = params[0];
+                            return '评分: ' + p.axisValue + '<br/>月销量: ' + p.value.toLocaleString();
+                        }
+                    },
+                    legend: {
+                        data: ['月销量'],
+                        top: 5,
+                        textStyle: { fontSize: 11, color: '#333' },
+                        itemWidth: 14,
+                        itemHeight: 10
+                    },
+                    grid: { left: 55, right: 20, top: 40, bottom: 30 },
+                    xAxis: {
+                        type: 'category',
+                        data: rawData.map(d => d.score),
+                        axisLabel: { fontSize: 10, color: '#666' },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        name: '评分',
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 11, color: '#666' }
+                    },
+                    series: [{
+                        name: '月销量',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2 },
+                        data: rawData.map(d => d.sales),
+                        itemStyle: { color: COLORS[0] },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255,157,25,0.25)' },
+                                { offset: 1, color: 'rgba(255,157,25,0.02)' }
+                            ])
+                        }
+                    }]
+                };
+            }
+
+            // 汇总所有图表配置函数
+            const chartOptFns = [
+                getChart1Opt, getEmptyChartOpt, getEmptyChartOpt, getEmptyChartOpt,
+                getChart5Opt, getChart6Opt, getChart7Opt, getChart8Opt,
+                getChart9Opt, getChart10Opt, getChart11Opt, getChart12Opt,
+                getChart13Opt, getChart14Opt, getChart15Opt, getChart16Opt,
+                getChart17Opt, getChart18Opt, getChart19Opt, getChart20Opt
+            ];
+
+            function init() {
+                const params = new URLSearchParams(window.location.search);
+                let chartId = parseInt(params.get('id')) || 1;
+                if (chartId < 1 || chartId > 20) chartId = 1;
+
+                const titleEl = document.getElementById('chartTitle');
+                const containerEl = document.getElementById('singleChart');
+
+                titleEl.textContent = chartTitles[chartId - 1] || '';
+                if (!titleEl.textContent) {
+                    titleEl.style.display = 'none';
+                } else {
+                    titleEl.style.display = '';
+                }
+
+                const optFn = chartOptFns[chartId - 1];
+                const option = optFn();
+
+                // 销毁旧实例
+                if (containerEl._echartInstance) {
+                    containerEl._echartInstance.dispose();
+                }
+                const chart = echarts.init(containerEl);
+                containerEl._echartInstance = chart;
+                chart.setOption(option);
+
+                // 延迟resize确保正确渲染
+                setTimeout(function() {
+                    chart.resize();
+                }, 100);
+
+                // 响应式监听
+                window.addEventListener('resize', function() {
+                    if (containerEl._echartInstance) {
+                        containerEl._echartInstance.resize();
+                    }
+                });
+            }
+
+            // 页面加载完成后初始化
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
