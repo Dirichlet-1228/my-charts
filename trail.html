@@ -199,7 +199,9 @@
                         label: {
                             show: true,
                             position: 'outside',
-                            formatter: '{b}\n{d}%',
+                            formatter: function(params) {
+    return params.name + '\n' + params.percent + '%';
+  },
                             color: '#333',
                             fontSize: 11,
                             lineHeight: 16
@@ -963,7 +965,9 @@
                         radius: ['45%', '72%'],
                         center: ['40%', '50%'],
                         itemStyle: { borderColor: '#fff', borderWidth: 2 },
-                        label: { show: true, position: 'outside', formatter: '{b}\n{d}%',
+                        label: { show: true, position: 'outside', formatter: function(params) {
+    return params.name + '\n' + params.percent + '%';
+  },
                             color: '#333', fontSize: 11, lineHeight: 16 },
                         labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
                         emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
@@ -1003,7 +1007,9 @@
                         radius: ['45%', '72%'],
                         center: ['40%', '50%'],
                         itemStyle: { borderColor: '#fff', borderWidth: 2 },
-                        label: { show: true, position: 'outside', formatter: '{b}\n{d}%',
+                        label: { show: true, position: 'outside', formatter: function(params) {
+    return params.name + '\n' + params.percent + '%';
+  },
                             color: '#333', fontSize: 11, lineHeight: 16 },
                         labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
                         emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
@@ -1042,7 +1048,9 @@
                         radius: ['45%', '72%'],
                         center: ['40%', '50%'],
                         itemStyle: { borderColor: '#fff', borderWidth: 2 },
-                        label: { show: true, position: 'outside', formatter: '{b}\n{d}%',
+                        label: { show: true, position: 'outside', formatter: function(params) {
+    return params.name + '\n' + params.percent + '%';
+  },
                             color: '#333', fontSize: 11, lineHeight: 16 },
                         labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
                         emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
