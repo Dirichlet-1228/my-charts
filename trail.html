@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据可视化图表</title>
-    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
-    </script>
+    <title>数据可视化看板</title>
     <style>
         * {
             margin: 0;
@@ -17,8 +15,6 @@
             height: 100%;
             margin: 0;
             background: transparent;
-        }
-        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         }
         .wrapper {
@@ -52,67 +48,121 @@
 </head>
 <body>
     <div class="wrapper">
-        <div class="chart-title" id="chartTitle"></div>
+        <div class="chart-title" id="chartTitle">图表</div>
         <div class="chart-container" id="singleChart"></div>
     </div>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
     <script>
         (function() {
-            const COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1',
-                '#EB2F96',
+            const COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1', '#EB2F96',
                 '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
             ];
 
-            // 解析数字，去除逗号
             function parseNum(v) {
-                if (typeof v === 'string') return parseFloat(v.replace(/,/g, '')) || 0;
+                if (v === null || v === undefined || v === '') return null;
                 if (typeof v === 'number') return v;
-                return 0;
+                return parseFloat(String(v).replace(/,/g, '')) || 0;
             }
 
-            // Y轴格式化：超过10000使用万
-            function formatYAxis(value) {
-                if (Math.abs(value) >= 10000) {
-                    return (value / 10000).toFixed(value % 10000 === 0 ? 0 : 1) + '万';
-                }
-                return value.toString();
+            function formatAxisValue(v) {
+                if (v >= 10000) return (v / 10000).toFixed(v % 10000 === 0 ? 0 : 1) + '万';
+                if (v >= 1000) return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K';
+                return v;
             }
 
-            // 金额格式化
-            function formatMoney(value) {
-                if (Math.abs(value) >= 1000000) {
-                    return '$' + (value / 1000000).toFixed(2) + 'M';
-                }
-                if (Math.abs(value) >= 1000) {
-                    return '$' + (value / 1000).toFixed(1) + 'K';
-                }
-                return '$' + value.toFixed(2);
+            function getBaseTooltip() {
+                return {
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    borderColor: 'transparent',
+                    textStyle: { color: '#fff', fontSize: 13 },
+                    extraCssText: 'border-radius:6px;padding:10px 14px;'
+                };
+            }
+
+            function getGridConfig() {
+                return {
+                    left: '3%',
+                    right: '6%',
+                    bottom: '8%',
+                    top: '10%',
+                    containLabel: true
+                };
+            }
+
+            function getXAxisConfig(data, opts = {}) {
+                return {
+                    type: 'category',
+                    data: data,
+                    axisLine: { lineStyle: { color: '#ccc' } },
+                    axisTick: { show: false },
+                    axisLabel: { color: '#666', fontSize: 11, rotate: opts.rotate || 0 },
+                    splitLine: { show: false },
+                    ...opts.extra
+                };
+            }
+
+            function getYAxisConfig(opts = {}) {
+                return {
+                    type: 'value',
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#666',
+                        fontSize: 11,
+                        formatter: opts.formatter || formatAxisValue
+                    },
+                    splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    ...opts.extra
+                };
             }
 
             const chartTitles = [
-                '分款销量占比', // 1
-                '', // 2 无数据
-                '', // 3 无数据
-                '', // 4 无数据
-                '关键词搜索量趋势', // 5
-                '关键词ABA排名趋势', // 6
-                '历史总销量走势', // 7
-                '价格四分位走势', // 8
-                '品牌垄断', // 9
-                '排名垄断', // 10
-                '卖家所属地', // 11
-                '配送方式', // 12
-                '新品销量占比', // 13
-                'review数分布', // 14
-                '市场分款价格分布', // 15
-                '价格质量联动分析', // 16
-                '品牌价格分布', // 17
-                '新老品价格分布', // 18
-                '分款评分星级分布', // 19
-                '评分销量趋势' // 20
+                '分款销量占比',
+                '产品属性销量发布',
+                '产品属性销量占比',
+                '产品属性销量占比',
+                '关键词搜索量趋势',
+                '关键词ABA排名趋势',
+                '历史总销量走势',
+                '价格四分位走势',
+                '品牌垄断',
+                '排名垄断',
+                '卖家所属地',
+                '配送方式',
+                '新品销量占比',
+                'review数分布',
+                '市场分款价格分布',
+                '价格质量联动分析',
+                '品牌价格分布',
+                '新老品价格分布',
+                '分款评分星级分布',
+                '评分销量趋势'
             ];
 
-            // ==================== 图表1：分款销量占比-饼图 ====================
-            function getChart1Opt() {
+            function buildEmptyPieOpts(title) {
+                return {
+                    title: {
+                        text: '暂无数据',
+                        left: 'center',
+                        top: 'center',
+                        textStyle: { color: '#999', fontSize: 16, fontWeight: 400 }
+                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'item' },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '65%'],
+                        center: ['50%', '50%'],
+                        data: [{ name: '暂无数据', value: 1, itemStyle: { color: '#e0e0e0' },
+                            label: { show: false }, labelLine: { show: false } }],
+                        emphasis: { disabled: true },
+                        silent: true
+                    }]
+                };
+            }
+
+            // ==================== Chart 1: 分款销量占比-饼图 ====================
+            function buildChart1Opts() {
                 const data = [
                     { name: '4G蜂窝相机', value: 22874 },
                     { name: '传统离线相机', value: 18538 },
@@ -120,62 +170,41 @@
                     { name: '4G云台相机', value: 3328 }
                 ];
                 const total = data.reduce((s, d) => s + d.value, 0);
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
+                data.forEach((d, i) => { d.itemStyle = { color: COLORS[i] }; });
                 return {
                     tooltip: {
+                        ...getBaseTooltip(),
                         trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
                         formatter: function(p) {
                             return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
                                 .percent + '%';
                         }
                     },
-                    legend: showLegend ? {
+                    legend: {
                         type: 'scroll',
                         orient: 'vertical',
-                        right: 10,
-                        top: 'center',
-                        textStyle: { fontSize: 12, color: '#333' },
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 8
-                    } : { show: false },
-                    color: COLORS.slice(0, catCount),
+                        right: '5%',
+                        top: 'middle',
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'circle'
+                    },
                     series: [{
                         type: 'pie',
-                        radius: ['40%', '68%'],
-                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
+                        radius: ['45%', '72%'],
+                        center: ['40%', '50%'],
                         avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
                         label: {
                             show: true,
                             position: 'outside',
-                            formatter: function(p) {
-                                if (!showLegend) {
-                                    return '{dot|●} ' + p.name + '\n{d}%';
-                                }
-                                return '{b}\n{d}%';
-                            },
-                            rich: {
-                                dot: {
-                                    fontSize: 14,
-                                    padding: [0, 4, 0, 0],
-                                    color: '#333'
-                                },
-                                d: { fontSize: 12, color: '#666' }
-                            },
-                            fontSize: 11,
+                            formatter: '{b}\n{d}%',
                             color: '#333',
+                            fontSize: 11,
                             lineHeight: 16
                         },
-                        labelLine: {
-                            show: true,
-                            length: 25,
-                            length2: 20,
-                            lineStyle: { color: '#999' }
-                        },
+                        labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
                         emphasis: {
                             label: { fontSize: 14, fontWeight: 'bold' },
                             scaleSize: 8
@@ -185,1610 +214,1251 @@
                 };
             }
 
-            // ==================== 图表2-4：空数据 ====================
-            function getEmptyChartOpt() {
-                return {
-                    title: {
-                        text: '暂无数据',
-                        left: 'center',
-                        top: 'center',
-                        textStyle: { color: '#999', fontSize: 16, fontWeight: 'normal' }
-                    },
-                    series: []
+            // ==================== Chart 5: 关键词搜索量趋势 ====================
+            function buildChart5Opts() {
+                const months = [];
+                for (let y = 2022; y <= 2026; y++) {
+                    const endM = y === 2026 ? 6 : 12;
+                    for (let m = 1; m <= endM; m++) { months.push(y + '-' + String(m).padStart(2, '0')); }
+                }
+                const k1 = 'trail camera';
+                const k2 = 'trail cameras with night vision motion activated waterproof';
+                const k3 = 'game camera';
+                const map1 = {
+                    '2026-06': 128526,
+                    '2026-05': 112131,
+                    '2026-04': 98290,
+                    '2026-03': 96577,
+                    '2026-02': 115896,
+                    '2026-01': 114267,
+                    '2025-12': 172544,
+                    '2025-11': 241513,
+                    '2025-10': 229293,
+                    '2025-09': 231682,
+                    '2025-08': 199010,
+                    '2025-07': 170252,
+                    '2025-06': 138868,
+                    '2025-05': 116658,
+                    '2025-04': 114969,
+                    '2025-03': 116900,
+                    '2025-02': 108855,
+                    '2025-01': 109670,
+                    '2024-12': 168620,
+                    '2024-11': 226702,
+                    '2024-10': 287224,
+                    '2024-09': 266032,
+                    '2024-08': 227926,
+                    '2024-07': 192579,
+                    '2024-06': 153258,
+                    '2024-05': 136624,
+                    '2024-04': 138668,
+                    '2024-03': 143160,
+                    '2024-02': 136947,
+                    '2024-01': 133924,
+                    '2023-12': 167706,
+                    '2023-11': 213744,
+                    '2023-10': 200879,
+                    '2023-09': 191225,
+                    '2023-08': 191094,
+                    '2023-07': 164894,
+                    '2023-06': 139511,
+                    '2023-05': 86967,
+                    '2023-04': 85353,
+                    '2023-03': 92784,
+                    '2023-02': 123768,
+                    '2023-01': 105986,
+                    '2022-12': 129412,
+                    '2022-11': 192691,
+                    '2022-10': 201247,
+                    '2022-09': 197196,
+                    '2022-08': 188852,
+                    '2022-07': 164806,
+                    '2022-06': 141655,
+                    '2022-05': 114605,
+                    '2022-04': 110106,
+                    '2022-03': 117363,
+                    '2022-02': 98548,
+                    '2022-01': 115815
                 };
-            }
-
-            // ==================== 图表5：关键词搜索量趋势-多系列折线图 ====================
-            function getChart5Opt() {
-                const rawData = [
-                    { month: '2026-06', keyword: 'trail camera', val: '128,526' },
-                    { month: '2026-05', keyword: 'trail camera', val: '112,131' },
-                    { month: '2026-04', keyword: 'trail camera', val: '98,290' },
-                    { month: '2026-03', keyword: 'trail camera', val: '96,577' },
-                    { month: '2026-02', keyword: 'trail camera', val: '115,896' },
-                    { month: '2026-01', keyword: 'trail camera', val: '114,267' },
-                    { month: '2025-12', keyword: 'trail camera', val: '172,544' },
-                    { month: '2025-11', keyword: 'trail camera', val: '241,513' },
-                    { month: '2025-10', keyword: 'trail camera', val: '229,293' },
-                    { month: '2025-09', keyword: 'trail camera', val: '231,682' },
-                    { month: '2025-08', keyword: 'trail camera', val: '199,010' },
-                    { month: '2025-07', keyword: 'trail camera', val: '170,252' },
-                    { month: '2025-06', keyword: 'trail camera', val: '138,868' },
-                    { month: '2025-05', keyword: 'trail camera', val: '116,658' },
-                    { month: '2025-04', keyword: 'trail camera', val: '114,969' },
-                    { month: '2025-03', keyword: 'trail camera', val: '116,900' },
-                    { month: '2025-02', keyword: 'trail camera', val: '108,855' },
-                    { month: '2025-01', keyword: 'trail camera', val: '109,670' },
-                    { month: '2024-12', keyword: 'trail camera', val: '168,620' },
-                    { month: '2024-11', keyword: 'trail camera', val: '226,702' },
-                    { month: '2024-10', keyword: 'trail camera', val: '287,224' },
-                    { month: '2024-09', keyword: 'trail camera', val: '266,032' },
-                    { month: '2024-08', keyword: 'trail camera', val: '227,926' },
-                    { month: '2024-07', keyword: 'trail camera', val: '192,579' },
-                    { month: '2024-06', keyword: 'trail camera', val: '153,258' },
-                    { month: '2024-05', keyword: 'trail camera', val: '136,624' },
-                    { month: '2024-04', keyword: 'trail camera', val: '138,668' },
-                    { month: '2024-03', keyword: 'trail camera', val: '143,160' },
-                    { month: '2024-02', keyword: 'trail camera', val: '136,947' },
-                    { month: '2024-01', keyword: 'trail camera', val: '133,924' },
-                    { month: '2023-12', keyword: 'trail camera', val: '167,706' },
-                    { month: '2023-11', keyword: 'trail camera', val: '213,744' },
-                    { month: '2023-10', keyword: 'trail camera', val: '200,879' },
-                    { month: '2023-09', keyword: 'trail camera', val: '191,225' },
-                    { month: '2023-08', keyword: 'trail camera', val: '191,094' },
-                    { month: '2023-07', keyword: 'trail camera', val: '164,894' },
-                    { month: '2023-06', keyword: 'trail camera', val: '139,511' },
-                    { month: '2023-05', keyword: 'trail camera', val: '86,967' },
-                    { month: '2023-04', keyword: 'trail camera', val: '85,353' },
-                    { month: '2023-03', keyword: 'trail camera', val: '92,784' },
-                    { month: '2023-02', keyword: 'trail camera', val: '123,768' },
-                    { month: '2023-01', keyword: 'trail camera', val: '105,986' },
-                    { month: '2022-12', keyword: 'trail camera', val: '129,412' },
-                    { month: '2022-11', keyword: 'trail camera', val: '192,691' },
-                    { month: '2022-10', keyword: 'trail camera', val: '201,247' },
-                    { month: '2022-09', keyword: 'trail camera', val: '197,196' },
-                    { month: '2022-08', keyword: 'trail camera', val: '188,852' },
-                    { month: '2022-07', keyword: 'trail camera', val: '164,806' },
-                    { month: '2022-06', keyword: 'trail camera', val: '141,655' },
-                    { month: '2022-05', keyword: 'trail camera', val: '114,605' },
-                    { month: '2022-04', keyword: 'trail camera', val: '110,106' },
-                    { month: '2022-03', keyword: 'trail camera', val: '117,363' },
-                    { month: '2022-02', keyword: 'trail camera', val: '98,548' },
-                    { month: '2022-01', keyword: 'trail camera', val: '115,815' },
-                    { month: '2026-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '53,702' },
-                    { month: '2026-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '57,154' },
-                    { month: '2026-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '48,404' },
-                    { month: '2026-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '40,300' },
-                    { month: '2026-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '37,959' },
-                    { month: '2026-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '30,313' },
-                    { month: '2025-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '34,604' },
-                    { month: '2025-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '42,286' },
-                    { month: '2025-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '41,516' },
-                    { month: '2025-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '41,172' },
-                    { month: '2025-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '49,837' },
-                    { month: '2025-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '61,111' },
-                    { month: '2025-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '59,316' },
-                    { month: '2025-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '52,786' },
-                    { month: '2025-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '48,360' },
-                    { month: '2025-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '41,346' },
-                    { month: '2025-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '37,940' },
-                    { month: '2025-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '47,614' },
-                    { month: '2024-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '59,598' },
-                    { month: '2024-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '63,527' },
-                    { month: '2024-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '72,079' },
-                    { month: '2024-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '62,338' },
-                    { month: '2024-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '52,957' },
-                    { month: '2024-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '54,386' },
-                    { month: '2024-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '59,483' },
-                    { month: '2024-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '62,684' },
-                    { month: '2024-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '53,659' },
-                    { month: '2024-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '47,034' },
-                    { month: '2024-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '37,102' },
-                    { month: '2024-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '39,168' },
-                    { month: '2023-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '85,376' },
-                    { month: '2023-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '82,321' },
-                    { month: '2023-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '81,547' },
-                    { month: '2023-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '75,672' },
-                    { month: '2023-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '55,829' },
-                    { month: '2023-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '32,397' },
-                    { month: '2023-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '39,793' },
-                    { month: '2023-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '49,414' },
-                    { month: '2023-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '33,699' },
-                    { month: '2023-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '17,360' },
-                    { month: '2023-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '17,041' },
-                    { month: '2023-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '13,457' },
-                    { month: '2022-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '15,404' },
-                    { month: '2022-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '27,133' },
-                    { month: '2022-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '31,194' },
-                    { month: '2022-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '34,509' },
-                    { month: '2022-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '31,594' },
-                    { month: '2022-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '30,261' },
-                    { month: '2022-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '26,441' },
-                    { month: '2022-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '20,967' },
-                    { month: '2022-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '16,463' },
-                    { month: '2022-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '22,364' },
-                    { month: '2022-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '15,947' },
-                    { month: '2022-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '14,235' },
-                    { month: '2026-05', keyword: 'game camera', val: '32,348' },
-                    { month: '2026-04', keyword: 'game camera', val: '30,741' },
-                    { month: '2026-03', keyword: 'game camera', val: '28,536' },
-                    { month: '2026-02', keyword: 'game camera', val: '32,878' },
-                    { month: '2026-01', keyword: 'game camera', val: '36,815' },
-                    { month: '2025-12', keyword: 'game camera', val: '56,917' },
-                    { month: '2025-11', keyword: 'game camera', val: '84,251' },
-                    { month: '2025-10', keyword: 'game camera', val: '82,210' },
-                    { month: '2025-09', keyword: 'game camera', val: '84,380' },
-                    { month: '2025-08', keyword: 'game camera', val: '71,249' },
-                    { month: '2025-07', keyword: 'game camera', val: '58,309' },
-                    { month: '2025-06', keyword: 'game camera', val: '44,994' },
-                    { month: '2025-05', keyword: 'game camera', val: '40,343' },
-                    { month: '2025-04', keyword: 'game camera', val: '36,165' },
-                    { month: '2025-03', keyword: 'game camera', val: '37,827' },
-                    { month: '2025-02', keyword: 'game camera', val: '33,154' },
-                    { month: '2025-01', keyword: 'game camera', val: '36,961' },
-                    { month: '2024-12', keyword: 'game camera', val: '56,728' },
-                    { month: '2024-11', keyword: 'game camera', val: '75,855' },
-                    { month: '2024-10', keyword: 'game camera', val: '95,814' },
-                    { month: '2024-09', keyword: 'game camera', val: '97,761' },
-                    { month: '2024-08', keyword: 'game camera', val: '77,981' },
-                    { month: '2024-07', keyword: 'game camera', val: '70,854' },
-                    { month: '2024-06', keyword: 'game camera', val: '54,049' },
-                    { month: '2024-05', keyword: 'game camera', val: '46,523' },
-                    { month: '2024-04', keyword: 'game camera', val: '43,339' },
-                    { month: '2024-03', keyword: 'game camera', val: '40,109' },
-                    { month: '2024-02', keyword: 'game camera', val: '37,655' },
-                    { month: '2024-01', keyword: 'game camera', val: '38,231' },
-                    { month: '2023-12', keyword: 'game camera', val: '59,222' },
-                    { month: '2023-11', keyword: 'game camera', val: '74,308' },
-                    { month: '2023-10', keyword: 'game camera', val: '85,928' },
-                    { month: '2023-09', keyword: 'game camera', val: '72,191' },
-                    { month: '2023-08', keyword: 'game camera', val: '77,845' },
-                    { month: '2023-07', keyword: 'game camera', val: '41,394' },
-                    { month: '2023-06', keyword: 'game camera', val: '31,602' },
-                    { month: '2023-05', keyword: 'game camera', val: '22,063' },
-                    { month: '2023-04', keyword: 'game camera', val: '26,098' },
-                    { month: '2023-03', keyword: 'game camera', val: '21,660' },
-                    { month: '2023-02', keyword: 'game camera', val: '35,129' },
-                    { month: '2023-01', keyword: 'game camera', val: '30,048' },
-                    { month: '2022-12', keyword: 'game camera', val: '34,131' },
-                    { month: '2022-11', keyword: 'game camera', val: '58,269' },
-                    { month: '2022-10', keyword: 'game camera', val: '57,358' },
-                    { month: '2022-09', keyword: 'game camera', val: '65,414' },
-                    { month: '2022-08', keyword: 'game camera', val: '58,205' },
-                    { month: '2022-07', keyword: 'game camera', val: '57,787' },
-                    { month: '2022-06', keyword: 'game camera', val: '40,535' },
-                    { month: '2022-05', keyword: 'game camera', val: '33,042' },
-                    { month: '2022-04', keyword: 'game camera', val: '33,552' },
-                    { month: '2022-03', keyword: 'game camera', val: '31,746' },
-                    { month: '2022-02', keyword: 'game camera', val: '31,215' },
-                    { month: '2022-01', keyword: 'game camera', val: '33,611' }
-                ];
-
-                const keywords = ['trail camera', 'trail cameras with night vision motion activated waterproof',
-                    'game camera'
-                ];
-                const monthSet = new Set();
-                const kwMonthMap = {};
-                keywords.forEach(k => { kwMonthMap[k] = {}; });
-                rawData.forEach(d => {
-                    monthSet.add(d.month);
-                    kwMonthMap[d.keyword][d.month] = parseNum(d.val);
-                });
-                const months = Array.from(monthSet).sort();
-                const series = keywords.map((kw, i) => ({
-                    name: kw,
+                const map2 = {
+                    '2026-06': 53702,
+                    '2026-05': 57154,
+                    '2026-04': 48404,
+                    '2026-03': 40300,
+                    '2026-02': 37959,
+                    '2026-01': 30313,
+                    '2025-12': 34604,
+                    '2025-11': 42286,
+                    '2025-10': 41516,
+                    '2025-09': 41172,
+                    '2025-08': 49837,
+                    '2025-07': 61111,
+                    '2025-06': 59316,
+                    '2025-05': 52786,
+                    '2025-04': 48360,
+                    '2025-03': 41346,
+                    '2025-02': 37940,
+                    '2025-01': 47614,
+                    '2024-12': 59598,
+                    '2024-11': 63527,
+                    '2024-10': 72079,
+                    '2024-09': 62338,
+                    '2024-08': 52957,
+                    '2024-07': 54386,
+                    '2024-06': 59483,
+                    '2024-05': 62684,
+                    '2024-04': 53659,
+                    '2024-03': 47034,
+                    '2024-02': 37102,
+                    '2024-01': 39168,
+                    '2023-12': 85376,
+                    '2023-11': 82321,
+                    '2023-10': 81547,
+                    '2023-09': 75672,
+                    '2023-08': 55829,
+                    '2023-07': 32397,
+                    '2023-06': 39793,
+                    '2023-05': 49414,
+                    '2023-04': 33699,
+                    '2023-03': 17360,
+                    '2023-02': 17041,
+                    '2023-01': 13457,
+                    '2022-12': 15404,
+                    '2022-11': 27133,
+                    '2022-10': 31194,
+                    '2022-09': 34509,
+                    '2022-08': 31594,
+                    '2022-07': 30261,
+                    '2022-06': 26441,
+                    '2022-05': 20967,
+                    '2022-04': 16463,
+                    '2022-03': 22364,
+                    '2022-02': 15947,
+                    '2022-01': 14235
+                };
+                const map3 = {
+                    '2026-05': 32348,
+                    '2026-04': 30741,
+                    '2026-03': 28536,
+                    '2026-02': 32878,
+                    '2026-01': 36815,
+                    '2025-12': 56917,
+                    '2025-11': 84251,
+                    '2025-10': 82210,
+                    '2025-09': 84380,
+                    '2025-08': 71249,
+                    '2025-07': 58309,
+                    '2025-06': 44994,
+                    '2025-05': 40343,
+                    '2025-04': 36165,
+                    '2025-03': 37827,
+                    '2025-02': 33154,
+                    '2025-01': 36961,
+                    '2024-12': 56728,
+                    '2024-11': 75855,
+                    '2024-10': 95814,
+                    '2024-09': 97761,
+                    '2024-08': 77981,
+                    '2024-07': 70854,
+                    '2024-06': 54049,
+                    '2024-05': 46523,
+                    '2024-04': 43339,
+                    '2024-03': 40109,
+                    '2024-02': 37655,
+                    '2024-01': 38231,
+                    '2023-12': 59222,
+                    '2023-11': 74308,
+                    '2023-10': 85928,
+                    '2023-09': 72191,
+                    '2023-08': 77845,
+                    '2023-07': 41394,
+                    '2023-06': 31602,
+                    '2023-05': 22063,
+                    '2023-04': 26098,
+                    '2023-03': 21660,
+                    '2023-02': 35129,
+                    '2023-01': 30048,
+                    '2022-12': 34131,
+                    '2022-11': 58269,
+                    '2022-10': 57358,
+                    '2022-09': 65414,
+                    '2022-08': 58205,
+                    '2022-07': 57787,
+                    '2022-06': 40535,
+                    '2022-05': 33042,
+                    '2022-04': 33552,
+                    '2022-03': 31746,
+                    '2022-02': 31215,
+                    '2022-01': 33611
+                };
+                const d1 = months.map(m => map1[m] !== undefined ? map1[m] : null);
+                const d2 = months.map(m => map2[m] !== undefined ? map2[m] : null);
+                const d3 = months.map(m => map3[m] !== undefined ? map3[m] : null);
+                const seriesNames = [k1, k2, k3];
+                const allData = [d1, d2, d3];
+                const series = seriesNames.map((name, i) => ({
+                    name: name,
                     type: 'line',
+                    data: allData[i],
+                    connectNulls: true,
                     smooth: true,
                     symbol: 'circle',
-                    symbolSize: 4,
-                    lineStyle: { width: 2 },
-                    data: months.map(m => kwMonthMap[kw][m] !== undefined ? kwMonthMap[kw][m] :
-                        null),
-                    itemStyle: { color: COLORS[i] }
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    emphasis: { focus: 'series' }
                 }));
-                const legendSelected = {};
-                series.forEach((s, i) => { legendSelected[s.name] = i < 3; });
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let r = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                r += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                r += p.seriesName + ': ' + (p.value !== null ? p.value
-                                    .toLocaleString() : '-') + '<br/>';
-                            });
-                            return r;
-                        }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis' },
                     legend: {
-                        data: series.map(s => s.name),
-                        selected: legendSelected,
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        type: 'scroll',
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 11 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8,
+                        selected: seriesNames.reduce((o, n, i) => { o[n] = i < 3; return o; }, {})
                     },
-                    grid: { left: 55, right: 20, top: 40, bottom: 40 },
-                    xAxis: {
-                        type: 'category',
-                        data: months,
-                        boundaryGap: false,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: '月搜索量',
-                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
+                    grid: getGridConfig(),
+                    xAxis: getXAxisConfig(months, { rotate: 45 }),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
                     series: series
                 };
             }
 
-            // ==================== 图表6：关键词ABA排名趋势 ====================
-            function getChart6Opt() {
-                const rawData = [
-                    { month: '2026-06', keyword: 'trail camera', val: '6,156' },
-                    { month: '2026-05', keyword: 'trail camera', val: '8,729' },
-                    { month: '2026-04', keyword: 'trail camera', val: '9,353' },
-                    { month: '2026-03', keyword: 'trail camera', val: '9,804' },
-                    { month: '2026-02', keyword: 'trail camera', val: '8,267' },
-                    { month: '2026-01', keyword: 'trail camera', val: '7,311' },
-                    { month: '2025-12', keyword: 'trail camera', val: '3,918' },
-                    { month: '2025-11', keyword: 'trail camera', val: '2,340' },
-                    { month: '2025-10', keyword: 'trail camera', val: '2,408' },
-                    { month: '2025-09', keyword: 'trail camera', val: '2,378' },
-                    { month: '2025-08', keyword: 'trail camera', val: '2,901' },
-                    { month: '2025-07', keyword: 'trail camera', val: '4,034' },
-                    { month: '2025-06', keyword: 'trail camera', val: '5,811' },
-                    { month: '2025-05', keyword: 'trail camera', val: '7,106' },
-                    { month: '2025-04', keyword: 'trail camera', val: '8,312' },
-                    { month: '2025-03', keyword: 'trail camera', val: '8,211' },
-                    { month: '2025-02', keyword: 'trail camera', val: '8,247' },
-                    { month: '2025-01', keyword: 'trail camera', val: '7,948' },
-                    { month: '2024-12', keyword: 'trail camera', val: '3,931' },
-                    { month: '2024-11', keyword: 'trail camera', val: '2,431' },
-                    { month: '2024-10', keyword: 'trail camera', val: '2,111' },
-                    { month: '2024-09', keyword: 'trail camera', val: '2,304' },
-                    { month: '2024-08', keyword: 'trail camera', val: '2,978' },
-                    { month: '2024-07', keyword: 'trail camera', val: '3,537' },
-                    { month: '2024-06', keyword: 'trail camera', val: '5,518' },
-                    { month: '2024-05', keyword: 'trail camera', val: '7,574' },
-                    { month: '2024-04', keyword: 'trail camera', val: '7,451' },
-                    { month: '2024-03', keyword: 'trail camera', val: '7,100' },
-                    { month: '2024-02', keyword: 'trail camera', val: '7,059' },
-                    { month: '2024-01', keyword: 'trail camera', val: '7,207' },
-                    { month: '2023-12', keyword: 'trail camera', val: '5,054' },
-                    { month: '2023-11', keyword: 'trail camera', val: '2,599' },
-                    { month: '2023-10', keyword: 'trail camera', val: '3,050' },
-                    { month: '2023-09', keyword: 'trail camera', val: '3,244' },
-                    { month: '2023-08', keyword: 'trail camera', val: '3,355' },
-                    { month: '2023-07', keyword: 'trail camera', val: '3,694' },
-                    { month: '2023-06', keyword: 'trail camera', val: '4,776' },
-                    { month: '2023-05', keyword: 'trail camera', val: '7,651' },
-                    { month: '2023-04', keyword: 'trail camera', val: '7,943' },
-                    { month: '2023-03', keyword: 'trail camera', val: '7,000' },
-                    { month: '2023-02', keyword: 'trail camera', val: '5,601' },
-                    { month: '2023-01', keyword: 'trail camera', val: '6,081' },
-                    { month: '2022-12', keyword: 'trail camera', val: '4,917' },
-                    { month: '2022-11', keyword: 'trail camera', val: '2,831' },
-                    { month: '2022-10', keyword: 'trail camera', val: '2,744' },
-                    { month: '2022-09', keyword: 'trail camera', val: '2,678' },
-                    { month: '2022-08', keyword: 'trail camera', val: '3,021' },
-                    { month: '2022-07', keyword: 'trail camera', val: '3,464' },
-                    { month: '2022-06', keyword: 'trail camera', val: '4,521' },
-                    { month: '2022-05', keyword: 'trail camera', val: '6,056' },
-                    { month: '2022-04', keyword: 'trail camera', val: '6,009' },
-                    { month: '2022-03', keyword: 'trail camera', val: '5,900' },
-                    { month: '2022-02', keyword: 'trail camera', val: '6,434' },
-                    { month: '2022-01', keyword: 'trail camera', val: '5,619' },
-                    { month: '2026-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '25,049' },
-                    { month: '2026-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '23,040' },
-                    { month: '2026-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '29,040' },
-                    { month: '2026-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '35,733' },
-                    { month: '2026-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '39,047' },
-                    { month: '2026-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '52,465' },
-                    { month: '2025-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '43,148' },
-                    { month: '2025-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '34,836' },
-                    { month: '2025-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '35,573' },
-                    { month: '2025-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '34,770' },
-                    { month: '2025-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '26,889' },
-                    { month: '2025-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '20,730' },
-                    { month: '2025-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '22,042' },
-                    { month: '2025-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '25,452' },
-                    { month: '2025-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '28,578' },
-                    { month: '2025-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '35,495' },
-                    { month: '2025-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '39,265' },
-                    { month: '2025-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '29,796' },
-                    { month: '2024-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '21,280' },
-                    { month: '2024-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '19,869' },
-                    { month: '2024-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '18,954' },
-                    { month: '2024-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '23,381' },
-                    { month: '2024-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '28,227' },
-                    { month: '2024-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '27,211' },
-                    { month: '2024-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '24,806' },
-                    { month: '2024-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '22,878' },
-                    { month: '2024-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '27,743' },
-                    { month: '2024-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '32,781' },
-                    { month: '2024-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '37,884' },
-                    { month: '2024-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '35,881' },
-                    { month: '2023-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '13,012' },
-                    { month: '2023-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '13,804' },
-                    { month: '2023-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '14,087' },
-                    { month: '2023-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '15,275' },
-                    { month: '2023-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '23,797' },
-                    { month: '2023-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '24,492' },
-                    { month: '2023-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '19,399' },
-                    { month: '2023-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '15,259' },
-                    { month: '2023-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '22,908' },
-                    { month: '2023-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '47,201' },
-                    { month: '2023-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '46,637' },
-                    { month: '2023-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '66,495' },
-                    { month: '2022-12', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '52,768' },
-                    { month: '2022-11', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '29,766' },
-                    { month: '2022-10', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '25,766' },
-                    { month: '2022-09', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '22,145' },
-                    { month: '2022-08', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '24,390' },
-                    { month: '2022-07', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '26,413' },
-                    { month: '2022-06', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '30,826' },
-                    { month: '2022-05', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '37,828' },
-                    { month: '2022-04', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '49,503' },
-                    { month: '2022-03', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '34,954' },
-                    { month: '2022-02', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '51,043' },
-                    { month: '2022-01', keyword: 'trail cameras with night vision motion activated waterproof',
-                        val: '69,376' },
-                    { month: '2026-05', keyword: 'game camera', val: '46,232' },
-                    { month: '2026-04', keyword: 'game camera', val: '49,747' },
-                    { month: '2026-03', keyword: 'game camera', val: '54,374' },
-                    { month: '2026-02', keyword: 'game camera', val: '46,391' },
-                    { month: '2026-01', keyword: 'game camera', val: '41,355' },
-                    { month: '2025-12', keyword: 'game camera', val: '22,597' },
-                    { month: '2025-11', keyword: 'game camera', val: '12,447' },
-                    { month: '2025-10', keyword: 'game camera', val: '12,856' },
-                    { month: '2025-09', keyword: 'game camera', val: '12,430' },
-                    { month: '2025-08', keyword: 'game camera', val: '16,235' },
-                    { month: '2025-07', keyword: 'game camera', val: '22,103' },
-                    { month: '2025-06', keyword: 'game camera', val: '31,983' },
-                    { month: '2025-05', keyword: 'game camera', val: '36,323' },
-                    { month: '2025-04', keyword: 'game camera', val: '42,754' },
-                    { month: '2025-03', keyword: 'game camera', val: '39,924' },
-                    { month: '2025-02', keyword: 'game camera', val: '46,308' },
-                    { month: '2025-01', keyword: 'game camera', val: '41,091' },
-                    { month: '2024-12', keyword: 'game camera', val: '23,219' },
-                    { month: '2024-11', keyword: 'game camera', val: '14,693' },
-                    { month: '2024-10', keyword: 'game camera', val: '12,195' },
-                    { month: '2024-09', keyword: 'game camera', val: '11,572' },
-                    { month: '2024-08', keyword: 'game camera', val: '16,660' },
-                    { month: '2024-07', keyword: 'game camera', val: '19,466' },
-                    { month: '2024-06', keyword: 'game camera', val: '28,246' },
-                    { month: '2024-05', keyword: 'game camera', val: '34,100' },
-                    { month: '2024-04', keyword: 'game camera', val: '36,827' },
-                    { month: '2024-03', keyword: 'game camera', val: '40,072' },
-                    { month: '2024-02', keyword: 'game camera', val: '39,103' },
-                    { month: '2024-01', keyword: 'game camera', val: '37,073' },
-                    { month: '2023-12', keyword: 'game camera', val: '21,690' },
-                    { month: '2023-11', keyword: 'game camera', val: '15,680' },
-                    { month: '2023-10', keyword: 'game camera', val: '12,689' },
-                    { month: '2023-09', keyword: 'game camera', val: '16,688' },
-                    { month: '2023-08', keyword: 'game camera', val: '14,978' },
-                    { month: '2023-07', keyword: 'game camera', val: '18,137' },
-                    { month: '2023-06', keyword: 'game camera', val: '24,337' },
-                    { month: '2023-05', keyword: 'game camera', val: '35,530' },
-                    { month: '2023-04', keyword: 'game camera', val: '30,067' },
-                    { month: '2023-03', keyword: 'game camera', val: '38,388' },
-                    { month: '2023-02', keyword: 'game camera', val: '21,715' },
-                    { month: '2023-01', keyword: 'game camera', val: '26,166' },
-                    { month: '2022-12', keyword: 'game camera', val: '22,691' },
-                    { month: '2022-11', keyword: 'game camera', val: '12,534' },
-                    { month: '2022-10', keyword: 'game camera', val: '12,461' },
-                    { month: '2022-09', keyword: 'game camera', val: '10,877' },
-                    { month: '2022-08', keyword: 'game camera', val: '12,268' },
-                    { month: '2022-07', keyword: 'game camera', val: '12,664' },
-                    { month: '2022-06', keyword: 'game camera', val: '18,530' },
-                    { month: '2022-05', keyword: 'game camera', val: '24,146' },
-                    { month: '2022-04', keyword: 'game camera', val: '23,355' },
-                    { month: '2022-03', keyword: 'game camera', val: '24,479' },
-                    { month: '2022-02', keyword: 'game camera', val: '24,464' },
-                    { month: '2022-01', keyword: 'game camera', val: '23,482' }
-                ];
-                const keywords = ['trail camera', 'trail cameras with night vision motion activated waterproof',
-                    'game camera'
-                ];
-                const monthSet = new Set();
-                const kwMonthMap = {};
-                keywords.forEach(k => { kwMonthMap[k] = {}; });
-                rawData.forEach(d => {
-                    monthSet.add(d.month);
-                    kwMonthMap[d.keyword][d.month] = parseNum(d.val);
-                });
-                const months = Array.from(monthSet).sort();
-                const series = keywords.map((kw, i) => ({
-                    name: kw,
+            // ==================== Chart 6: 关键词ABA排名趋势 ====================
+            function buildChart6Opts() {
+                const months = [];
+                for (let y = 2022; y <= 2026; y++) {
+                    const endM = y === 2026 ? 6 : 12;
+                    for (let m = 1; m <= endM; m++) { months.push(y + '-' + String(m).padStart(2, '0')); }
+                }
+                const k1 = 'trail camera';
+                const k2 = 'trail cameras with night vision motion activated waterproof';
+                const k3 = 'game camera';
+                const map1 = {
+                    '2026-06': 6156,
+                    '2026-05': 8729,
+                    '2026-04': 9353,
+                    '2026-03': 9804,
+                    '2026-02': 8267,
+                    '2026-01': 7311,
+                    '2025-12': 3918,
+                    '2025-11': 2340,
+                    '2025-10': 2408,
+                    '2025-09': 2378,
+                    '2025-08': 2901,
+                    '2025-07': 4034,
+                    '2025-06': 5811,
+                    '2025-05': 7106,
+                    '2025-04': 8312,
+                    '2025-03': 8211,
+                    '2025-02': 8247,
+                    '2025-01': 7948,
+                    '2024-12': 3931,
+                    '2024-11': 2431,
+                    '2024-10': 2111,
+                    '2024-09': 2304,
+                    '2024-08': 2978,
+                    '2024-07': 3537,
+                    '2024-06': 5518,
+                    '2024-05': 7574,
+                    '2024-04': 7451,
+                    '2024-03': 7100,
+                    '2024-02': 7059,
+                    '2024-01': 7207,
+                    '2023-12': 5054,
+                    '2023-11': 2599,
+                    '2023-10': 3050,
+                    '2023-09': 3244,
+                    '2023-08': 3355,
+                    '2023-07': 3694,
+                    '2023-06': 4776,
+                    '2023-05': 7651,
+                    '2023-04': 7943,
+                    '2023-03': 7000,
+                    '2023-02': 5601,
+                    '2023-01': 6081,
+                    '2022-12': 4917,
+                    '2022-11': 2831,
+                    '2022-10': 2744,
+                    '2022-09': 2678,
+                    '2022-08': 3021,
+                    '2022-07': 3464,
+                    '2022-06': 4521,
+                    '2022-05': 6056,
+                    '2022-04': 6009,
+                    '2022-03': 5900,
+                    '2022-02': 6434,
+                    '2022-01': 5619
+                };
+                const map2 = {
+                    '2026-06': 25049,
+                    '2026-05': 23040,
+                    '2026-04': 29040,
+                    '2026-03': 35733,
+                    '2026-02': 39047,
+                    '2026-01': 52465,
+                    '2025-12': 43148,
+                    '2025-11': 34836,
+                    '2025-10': 35573,
+                    '2025-09': 34770,
+                    '2025-08': 26889,
+                    '2025-07': 20730,
+                    '2025-06': 22042,
+                    '2025-05': 25452,
+                    '2025-04': 28578,
+                    '2025-03': 35495,
+                    '2025-02': 39265,
+                    '2025-01': 29796,
+                    '2024-12': 21280,
+                    '2024-11': 19869,
+                    '2024-10': 18954,
+                    '2024-09': 23381,
+                    '2024-08': 28227,
+                    '2024-07': 27211,
+                    '2024-06': 24806,
+                    '2024-05': 22878,
+                    '2024-04': 27743,
+                    '2024-03': 32781,
+                    '2024-02': 37884,
+                    '2024-01': 35881,
+                    '2023-12': 13012,
+                    '2023-11': 13804,
+                    '2023-10': 14087,
+                    '2023-09': 15275,
+                    '2023-08': 23797,
+                    '2023-07': 24492,
+                    '2023-06': 19399,
+                    '2023-05': 15259,
+                    '2023-04': 22908,
+                    '2023-03': 47201,
+                    '2023-02': 46637,
+                    '2023-01': 66495,
+                    '2022-12': 52768,
+                    '2022-11': 29766,
+                    '2022-10': 25766,
+                    '2022-09': 22145,
+                    '2022-08': 24390,
+                    '2022-07': 26413,
+                    '2022-06': 30826,
+                    '2022-05': 37828,
+                    '2022-04': 49503,
+                    '2022-03': 34954,
+                    '2022-02': 51043,
+                    '2022-01': 69376
+                };
+                const map3 = {
+                    '2026-05': 46232,
+                    '2026-04': 49747,
+                    '2026-03': 54374,
+                    '2026-02': 46391,
+                    '2026-01': 41355,
+                    '2025-12': 22597,
+                    '2025-11': 12447,
+                    '2025-10': 12856,
+                    '2025-09': 12430,
+                    '2025-08': 16235,
+                    '2025-07': 22103,
+                    '2025-06': 31983,
+                    '2025-05': 36323,
+                    '2025-04': 42754,
+                    '2025-03': 39924,
+                    '2025-02': 46308,
+                    '2025-01': 41091,
+                    '2024-12': 23219,
+                    '2024-11': 14693,
+                    '2024-10': 12195,
+                    '2024-09': 11572,
+                    '2024-08': 16660,
+                    '2024-07': 19466,
+                    '2024-06': 28246,
+                    '2024-05': 34100,
+                    '2024-04': 36827,
+                    '2024-03': 40072,
+                    '2024-02': 39103,
+                    '2024-01': 37073,
+                    '2023-12': 21690,
+                    '2023-11': 15680,
+                    '2023-10': 12689,
+                    '2023-09': 16688,
+                    '2023-08': 14978,
+                    '2023-07': 18137,
+                    '2023-06': 24337,
+                    '2023-05': 35530,
+                    '2023-04': 30067,
+                    '2023-03': 38388,
+                    '2023-02': 21715,
+                    '2023-01': 26166,
+                    '2022-12': 22691,
+                    '2022-11': 12534,
+                    '2022-10': 12461,
+                    '2022-09': 10877,
+                    '2022-08': 12268,
+                    '2022-07': 12664,
+                    '2022-06': 18530,
+                    '2022-05': 24146,
+                    '2022-04': 23355,
+                    '2022-03': 24479,
+                    '2022-02': 24464,
+                    '2022-01': 23482
+                };
+                const d1 = months.map(m => map1[m] !== undefined ? map1[m] : null);
+                const d2 = months.map(m => map2[m] !== undefined ? map2[m] : null);
+                const d3 = months.map(m => map3[m] !== undefined ? map3[m] : null);
+                const seriesNames = [k1, k2, k3];
+                const allData = [d1, d2, d3];
+                const series = seriesNames.map((name, i) => ({
+                    name: name,
                     type: 'line',
+                    data: allData[i],
+                    connectNulls: true,
                     smooth: true,
                     symbol: 'circle',
-                    symbolSize: 4,
-                    lineStyle: { width: 2 },
-                    data: months.map(m => kwMonthMap[kw][m] !== undefined ? kwMonthMap[kw][m] :
-                        null),
-                    itemStyle: { color: COLORS[i] }
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    emphasis: { focus: 'series' }
                 }));
-                const legendSelected = {};
-                series.forEach((s, i) => { legendSelected[s.name] = i < 3; });
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let r = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                r += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                r += p.seriesName + ': ' + (p.value !== null ? p.value
-                                    .toLocaleString() : '-') + '<br/>';
-                            });
-                            return r;
-                        }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis' },
                     legend: {
-                        data: series.map(s => s.name),
-                        selected: legendSelected,
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        type: 'scroll',
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 11 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8,
+                        selected: seriesNames.reduce((o, n, i) => { o[n] = i < 3; return o; }, {})
                     },
-                    grid: { left: 55, right: 20, top: 40, bottom: 40 },
-                    xAxis: {
-                        type: 'category',
-                        data: months,
-                        boundaryGap: false,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ABA排名',
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        inverse: false
-                    },
+                    grid: getGridConfig(),
+                    xAxis: getXAxisConfig(months, { rotate: 45 }),
+                    yAxis: getYAxisConfig({
+                        formatter: function(v) { return formatAxisValue(v); },
+                        extra: { inverse: true }
+                    }),
                     series: series
                 };
             }
 
-            // ==================== 图表7：历史总销量走势-复合图 ====================
-            function getChart7Opt() {
-                const rawData = [
-                    { time: '2024-07', sales: 52286, revenue: 5130182.21, avg: 1045 },
-                    { time: '2024-08', sales: 58115, revenue: 5927435.68, avg: 1186 },
-                    { time: '2024-09', sales: 74731, revenue: 7566359.80, avg: 1437 },
-                    { time: '2024-10', sales: 95906, revenue: 9724209.39, avg: 1844 },
-                    { time: '2024-11', sales: 78547, revenue: 7901491.15, avg: 1482 },
-                    { time: '2024-12', sales: 83262, revenue: 8139984.34, avg: 1601 },
-                    { time: '2025-01', sales: 30494, revenue: 2796636.78, avg: 564 },
-                    { time: '2025-02', sales: 26602, revenue: 2301609.50, avg: 466 },
-                    { time: '2025-03', sales: 26495, revenue: 2202638.66, avg: 456 },
-                    { time: '2025-04', sales: 27827, revenue: 2408457.17, avg: 479 },
-                    { time: '2025-05', sales: 33035, revenue: 2874493.33, avg: 532 },
-                    { time: '2025-06', sales: 40154, revenue: 3711669.05, avg: 617 },
-                    { time: '2025-07', sales: 54446, revenue: 5175314.00, avg: 800 },
-                    { time: '2025-08', sales: 63179, revenue: 6044517.98, avg: 915 },
-                    { time: '2025-09', sales: 66855, revenue: 6659931.20, avg: 941 },
-                    { time: '2025-10', sales: 80888, revenue: 7502518.49, avg: 1108 },
-                    { time: '2025-11', sales: 76599, revenue: 7528871.72, avg: 1021 },
-                    { time: '2025-12', sales: 71610, revenue: 6738217.63, avg: 918 },
-                    { time: '2026-01', sales: 30683, revenue: 2821390.00, avg: 388 },
-                    { time: '2026-02', sales: 25802, revenue: 2378035.85, avg: 307 },
-                    { time: '2026-03', sales: 30437, revenue: 2722762.77, avg: 341 },
-                    { time: '2026-04', sales: 32831, revenue: 2917336.74, avg: 356 },
-                    { time: '2026-05', sales: 38320, revenue: 3402750.77, avg: 399 },
-                    { time: '2026-06', sales: 56276, revenue: 5167368.72, avg: 562 },
-                    { time: '2026-07', sales: 65627, revenue: 5914790.07, avg: 656 }
+            // ==================== Chart 7: 历史总销量走势-复合图 ====================
+            function buildChart7Opts() {
+                const raw = [
+                    ['2024-07', 52286, 5130182.21, 1045],
+                    ['2024-08', 58115, 5927435.68, 1186],
+                    ['2024-09', 74731, 7566359.80, 1437],
+                    ['2024-10', 95906, 9724209.39, 1844],
+                    ['2024-11', 78547, 7901491.15, 1482],
+                    ['2024-12', 83262, 8139984.34, 1601],
+                    ['2025-01', 30494, 2796636.78, 564],
+                    ['2025-02', 26602, 2301609.50, 466],
+                    ['2025-03', 26495, 2202638.66, 456],
+                    ['2025-04', 27827, 2408457.17, 479],
+                    ['2025-05', 33035, 2874493.33, 532],
+                    ['2025-06', 40154, 3711669.05, 617],
+                    ['2025-07', 54446, 5175314.00, 800],
+                    ['2025-08', 63179, 6044517.98, 915],
+                    ['2025-09', 66855, 6659931.20, 941],
+                    ['2025-10', 80888, 7502518.49, 1108],
+                    ['2025-11', 76599, 7528871.72, 1021],
+                    ['2025-12', 71610, 6738217.63, 918],
+                    ['2026-01', 30683, 2821390.00, 388],
+                    ['2026-02', 25802, 2378035.85, 307],
+                    ['2026-03', 30437, 2722762.77, 341],
+                    ['2026-04', 32831, 2917336.74, 356],
+                    ['2026-05', 38320, 3402750.77, 399],
+                    ['2026-06', 56276, 5167368.72, 562],
+                    ['2026-07', 65627, 5914790.07, 656]
                 ];
-                const times = rawData.map(d => d.time);
+                const xData = raw.map(r => r[0]);
+                const salesVol = raw.map(r => r[1]);
+                const salesAmt = raw.map(r => r[2]);
+                const avgVol = raw.map(r => r[3]);
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis' },
                     legend: {
-                        data: ['月销量', '平均月销量', '月销售额'],
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        data: ['月销量', '月销售额', '平均月销量'],
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 11 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 55, right: 65, top: 40, bottom: 40 },
-                    xAxis: {
-                        type: 'category',
-                        data: times,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '月销量',
-                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    }, {
-                        type: 'value',
-                        name: '月销售额',
-                        axisLabel: { formatter: function(v) { return formatMoney(v); }, fontSize: 10,
-                            color: '#666' },
-                        splitLine: { show: false },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    }],
+                    grid: { left: '3%', right: '6%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData, { rotate: 45 }),
+                    yAxis: [
+                        getYAxisConfig({
+                            formatter: formatAxisValue,
+                            extra: { name: '月销量/平均月销量', nameTextStyle: { color: '#666', fontSize: 10 } }
+                        }),
+                        getYAxisConfig({
+                            formatter: function(v) { return (v / 10000).toFixed(0) + '万'; },
+                            extra: { name: '月销售额($)', nameTextStyle: { color: '#666', fontSize: 10 } }
+                        })
+                    ],
                     series: [{
                         name: '月销量',
                         type: 'bar',
-                        data: rawData.map(d => d.sales),
-                        itemStyle: { color: COLORS[0] },
-                        barMaxWidth: 20,
-                        yAxisIndex: 0
+                        data: salesVol,
+                        itemStyle: { color: COLORS[0], borderRadius: [4, 4, 0, 0] },
+                        barWidth: '50%',
+                        emphasis: { focus: 'series' }
                     }, {
                         name: '平均月销量',
                         type: 'line',
+                        yAxisIndex: 0,
+                        data: avgVol,
                         smooth: true,
                         symbol: 'circle',
-                        symbolSize: 5,
-                        lineStyle: { width: 2 },
-                        data: rawData.map(d => d.avg),
-                        itemStyle: { color: COLORS[1] },
-                        yAxisIndex: 0
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[2], type: 'dashed' },
+                        itemStyle: { color: COLORS[2] },
+                        emphasis: { focus: 'series' }
                     }, {
                         name: '月销售额',
                         type: 'line',
+                        yAxisIndex: 1,
+                        data: salesAmt,
                         smooth: true,
                         symbol: 'diamond',
                         symbolSize: 5,
-                        lineStyle: { width: 2 },
-                        data: rawData.map(d => d.revenue),
-                        itemStyle: { color: COLORS[2] },
-                        yAxisIndex: 1
+                        lineStyle: { width: 2.5, color: COLORS[3] },
+                        itemStyle: { color: COLORS[3] },
+                        emphasis: { focus: 'series' }
                     }]
                 };
             }
 
-            // ==================== 图表8：价格四分位走势 ====================
-            function getChart8Opt() {
-                const rawData = [
-                    { time: '2024-07', wavg: 99.20, median: 93.69, q1: 62.52, q3: 129.99 },
-                    { time: '2024-08', wavg: 102.60, median: 89.91, q1: 64.52, q3: 129.99 },
-                    { time: '2024-09', wavg: 101.69, median: 89.77, q1: 60.18, q3: 127.79 },
-                    { time: '2024-10', wavg: 101.74, median: 87.32, q1: 66.08, q3: 129.86 },
-                    { time: '2024-11', wavg: 100.97, median: 86.88, q1: 68.99, q3: 128.76 },
-                    { time: '2024-12', wavg: 98.24, median: 88.06, q1: 68.86, q3: 130.11 },
-                    { time: '2025-01', wavg: 92.03, median: 89.99, q1: 69.05, q3: 128.99 },
-                    { time: '2025-02', wavg: 86.74, median: 87.21, q1: 67.29, q3: 123.82 },
-                    { time: '2025-03', wavg: 83.30, median: 79.52, q1: 58.08, q3: 127.45 },
-                    { time: '2025-04', wavg: 86.80, median: 77.99, q1: 58.99, q3: 137.86 },
-                    { time: '2025-05', wavg: 87.34, median: 74.65, q1: 56.01, q3: 133.44 },
-                    { time: '2025-06', wavg: 92.90, median: 79.47, q1: 58.17, q3: 139.99 },
-                    { time: '2025-07', wavg: 95.50, median: 81.90, q1: 59.19, q3: 145.10 },
-                    { time: '2025-08', wavg: 96.04, median: 89.81, q1: 58.58, q3: 149.29 },
-                    { time: '2025-09', wavg: 100.05, median: 88.16, q1: 58.42, q3: 143.02 },
-                    { time: '2025-10', wavg: 93.08, median: 86.62, q1: 57.91, q3: 139.99 },
-                    { time: '2025-11', wavg: 98.64, median: 85.93, q1: 59.65, q3: 139.83 },
-                    { time: '2025-12', wavg: 94.39, median: 89.83, q1: 59.53, q3: 135.71 },
-                    { time: '2026-01', wavg: 92.27, median: 91.60, q1: 59.80, q3: 136.03 },
-                    { time: '2026-02', wavg: 92.40, median: 79.99, q1: 59.24, q3: 125.48 },
-                    { time: '2026-03', wavg: 90.18, median: 84.99, q1: 56.24, q3: 129.41 },
-                    { time: '2026-04', wavg: 89.45, median: 82.69, q1: 55.42, q3: 129.99 },
-                    { time: '2026-05', wavg: 89.14, median: 78.43, q1: 52.17, q3: 130.13 },
-                    { time: '2026-06', wavg: 92.04, median: 70.16, q1: 57.20, q3: 121.38 },
-                    { time: '2026-07', wavg: 90.19, median: 69.99, q1: 49.99, q3: 121.99 }
+            // ==================== Chart 8: 价格四分位走势 ====================
+            function buildChart8Opts() {
+                const raw = [
+                    ['2024-07', 99.20, 93.69, 62.52, 129.99],
+                    ['2024-08', 102.60, 89.91, 64.52, 129.99],
+                    ['2024-09', 101.69, 89.77, 60.18, 127.79],
+                    ['2024-10', 101.74, 87.32, 66.08, 129.86],
+                    ['2024-11', 100.97, 86.88, 68.99, 128.76],
+                    ['2024-12', 98.24, 88.06, 68.86, 130.11],
+                    ['2025-01', 92.03, 89.99, 69.05, 128.99],
+                    ['2025-02', 86.74, 87.21, 67.29, 123.82],
+                    ['2025-03', 83.30, 79.52, 58.08, 127.45],
+                    ['2025-04', 86.80, 77.99, 58.99, 137.86],
+                    ['2025-05', 87.34, 74.65, 56.01, 133.44],
+                    ['2025-06', 92.90, 79.47, 58.17, 139.99],
+                    ['2025-07', 95.50, 81.90, 59.19, 145.10],
+                    ['2025-08', 96.04, 89.81, 58.58, 149.29],
+                    ['2025-09', 100.05, 88.16, 58.42, 143.02],
+                    ['2025-10', 93.08, 86.62, 57.91, 139.99],
+                    ['2025-11', 98.64, 85.93, 59.65, 139.83],
+                    ['2025-12', 94.39, 89.83, 59.53, 135.71],
+                    ['2026-01', 92.27, 91.60, 59.80, 136.03],
+                    ['2026-02', 92.40, 79.99, 59.24, 125.48],
+                    ['2026-03', 90.18, 84.99, 56.24, 129.41],
+                    ['2026-04', 89.45, 82.69, 55.42, 129.99],
+                    ['2026-05', 89.14, 78.43, 52.17, 130.13],
+                    ['2026-06', 92.04, 70.16, 57.20, 121.38],
+                    ['2026-07', 90.19, 69.99, 49.99, 121.99]
                 ];
-                const times = rawData.map(d => d.time);
-                const seriesNames = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
-                const seriesData = [
-                    rawData.map(d => d.wavg),
-                    rawData.map(d => d.median),
-                    rawData.map(d => d.q1),
-                    rawData.map(d => d.q3)
-                ];
-                const legendSelected = {};
-                seriesNames.forEach((n, i) => { legendSelected[n] = i < 3; });
-                const series = seriesNames.map((name, i) => ({
+                const xData = raw.map(r => r[0]);
+                const names = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
+                const allData = [raw.map(r => r[1]), raw.map(r => r[2]), raw.map(r => r[3]), raw.map(r => r[4])];
+                const series = names.map((name, i) => ({
                     name: name,
                     type: 'line',
+                    data: allData[i],
                     smooth: true,
                     symbol: 'circle',
-                    symbolSize: 4,
-                    lineStyle: { width: 2 },
-                    data: seriesData[i],
-                    itemStyle: { color: COLORS[i] }
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    emphasis: { focus: 'series' }
                 }));
+                const legendSelected = { '销量加权均价': true, '月价格中位数': true, 'Q1分位数': true,
+                    'Q3分位数': false };
                 return {
                     tooltip: {
+                        ...getBaseTooltip(),
                         trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let r = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                r += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                r += p.seriesName + ': $' + p.value.toFixed(2) + '<br/>';
-                            });
-                            return r;
+                        formatter: function(ps) {
+                            let s = ps[0].axisValue + '<br/>';
+                            ps.forEach(p => { s +=
+                                    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>' + p.seriesName + ': $' + parseFloat(
+                                        p.value).toFixed(2) + '<br/>'; });
+                            return s;
                         }
                     },
                     legend: {
-                        data: seriesNames,
-                        selected: legendSelected,
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        data: names,
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 11 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8,
+                        selected: legendSelected
                     },
-                    grid: { left: 55, right: 20, top: 40, bottom: 40 },
-                    xAxis: {
-                        type: 'category',
-                        data: times,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: '价格($)',
-                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(0); }, fontSize: 10,
-                            color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
+                    grid: getGridConfig(),
+                    xAxis: getXAxisConfig(xData, { rotate: 45 }),
+                    yAxis: getYAxisConfig({
+                        formatter: function(v) { return '$' + v.toFixed(0); }
+                    }),
                     series: series
                 };
             }
 
-            // ==================== 图表9：品牌垄断-饼图 ====================
-            function getChart9Opt() {
-                const data = [
-                    { name: 'SPYPOINT', value: 9421 }, { name: 'GardePro', value: 7478 },
-                    { name: 'TACTACAM', value: 6126 }, { name: 'MAXDONE', value: 6026 },
-                    { name: 'Moultrie', value: 5264 }, { name: 'WOSODA', value: 3256 },
-                    { name: 'KJK', value: 3118 }, { name: 'WOSPORTS', value: 2418 },
-                    { name: 'Meidase', value: 1941 }, { name: 'Stealth Cam', value: 1889 },
-                    { name: '其余', value: 13139 }
+            // ==================== Chart 9: 品牌垄断-饼图(11类>8，隐藏图例) ====================
+            function buildChart9Opts() {
+                const rawData = [
+                    ['SPYPOINT', 9421],
+                    ['GardePro', 7478],
+                    ['TACTACAM', 6126],
+                    ['MAXDONE', 6026],
+                    ['Moultrie', 5264],
+                    ['WOSODA', 3256],
+                    ['KJK', 3118],
+                    ['WOSPORTS', 2418],
+                    ['Meidase', 1941],
+                    ['Stealth Cam', 1889],
+                    ['其余', 13139]
                 ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
+                const data = rawData.map((d, i) => ({
+                    name: d[0],
+                    value: d[1],
+                    itemStyle: { color: COLORS[i % COLORS.length] },
+                    label: {
+                        formatter: '{dot|●} {b}\n    {d}%',
+                        rich: {
+                            dot: {
+                                color: COLORS[i % COLORS.length],
+                                fontSize: 14,
+                                fontWeight: 'bold',
+                                padding: [0, 4, 0, 0]
+                            }
+                        }
+                    }
+                }));
                 return {
                     tooltip: {
+                        ...getBaseTooltip(),
                         trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
                     },
-                    legend: showLegend ? {
-                        type: 'scroll',
-                        orient: 'vertical',
-                        right: 10,
-                        top: 'center',
-                        textStyle: { fontSize: 11, color: '#333' },
-                        itemWidth: 10,
-                        itemHeight: 10,
-                        itemGap: 6
-                    } : { show: false },
-                    color: COLORS.slice(0, catCount),
+                    legend: { show: false },
                     series: [{
                         type: 'pie',
-                        radius: ['35%', '65%'],
-                        center: showLegend ? ['38%', '50%'] : ['50%', '50%'],
+                        radius: ['40%', '72%'],
+                        center: ['50%', '50%'],
                         avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
+                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
                         label: {
                             show: true,
                             position: 'outside',
-                            formatter: function(p) {
-                                if (!showLegend) {
-                                    const idx = p.dataIndex;
-                                    const color = COLORS[idx % COLORS.length];
-                                    return '{dot|●} ' + p.name + '\n{d}%';
-                                }
-                                return '{b}\n{d}%';
-                            },
-                            rich: {
-                                dot: {
-                                    fontSize: 12,
-                                    padding: [0, 4, 0, 0],
-                                    color: '#333'
-                                },
-                                d: { fontSize: 11, color: '#666' }
-                            },
-                            fontSize: 10,
                             color: '#333',
-                            lineHeight: 15
+                            fontSize: 10,
+                            lineHeight: 16
                         },
-                        labelLine: {
-                            show: true,
-                            length: 20,
-                            length2: 15,
-                            lineStyle: { color: '#999' }
-                        },
-                        emphasis: { scaleSize: 6 },
+                        labelLine: { show: true, length: 18, length2: 24, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 13, fontWeight: 'bold' }, scaleSize: 8 },
                         data: data
                     }]
                 };
             }
 
-            // ==================== 图表10：排名垄断-复合图 ====================
-            function getChart10Opt() {
-                const rawData = [
-                    { rank: '1~10', oldAsin: 10, oldAvg: 2431, newAsin: 0, newAvg: 0 },
-                    { rank: '11~20', oldAsin: 8, oldAvg: 1094, newAsin: 2, newAvg: 1167 },
-                    { rank: '21~30', oldAsin: 9, oldAvg: 715, newAsin: 1, newAvg: 709 },
-                    { rank: '31~40', oldAsin: 7, oldAvg: 528, newAsin: 3, newAvg: 503 },
-                    { rank: '41~50', oldAsin: 8, oldAvg: 370, newAsin: 2, newAvg: 414 },
-                    { rank: '51~60', oldAsin: 4, oldAvg: 292, newAsin: 6, newAvg: 261 },
-                    { rank: '61~70', oldAsin: 9, oldAvg: 220, newAsin: 1, newAvg: 195 },
-                    { rank: '71~80', oldAsin: 8, oldAvg: 170, newAsin: 2, newAvg: 173 },
-                    { rank: '81~90', oldAsin: 7, oldAvg: 118, newAsin: 3, newAvg: 103 },
-                    { rank: '91~100', oldAsin: 8, oldAvg: 79, newAsin: 2, newAvg: 86 }
-                ];
-                const ranks = rawData.map(d => d.rank);
+            // ==================== Chart 10: 排名垄断-复合图 ====================
+            function buildChart10Opts() {
+                const xData = ['1~10', '11~20', '21~30', '31~40', '41~50', '51~60', '61~70', '71~80', '81~90', '91~100'];
+                const oldASIN = [10, 8, 9, 7, 8, 4, 9, 8, 7, 8];
+                const newASIN = [0, 2, 1, 3, 2, 6, 1, 2, 3, 2];
+                const oldAvg = [2431, 1094, 715, 528, 370, 292, 220, 170, 118, 79];
+                const newAvg = [0, 1167, 709, 503, 414, 261, 195, 173, 103, 86];
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis' },
                     legend: {
                         data: ['老品ASIN数', '新品ASIN数', '老品平均销量', '新品平均销量'],
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 10 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 50, right: 60, top: 40, bottom: 35 },
-                    xAxis: {
-                        type: 'category',
-                        data: ranks,
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: 'ASIN计数',
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    }, {
-                        type: 'value',
-                        name: '平均月销量',
-                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
-                        splitLine: { show: false },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    }],
+                    grid: { left: '3%', right: '6%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData),
+                    yAxis: [
+                        getYAxisConfig({ formatter: formatAxisValue, extra: { name: 'ASIN计数',
+                                nameTextStyle: { color: '#666', fontSize: 10 } } }),
+                        getYAxisConfig({ formatter: formatAxisValue, extra: { name: '平均月销量',
+                                nameTextStyle: { color: '#666', fontSize: 10 } } })
+                    ],
                     series: [{
                         name: '老品ASIN数',
                         type: 'bar',
                         stack: 'asin',
-                        data: rawData.map(d => d.oldAsin),
-                        itemStyle: { color: COLORS[0] },
-                        barMaxWidth: 28,
-                        yAxisIndex: 0
+                        data: oldASIN,
+                        itemStyle: { color: COLORS[0], borderRadius: [4, 4, 0, 0] },
+                        barWidth: '40%',
+                        emphasis: { focus: 'series' }
                     }, {
                         name: '新品ASIN数',
                         type: 'bar',
                         stack: 'asin',
-                        data: rawData.map(d => d.newAsin),
-                        itemStyle: { color: COLORS[1] },
-                        barMaxWidth: 28,
-                        yAxisIndex: 0
+                        data: newASIN,
+                        itemStyle: { color: COLORS[1], borderRadius: [4, 4, 0, 0] },
+                        emphasis: { focus: 'series' }
                     }, {
                         name: '老品平均销量',
                         type: 'line',
+                        yAxisIndex: 1,
+                        data: oldAvg,
                         smooth: true,
                         symbol: 'circle',
-                        symbolSize: 6,
-                        lineStyle: { width: 2 },
-                        data: rawData.map(d => d.oldAvg),
+                        symbolSize: 5,
+                        lineStyle: { width: 2.5, color: COLORS[2] },
                         itemStyle: { color: COLORS[2] },
-                        yAxisIndex: 1
+                        emphasis: { focus: 'series' }
                     }, {
                         name: '新品平均销量',
                         type: 'line',
+                        yAxisIndex: 1,
+                        data: newAvg,
                         smooth: true,
                         symbol: 'diamond',
-                        symbolSize: 6,
-                        lineStyle: { width: 2 },
-                        data: rawData.map(d => d.newAvg),
+                        symbolSize: 5,
+                        lineStyle: { width: 2.5, color: COLORS[3], type: 'dashed' },
                         itemStyle: { color: COLORS[3] },
-                        yAxisIndex: 1
+                        emphasis: { focus: 'series' }
                     }]
                 };
             }
 
-            // ==================== 图表11：卖家所属地-饼图 ====================
-            function getChart11Opt() {
-                const data = [
-                    { name: 'CN', value: 24530 }, { name: 'US', value: 11390 },
-                    { name: 'CN(HK)', value: 10922 }, { name: 'CA', value: 9195 },
-                    { name: 'AMZ', value: 3813 }, { name: 'AU', value: 226 }
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                return {
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
-                    },
-                    legend: showLegend ? {
-                        type: 'scroll',
-                        orient: 'vertical',
-                        right: 8,
-                        top: 'center',
-                        textStyle: { fontSize: 11, color: '#333' },
-                        itemWidth: 10,
-                        itemHeight: 10,
-                        itemGap: 6
-                    } : { show: false },
-                    color: COLORS.slice(0, catCount),
-                    series: [{
-                        type: 'pie',
-                        radius: ['40%', '68%'],
-                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: '{b}\n{d}%',
-                            fontSize: 11,
-                            color: '#333',
-                            lineHeight: 16
-                        },
-                        labelLine: { show: true, length: 22, length2: 16,
-                        lineStyle: { color: '#999' } },
-                        emphasis: { scaleSize: 6 },
-                        data: data
-                    }]
-                };
-            }
-
-            // ==================== 图表12：配送方式-饼图 ====================
-            function getChart12Opt() {
-                const data = [
-                    { name: 'NA', value: 9433 }, { name: 'FBA', value: 44053 },
-                    { name: 'AMZ', value: 3813 }, { name: 'FBM', value: 2777 }
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                return {
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
-                    },
-                    legend: showLegend ? {
-                        type: 'scroll',
-                        orient: 'vertical',
-                        right: 8,
-                        top: 'center',
-                        textStyle: { fontSize: 11, color: '#333' },
-                        itemWidth: 10,
-                        itemHeight: 10,
-                        itemGap: 6
-                    } : { show: false },
-                    color: COLORS.slice(0, catCount),
-                    series: [{
-                        type: 'pie',
-                        radius: ['40%', '68%'],
-                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: '{b}\n{d}%',
-                            fontSize: 11,
-                            color: '#333',
-                            lineHeight: 16
-                        },
-                        labelLine: { show: true, length: 22, length2: 16,
-                        lineStyle: { color: '#999' } },
-                        emphasis: { scaleSize: 6 },
-                        data: data
-                    }]
-                };
-            }
-
-            // ==================== 图表13：新品销量占比-饼图 ====================
-            function getChart13Opt() {
-                const data = [
-                    { name: '3个月内新品', value: 3093 }, { name: '3~6个月内新品', value: 4872 },
-                    { name: '老品', value: 52111 }
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                return {
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
-                    },
-                    legend: showLegend ? {
-                        type: 'scroll',
-                        orient: 'vertical',
-                        right: 8,
-                        top: 'center',
-                        textStyle: { fontSize: 11, color: '#333' },
-                        itemWidth: 10,
-                        itemHeight: 10,
-                        itemGap: 6
-                    } : { show: false },
-                    color: COLORS.slice(0, catCount),
-                    series: [{
-                        type: 'pie',
-                        radius: ['40%', '68%'],
-                        center: showLegend ? ['40%', '50%'] : ['50%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: '{b}\n{d}%',
-                            fontSize: 11,
-                            color: '#333',
-                            lineHeight: 16
-                        },
-                        labelLine: { show: true, length: 22, length2: 16,
-                        lineStyle: { color: '#999' } },
-                        emphasis: { scaleSize: 6 },
-                        data: data
-                    }]
-                };
-            }
-
-            // ==================== 图表14：review数分布-堆积柱状图 ====================
-            function getChart14Opt() {
+            // ==================== Chart 11: 卖家所属地-饼图 ====================
+            function buildChart11Opts() {
                 const rawData = [
-                    { seg: '0~10', old: 279, newer: 250 }, { seg: '10~30', old: 489, newer: 1380 },
-                    { seg: '30~50', old: 298, newer: 412 }, { seg: '50~100', old: 2463, newer: 3499 },
-                    { seg: '100~200', old: 4937, newer: 94 }, { seg: '200~300', old: 4998, newer: 1360 },
-                    { seg: '300~400', old: 1995, newer: 709 }, { seg: '400~500', old: 1005, newer: 261 },
-                    { seg: '500~800', old: 11002, newer: 0 }, { seg: '800~1200', old: 7373, newer: 0 },
-                    { seg: '1200~2000', old: 5733, newer: 0 }, { seg: '2000+', old: 11539, newer: 0 }
+                    ['CN', 24530],
+                    ['US', 11390],
+                    ['CN(HK)', 10922],
+                    ['CA', 9195],
+                    ['AMZ', 3813],
+                    ['AU', 226]
                 ];
+                const data = rawData.map((d, i) => ({ name: d[0], value: d[1], itemStyle: { color: COLORS[i] } }));
                 return {
                     tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        axisPointer: { type: 'shadow' }
+                        ...getBaseTooltip(),
+                        trigger: 'item',
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
                     },
                     legend: {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'circle'
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['45%', '72%'],
+                        center: ['40%', '50%'],
+                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        label: { show: true, position: 'outside', formatter: '{b}\n{d}%',
+                            color: '#333', fontSize: 11, lineHeight: 16 },
+                        labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== Chart 12: 配送方式-饼图 ====================
+            function buildChart12Opts() {
+                const rawData = [
+                    ['NA', 9433],
+                    ['FBA', 44053],
+                    ['AMZ', 3813],
+                    ['FBM', 2777]
+                ];
+                const data = rawData.map((d, i) => ({ name: d[0], value: d[1], itemStyle: { color: COLORS[i] } }));
+                return {
+                    tooltip: {
+                        ...getBaseTooltip(),
+                        trigger: 'item',
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'circle'
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['45%', '72%'],
+                        center: ['40%', '50%'],
+                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        label: { show: true, position: 'outside', formatter: '{b}\n{d}%',
+                            color: '#333', fontSize: 11, lineHeight: 16 },
+                        labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== Chart 13: 新品销量占比-饼图 ====================
+            function buildChart13Opts() {
+                const rawData = [
+                    ['3个月内新品', 3093],
+                    ['3~6个月内新品', 4872],
+                    ['老品', 52111]
+                ];
+                const data = rawData.map((d, i) => ({ name: d[0], value: d[1], itemStyle: { color: COLORS[i] } }));
+                return {
+                    tooltip: {
+                        ...getBaseTooltip(),
+                        trigger: 'item',
+                        formatter: function(p) { return p.name + '<br/>月销量: ' + p.value.toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%'; }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: '5%',
+                        top: 'middle',
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'circle'
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['45%', '72%'],
+                        center: ['40%', '50%'],
+                        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+                        label: { show: true, position: 'outside', formatter: '{b}\n{d}%',
+                            color: '#333', fontSize: 11, lineHeight: 16 },
+                        labelLine: { show: true, length: 22, length2: 30, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data
+                    }]
+                };
+            }
+
+            // ==================== Chart 14: review数分析-堆积柱状图 ====================
+            function buildChart14Opts() {
+                const xData = ['0~10', '10~30', '30~50', '50~100', '100~200', '200~300', '300~400', '400~500', '500~800',
+                    '800~1200', '1200~2000', '2000+'
+                ];
+                const oldData = [279, 489, 298, 2463, 4937, 4998, 1995, 1005, 11002, 7373, 5733, 11539];
+                const newData = [250, 1380, 412, 3499, 94, 1360, 709, 261, 0, 0, 0, 0];
+                return {
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis', axisPointer: { type: 'shadow' } },
+                    legend: {
                         data: ['老品', '新品'],
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
-                    xAxis: {
-                        type: 'category',
-                        data: rawData.map(d => d.seg),
-                        axisLabel: { rotate: 40, fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数',
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
+                    grid: { left: '3%', right: '5%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
                     series: [{
                         name: '老品',
                         type: 'bar',
                         stack: 'total',
-                        data: rawData.map(d => d.old),
-                        itemStyle: { color: COLORS[0] },
-                        barMaxWidth: 22
+                        data: oldData,
+                        itemStyle: { color: COLORS[0], borderRadius: [0, 0, 0, 0] },
+                        barWidth: '55%',
+                        emphasis: { focus: 'series' }
                     }, {
                         name: '新品',
                         type: 'bar',
                         stack: 'total',
-                        data: rawData.map(d => d.newer),
-                        itemStyle: { color: COLORS[1] },
-                        barMaxWidth: 22
+                        data: newData,
+                        itemStyle: { color: COLORS[1], borderRadius: [4, 4, 0, 0] },
+                        emphasis: { focus: 'series' }
                     }]
                 };
             }
 
-            // ==================== 图表15：市场分款价格分布-堆积柱状+折线复合图 ====================
-            function getChart15Opt() {
-                const priceRanges = [
-                    '22.99-32.99', '32.99-42.99', '42.99-52.99', '52.99-62.99', '62.99-72.99',
-                    '72.99-82.99', '82.99-92.99', '92.99-102.99', '102.99-112.99', '112.99-122.99',
-                    '122.99-132.99', '132.99-142.99', '142.99-152.99', '172.99-182.99', '182.99-192.99',
-                    '222.99-232.99', '232.99-242.99', '262.99-272.99', '282.99-292.99'
+            // ==================== Chart 15: 市场分款价格分布 ====================
+            function buildChart15Opts() {
+                const raw = [
+                    ['22.99-32.99', 2621, 65721, 699, 22061, 0, 0, 0, 0],
+                    ['32.99-42.99', 488, 17731, 0, 0, 2498, 102281, 0, 0],
+                    ['42.99-52.99', 3809, 183609, 448, 22392, 5373, 262793, 0, 0],
+                    ['52.99-62.99', 2131, 117943, 891, 49044, 1439, 81268, 0, 0],
+                    ['62.99-72.99', 2851, 200867, 742, 50331, 1148, 79523, 655, 45836],
+                    ['72.99-82.99', 117, 9358, 233, 18444, 3830, 287209, 0, 0],
+                    ['82.99-92.99', 0, 0, 1637, 147313, 264, 23757, 261, 23482],
+                    ['92.99-102.99', 0, 0, 3108, 310766, 0, 0, 0, 0],
+                    ['102.99-112.99', 0, 0, 0, 0, 272, 29917, 0, 0],
+                    ['112.99-122.99', 0, 0, 0, 0, 418, 50155, 0, 0],
+                    ['122.99-132.99', 430, 52958, 218, 28337, 0, 0, 0, 0],
+                    ['132.99-142.99', 0, 0, 1094, 200781, 0, 0, 0, 0],
+                    ['142.99-152.99', 78, 11699, 987, 148040, 0, 0, 0, 0],
+                    ['172.99-182.99', 103, 18534, 0, 0, 0, 0, 0, 0],
+                    ['182.99-192.99', 0, 0, 0, 0, 0, 0, 218, 40763],
+                    ['222.99-232.99', 0, 0, 0, 0, 0, 0, 94, 21619],
+                    ['232.99-242.99', 0, 0, 189, 45358, 0, 0, 0, 0],
+                    ['262.99-272.99', 0, 0, 0, 0, 0, 0, 415, 112875],
+                    ['282.99-292.99', 0, 0, 0, 0, 0, 0, 140, 40598]
                 ];
-                const styleNames = ['传统离线相机', '4G蜂窝相机', '固定WIFI相机', '4G云台相机'];
-                const salesData = [
-                    [2621, 488, 3809, 2131, 2851, 117, 0, 0, 0, 0, 430, 0, 78, 103, 0, 0, 0, 0, 0],
-                    [699, 0, 448, 891, 742, 233, 1637, 3108, 0, 0, 218, 1094, 987, 0, 0, 0, 189, 0, 0],
-                    [0, 2498, 5373, 1439, 1148, 3830, 264, 0, 272, 418, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 655, 0, 261, 0, 0, 0, 0, 0, 0, 0, 218, 94, 0, 415, 140]
-                ];
-                const revenueData = [
-                    [65721, 17731, 183609, 117943, 200867, 9358, 0, 0, 0, 0, 52958, 0, 11699, 18534, 0, 0, 0,
-                        0, 0
-                    ],
-                    [22061, 0, 22392, 49044, 50331, 18444, 147313, 310766, 0, 0, 28337, 200781, 148040, 0, 0, 0,
-                        45358, 0, 0
-                    ],
-                    [0, 102281, 262793, 81268, 79523, 287209, 23757, 0, 29917, 50155, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 45836, 0, 23482, 0, 0, 0, 0, 0, 0, 0, 40763, 21619, 0, 112875, 40598]
-                ];
-                const totalSeries = 8;
-                const barSeries = styleNames.map((name, i) => ({
+                const xData = raw.map(r => r[0]);
+                const names = ['传统离线相机', '4G蜂窝相机', '固定WIFI相机', '4G云台相机'];
+                const barSeries = names.map((name, idx) => ({
                     name: name + '-月销量',
                     type: 'bar',
-                    stack: 'sales',
-                    data: salesData[i],
-                    itemStyle: { color: COLORS[i] },
-                    barMaxWidth: 18,
-                    yAxisIndex: 0
+                    stack: 'volume',
+                    data: raw.map(r => r[1 + idx * 2]),
+                    itemStyle: { color: COLORS[idx] },
+                    barWidth: '55%',
+                    emphasis: { focus: 'series' }
                 }));
-                const lineSeries = styleNames.map((name, i) => ({
+                const lineSeries = names.map((name, idx) => ({
                     name: name + '-月销售额',
                     type: 'line',
+                    yAxisIndex: 1,
+                    data: raw.map(r => r[2 + idx * 2]),
                     smooth: true,
                     symbol: 'circle',
                     symbolSize: 4,
-                    lineStyle: { width: 2 },
-                    data: revenueData[i],
-                    itemStyle: { color: COLORS[i + 4] },
-                    yAxisIndex: 1
+                    lineStyle: { width: 2, color: COLORS[idx], type: idx < 2 ? 'solid' : 'dashed' },
+                    itemStyle: { color: COLORS[idx] },
+                    emphasis: { focus: 'series' }
                 }));
-                const allSeries = [...barSeries, ...lineSeries];
-                const allNames = allSeries.map(s => s.name);
-                const legendSelected = {};
-                allNames.forEach((n, i) => {
-                    if (i < 4) { legendSelected[n] = true; } else if (i < 7) { legendSelected[n] =
-                            true; } else { legendSelected[n] = false; }
-                });
+                const allLegendData = [...barSeries.map(s => s.name), ...lineSeries.map(s => s.name)];
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis' },
                     legend: {
-                        data: allNames,
-                        selected: legendSelected,
                         type: 'scroll',
                         top: 0,
-                        textStyle: { fontSize: 10, color: '#333' },
+                        textStyle: { color: '#555', fontSize: 9 },
+                        icon: 'roundRect',
                         itemWidth: 12,
-                        itemHeight: 8,
-                        itemGap: 4
+                        itemHeight: 7,
+                        data: allLegendData,
+                        selected: allLegendData.reduce((o, n, i) => { o[n] = i < 5; return o; }, {})
                     },
-                    grid: { left: 50, right: 60, top: 55, bottom: 45 },
-                    xAxis: {
-                        type: 'category',
-                        data: priceRanges,
-                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '月销量',
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    }, {
-                        type: 'value',
-                        name: '月销售额($)',
-                        axisLabel: { formatter: function(v) { return formatMoney(v); },
-                            fontSize: 10, color: '#666' },
-                        splitLine: { show: false },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    }],
-                    series: allSeries
+                    grid: { left: '3%', right: '6%', bottom: '8%', top: '14%', containLabel: true },
+                    xAxis: getXAxisConfig(xData, { rotate: 45 }),
+                    yAxis: [
+                        getYAxisConfig({ formatter: formatAxisValue, extra: { name: '月销量',
+                                nameTextStyle: { color: '#666', fontSize: 10 } } }),
+                        getYAxisConfig({
+                            formatter: function(v) { return (v / 10000).toFixed(1) + '万'; },
+                            extra: { name: '月销售额($)', nameTextStyle: { color: '#666', fontSize: 10 } }
+                        })
+                    ],
+                    series: [...barSeries, ...lineSeries]
                 };
             }
 
-            // ==================== 图表16：价格质量联动分析-堆积柱状图 ====================
-            function getChart16Opt() {
-                const rawData = [
-                    { price: '22.99-32.99', s1: 1, s2: 7, s3: 1, s4: 0 },
-                    { price: '32.99-42.99', s1: 0, s2: 7, s3: 2, s4: 0 },
-                    { price: '42.99-52.99', s1: 0, s2: 8, s3: 7, s4: 0 },
-                    { price: '52.99-62.99', s1: 1, s2: 6, s3: 4, s4: 0 },
-                    { price: '62.99-72.99', s1: 0, s2: 4, s3: 6, s4: 0 },
-                    { price: '72.99-82.99', s1: 0, s2: 2, s3: 5, s4: 0 },
-                    { price: '82.99-92.99', s1: 0, s2: 2, s3: 2, s4: 1 },
-                    { price: '92.99-102.99', s1: 1, s2: 3, s3: 3, s4: 0 },
-                    { price: '102.99-112.99', s1: 0, s2: 0, s3: 1, s4: 0 },
-                    { price: '112.99-122.99', s1: 0, s2: 1, s3: 0, s4: 0 },
-                    { price: '122.99-132.99', s1: 0, s2: 3, s3: 1, s4: 1 },
-                    { price: '132.99-142.99', s1: 0, s2: 0, s3: 2, s4: 0 },
-                    { price: '142.99-152.99', s1: 0, s2: 1, s3: 3, s4: 0 },
-                    { price: '152.99-162.99', s1: 0, s2: 0, s3: 0, s4: 1 },
-                    { price: '162.99-172.99', s1: 0, s2: 0, s3: 1, s4: 0 },
-                    { price: '172.99-182.99', s1: 1, s2: 0, s3: 0, s4: 0 },
-                    { price: '182.99-192.99', s1: 1, s2: 0, s3: 0, s4: 0 },
-                    { price: '212.99-222.99', s1: 0, s2: 0, s3: 1, s4: 0 },
-                    { price: '222.99-232.99', s1: 0, s2: 1, s3: 2, s4: 0 },
-                    { price: '232.99-242.99', s1: 0, s2: 0, s3: 2, s4: 0 },
-                    { price: '262.99-272.99', s1: 0, s2: 1, s3: 0, s4: 0 },
-                    { price: '272.99-282.99', s1: 0, s2: 0, s3: 1, s4: 0 },
-                    { price: '282.99-292.99', s1: 1, s2: 0, s3: 0, s4: 0 },
-                    { price: '402.99-412.99', s1: 0, s2: 0, s3: 1, s4: 0 }
+            // ==================== Chart 16: 价格质量联动分析-堆积柱状图 ====================
+            function buildChart16Opts() {
+                const raw = [
+                    ['22.99-32.99', 1, 7, 1, 0],
+                    ['32.99-42.99', 0, 7, 2, 0],
+                    ['42.99-52.99', 0, 8, 7, 0],
+                    ['52.99-62.99', 1, 6, 4, 0],
+                    ['62.99-72.99', 0, 4, 6, 0],
+                    ['72.99-82.99', 0, 2, 5, 0],
+                    ['82.99-92.99', 0, 2, 2, 1],
+                    ['92.99-102.99', 1, 3, 3, 0],
+                    ['102.99-112.99', 0, 0, 1, 0],
+                    ['112.99-122.99', 0, 1, 0, 0],
+                    ['122.99-132.99', 0, 3, 1, 1],
+                    ['132.99-142.99', 0, 0, 2, 0],
+                    ['142.99-152.99', 0, 1, 3, 0],
+                    ['152.99-162.99', 0, 0, 0, 1],
+                    ['162.99-172.99', 0, 0, 1, 0],
+                    ['172.99-182.99', 1, 0, 0, 0],
+                    ['182.99-192.99', 1, 0, 0, 0],
+                    ['212.99-222.99', 0, 0, 1, 0],
+                    ['222.99-232.99', 0, 1, 2, 0],
+                    ['232.99-242.99', 0, 0, 2, 0],
+                    ['262.99-272.99', 0, 1, 0, 0],
+                    ['272.99-282.99', 0, 0, 1, 0],
+                    ['282.99-292.99', 1, 0, 0, 0],
+                    ['402.99-412.99', 0, 0, 1, 0]
                 ];
-                const seriesNames = ['三星半及以下', '四星', '四星半', '五星'];
+                const xData = raw.map(r => r[0]);
+                const names = ['三星半及以下', '四星', '四星半', '五星'];
+                const series = names.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: raw.map(r => r[1 + idx]),
+                    itemStyle: { color: COLORS[idx] },
+                    barWidth: '60%',
+                    emphasis: { focus: 'series' }
+                }));
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        axisPointer: { type: 'shadow' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis', axisPointer: { type: 'shadow' } },
                     legend: {
-                        data: seriesNames,
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        data: names,
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 11 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
-                    xAxis: {
-                        type: 'category',
-                        data: rawData.map(d => d.price),
-                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数',
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
-                    series: [
-                        { name: seriesNames[0], type: 'bar', stack: 'total', data: rawData.map(d => d.s1),
-                            itemStyle: { color: COLORS[0] }, barMaxWidth: 18 },
-                        { name: seriesNames[1], type: 'bar', stack: 'total', data: rawData.map(d => d.s2),
-                            itemStyle: { color: COLORS[1] }, barMaxWidth: 18 },
-                        { name: seriesNames[2], type: 'bar', stack: 'total', data: rawData.map(d => d.s3),
-                            itemStyle: { color: COLORS[2] }, barMaxWidth: 18 },
-                        { name: seriesNames[3], type: 'bar', stack: 'total', data: rawData.map(d => d.s4),
-                            itemStyle: { color: COLORS[3] }, barMaxWidth: 18 }
-                    ]
+                    grid: { left: '3%', right: '5%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData, { rotate: 45 }),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
+                    series: series
                 };
             }
 
-            // ==================== 图表17：品牌价格分布-堆积柱状图 ====================
-            function getChart17Opt() {
-                const rawData = [
-                    { price: '22.99-32.99', brand: 0, white: 5305 },
-                    { price: '32.99-42.99', brand: 69, white: 2917 },
-                    { price: '42.99-52.99', brand: 0, white: 9630 },
-                    { price: '52.99-62.99', brand: 813, white: 4313 },
-                    { price: '62.99-72.99', brand: 1287, white: 5932 },
-                    { price: '72.99-82.99', brand: 233, white: 4867 },
-                    { price: '82.99-92.99', brand: 8459, white: 525 },
-                    { price: '92.99-102.99', brand: 3638, white: 440 },
-                    { price: '102.99-112.99', brand: 0, white: 272 },
-                    { price: '112.99-122.99', brand: 0, white: 418 },
-                    { price: '122.99-132.99', brand: 1446, white: 0 },
-                    { price: '132.99-142.99', brand: 1094, white: 824 },
-                    { price: '142.99-152.99', brand: 2798, white: 295 },
-                    { price: '152.99-162.99', brand: 0, white: 160 },
-                    { price: '162.99-172.99', brand: 88, white: 0 },
-                    { price: '172.99-182.99', brand: 103, white: 0 },
-                    { price: '182.99-192.99', brand: 0, white: 218 },
-                    { price: '212.99-222.99', brand: 364, white: 0 },
-                    { price: '222.99-232.99', brand: 1517, white: 94 },
-                    { price: '232.99-242.99', brand: 794, white: 0 },
-                    { price: '262.99-272.99', brand: 0, white: 415 },
-                    { price: '272.99-282.99', brand: 329, white: 0 },
-                    { price: '282.99-292.99', brand: 0, white: 140 },
-                    { price: '402.99-412.99', brand: 279, white: 0 }
+            // ==================== Chart 17: 品牌价格分布-堆积柱状图 ====================
+            function buildChart17Opts() {
+                const raw = [
+                    ['22.99-32.99', 0, 5305],
+                    ['32.99-42.99', 69, 2917],
+                    ['42.99-52.99', 0, 9630],
+                    ['52.99-62.99', 813, 4313],
+                    ['62.99-72.99', 1287, 5932],
+                    ['72.99-82.99', 233, 4867],
+                    ['82.99-92.99', 8459, 525],
+                    ['92.99-102.99', 3638, 440],
+                    ['102.99-112.99', 0, 272],
+                    ['112.99-122.99', 0, 418],
+                    ['122.99-132.99', 1446, 0],
+                    ['132.99-142.99', 1094, 824],
+                    ['142.99-152.99', 2798, 295],
+                    ['152.99-162.99', 0, 160],
+                    ['162.99-172.99', 88, 0],
+                    ['172.99-182.99', 103, 0],
+                    ['182.99-192.99', 0, 218],
+                    ['212.99-222.99', 364, 0],
+                    ['222.99-232.99', 1517, 94],
+                    ['232.99-242.99', 794, 0],
+                    ['262.99-272.99', 0, 415],
+                    ['272.99-282.99', 329, 0],
+                    ['282.99-292.99', 0, 140],
+                    ['402.99-412.99', 279, 0]
                 ];
+                const xData = raw.map(r => r[0]);
+                const names = ['品牌', '白牌'];
+                const series = names.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: raw.map(r => r[1 + idx]),
+                    itemStyle: { color: COLORS[idx], borderRadius: idx === 1 ? [4, 4, 0, 0] : [0, 0, 0, 0] },
+                    barWidth: '60%',
+                    emphasis: { focus: 'series' }
+                }));
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        axisPointer: { type: 'shadow' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis', axisPointer: { type: 'shadow' } },
                     legend: {
-                        data: ['品牌', '白牌'],
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        data: names,
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
-                    xAxis: {
-                        type: 'category',
-                        data: rawData.map(d => d.price),
-                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: '月销量',
-                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
-                    series: [
-                        { name: '品牌', type: 'bar', stack: 'total', data: rawData.map(d => d.brand),
-                            itemStyle: { color: COLORS[0] }, barMaxWidth: 18 },
-                        { name: '白牌', type: 'bar', stack: 'total', data: rawData.map(d => d.white),
-                            itemStyle: { color: COLORS[1] }, barMaxWidth: 18 }
-                    ]
+                    grid: { left: '3%', right: '5%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData, { rotate: 45 }),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
+                    series: series
                 };
             }
 
-            // ==================== 图表18：新老品价格分布-堆积柱状图 ====================
-            function getChart18Opt() {
-                const rawData = [
-                    { price: '22.99-32.99', old: 4768, newer: 537 },
-                    { price: '32.99-42.99', old: 2737, newer: 249 },
-                    { price: '42.99-52.99', old: 6559, newer: 3071 },
-                    { price: '52.99-62.99', old: 4031, newer: 1095 },
-                    { price: '62.99-72.99', old: 6697, newer: 522 },
-                    { price: '72.99-82.99', old: 4229, newer: 871 },
-                    { price: '82.99-92.99', old: 8459, newer: 525 },
-                    { price: '92.99-102.99', old: 3984, newer: 94 },
-                    { price: '102.99-112.99', old: 272, newer: 0 },
-                    { price: '112.99-122.99', old: 418, newer: 0 },
-                    { price: '122.99-132.99', old: 954, newer: 492 },
-                    { price: '132.99-142.99', old: 1918, newer: 0 },
-                    { price: '142.99-152.99', old: 3093, newer: 0 },
-                    { price: '152.99-162.99', old: 160, newer: 0 },
-                    { price: '162.99-172.99', old: 88, newer: 0 },
-                    { price: '172.99-182.99', old: 103, newer: 0 },
-                    { price: '182.99-192.99', old: 218, newer: 0 },
-                    { price: '212.99-222.99', old: 364, newer: 0 },
-                    { price: '222.99-232.99', old: 1517, newer: 94 },
-                    { price: '232.99-242.99', old: 794, newer: 0 },
-                    { price: '262.99-272.99', old: 0, newer: 415 },
-                    { price: '272.99-282.99', old: 329, newer: 0 },
-                    { price: '282.99-292.99', old: 140, newer: 0 },
-                    { price: '402.99-412.99', old: 279, newer: 0 }
+            // ==================== Chart 18: 新老品价格分布-堆积柱状图 ====================
+            function buildChart18Opts() {
+                const raw = [
+                    ['22.99-32.99', 4768, 537],
+                    ['32.99-42.99', 2737, 249],
+                    ['42.99-52.99', 6559, 3071],
+                    ['52.99-62.99', 4031, 1095],
+                    ['62.99-72.99', 6697, 522],
+                    ['72.99-82.99', 4229, 871],
+                    ['82.99-92.99', 8459, 525],
+                    ['92.99-102.99', 3984, 94],
+                    ['102.99-112.99', 272, 0],
+                    ['112.99-122.99', 418, 0],
+                    ['122.99-132.99', 954, 492],
+                    ['132.99-142.99', 1918, 0],
+                    ['142.99-152.99', 3093, 0],
+                    ['152.99-162.99', 160, 0],
+                    ['162.99-172.99', 88, 0],
+                    ['172.99-182.99', 103, 0],
+                    ['182.99-192.99', 218, 0],
+                    ['212.99-222.99', 364, 0],
+                    ['222.99-232.99', 1517, 94],
+                    ['232.99-242.99', 794, 0],
+                    ['262.99-272.99', 0, 415],
+                    ['272.99-282.99', 329, 0],
+                    ['282.99-292.99', 140, 0],
+                    ['402.99-412.99', 279, 0]
                 ];
+                const xData = raw.map(r => r[0]);
+                const names = ['老品', '新品'];
+                const series = names.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: raw.map(r => r[1 + idx]),
+                    itemStyle: { color: COLORS[idx], borderRadius: idx === 1 ? [4, 4, 0, 0] : [0, 0, 0, 0] },
+                    barWidth: '60%',
+                    emphasis: { focus: 'series' }
+                }));
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        axisPointer: { type: 'shadow' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis', axisPointer: { type: 'shadow' } },
                     legend: {
-                        data: ['老品', '新品'],
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        data: names,
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 50, right: 15, top: 40, bottom: 50 },
-                    xAxis: {
-                        type: 'category',
-                        data: rawData.map(d => d.price),
-                        axisLabel: { rotate: 55, fontSize: 9, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: '月销量',
-                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
-                    series: [
-                        { name: '老品', type: 'bar', stack: 'total', data: rawData.map(d => d.old),
-                            itemStyle: { color: COLORS[0] }, barMaxWidth: 18 },
-                        { name: '新品', type: 'bar', stack: 'total', data: rawData.map(d => d.newer),
-                            itemStyle: { color: COLORS[1] }, barMaxWidth: 18 }
-                    ]
+                    grid: { left: '3%', right: '5%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData, { rotate: 45 }),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
+                    series: series
                 };
             }
 
-            // ==================== 图表19：分款评分星级分布-堆积柱状图 ====================
-            function getChart19Opt() {
-                const rawData = [
-                    { star: '三星半及以下', a: 2, b: 1, c: 1, d: 2 },
-                    { star: '四星', a: 16, b: 11, c: 14, d: 5 },
-                    { star: '四星半', a: 15, b: 18, c: 9, d: 3 },
-                    { star: '五星', a: 1, b: 1, c: 1, d: 0 }
+            // ==================== Chart 19: 分款评分星级分布-堆积柱状图 ====================
+            function buildChart19Opts() {
+                const xData = ['三星半及以下', '四星', '四星半', '五星'];
+                const names = ['传统离线相机', '4G蜂窝相机', '固定WIFI相机', '4G云台相机'];
+                const allData = [
+                    [2, 16, 15, 1],
+                    [1, 11, 18, 1],
+                    [1, 14, 9, 1],
+                    [2, 5, 3, 0]
                 ];
-                const seriesNames = ['传统离线相机', '4G蜂窝相机', '固定WIFI相机', '4G云台相机'];
+                const series = names.map((name, idx) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: allData[idx],
+                    itemStyle: { color: COLORS[idx] },
+                    barWidth: '50%',
+                    emphasis: { focus: 'series' }
+                }));
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        axisPointer: { type: 'shadow' }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis', axisPointer: { type: 'shadow' } },
                     legend: {
-                        data: seriesNames,
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        data: names,
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 10 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 50, right: 15, top: 40, bottom: 30 },
-                    xAxis: {
-                        type: 'category',
-                        data: rawData.map(d => d.star),
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数',
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
-                    series: [
-                        { name: seriesNames[0], type: 'bar', stack: 'total', data: rawData.map(d => d.a),
-                            itemStyle: { color: COLORS[0] }, barMaxWidth: 32 },
-                        { name: seriesNames[1], type: 'bar', stack: 'total', data: rawData.map(d => d.b),
-                            itemStyle: { color: COLORS[1] }, barMaxWidth: 32 },
-                        { name: seriesNames[2], type: 'bar', stack: 'total', data: rawData.map(d => d.c),
-                            itemStyle: { color: COLORS[2] }, barMaxWidth: 32 },
-                        { name: seriesNames[3], type: 'bar', stack: 'total', data: rawData.map(d => d.d),
-                            itemStyle: { color: COLORS[3] }, barMaxWidth: 32 }
-                    ]
+                    grid: { left: '3%', right: '5%', bottom: '8%', top: '12%', containLabel: true },
+                    xAxis: getXAxisConfig(xData),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
+                    series: series
                 };
             }
 
-            // ==================== 图表20：评分销量趋势-折线图 ====================
-            function getChart20Opt() {
-                const rawData = [
-                    { score: 3.3, sales: 250 }, { score: 3.4, sales: 78 }, { score: 3.5, sales: 103 },
-                    { score: 3.6, sales: 218 }, { score: 3.7, sales: 234 }, { score: 3.8, sales: 1179 },
-                    { score: 3.9, sales: 2779 }, { score: 4.0, sales: 4936 }, { score: 4.1, sales: 10669 },
-                    { score: 4.2, sales: 6464 }, { score: 4.3, sales: 10873 }, { score: 4.4, sales: 14212 },
-                    { score: 4.5, sales: 3238 }, { score: 4.6, sales: 3927 }, { score: 4.8, sales: 916 }
+            // ==================== Chart 20: 评分销量趋势-折线图 ====================
+            function buildChart20Opts() {
+                const raw = [
+                    [3.3, 250],
+                    [3.4, 78],
+                    [3.5, 103],
+                    [3.6, 218],
+                    [3.7, 234],
+                    [3.8, 1179],
+                    [3.9, 2779],
+                    [4.0, 4936],
+                    [4.1, 10669],
+                    [4.2, 6464],
+                    [4.3, 10873],
+                    [4.4, 14212],
+                    [4.5, 3238],
+                    [4.6, 3927],
+                    [4.8, 916]
                 ];
+                const xData = raw.map(r => String(r[0]));
+                const yData = raw.map(r => r[1]);
                 return {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            const p = params[0];
-                            return '评分: ' + p.axisValue + '<br/>月销量: ' + p.value.toLocaleString();
-                        }
-                    },
+                    tooltip: { ...getBaseTooltip(), trigger: 'axis' },
                     legend: {
                         data: ['月销量'],
-                        top: 5,
-                        textStyle: { fontSize: 11, color: '#333' },
+                        top: 0,
+                        textStyle: { color: '#555', fontSize: 12 },
+                        icon: 'roundRect',
                         itemWidth: 14,
-                        itemHeight: 10
+                        itemHeight: 8
                     },
-                    grid: { left: 55, right: 20, top: 40, bottom: 30 },
-                    xAxis: {
-                        type: 'category',
-                        data: rawData.map(d => d.score),
-                        axisLabel: { fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        name: '评分',
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: '月销量',
-                        axisLabel: { formatter: formatYAxis, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        nameTextStyle: { fontSize: 11, color: '#666' }
-                    },
+                    grid: getGridConfig(),
+                    xAxis: getXAxisConfig(xData, { extra: { name: '评分', nameTextStyle: { color: '#666',
+                                fontSize: 11 } } }),
+                    yAxis: getYAxisConfig({ formatter: formatAxisValue }),
                     series: [{
                         name: '月销量',
                         type: 'line',
+                        data: yData,
                         smooth: true,
                         symbol: 'circle',
-                        symbolSize: 6,
-                        lineStyle: { width: 2 },
-                        data: rawData.map(d => d.sales),
+                        symbolSize: 5,
+                        lineStyle: { width: 2.5, color: COLORS[0] },
                         itemStyle: { color: COLORS[0] },
-                        areaStyle: {
-                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(255,157,25,0.25)' },
-                                { offset: 1, color: 'rgba(255,157,25,0.02)' }
-                            ])
-                        }
+                        areaStyle: { color: 'rgba(255,157,25,0.1)' },
+                        emphasis: { focus: 'series' }
                     }]
                 };
             }
 
-            // 汇总所有图表配置函数
-            const chartOptFns = [
-                getChart1Opt, getEmptyChartOpt, getEmptyChartOpt, getEmptyChartOpt,
-                getChart5Opt, getChart6Opt, getChart7Opt, getChart8Opt,
-                getChart9Opt, getChart10Opt, getChart11Opt, getChart12Opt,
-                getChart13Opt, getChart14Opt, getChart15Opt, getChart16Opt,
-                getChart17Opt, getChart18Opt, getChart19Opt, getChart20Opt
+            // ==================== 汇总所有图表配置 ====================
+            const chartOpts = [
+                buildChart1Opts,
+                () => buildEmptyPieOpts('产品属性销量发布'),
+                () => buildEmptyPieOpts('产品属性销量占比'),
+                () => buildEmptyPieOpts('产品属性销量占比'),
+                buildChart5Opts,
+                buildChart6Opts,
+                buildChart7Opts,
+                buildChart8Opts,
+                buildChart9Opts,
+                buildChart10Opts,
+                buildChart11Opts,
+                buildChart12Opts,
+                buildChart13Opts,
+                buildChart14Opts,
+                buildChart15Opts,
+                buildChart16Opts,
+                buildChart17Opts,
+                buildChart18Opts,
+                buildChart19Opts,
+                buildChart20Opts
             ];
 
-            function init() {
-                const params = new URLSearchParams(window.location.search);
-                let chartId = parseInt(params.get('id')) || 1;
-                if (chartId < 1 || chartId > 20) chartId = 1;
+            // ==================== 初始化 ====================
+            const params = new URLSearchParams(window.location.search);
+            let chartId = parseInt(params.get('id')) || 1;
+            if (chartId < 1 || chartId > 20 || isNaN(chartId)) chartId = 1;
 
-                const titleEl = document.getElementById('chartTitle');
-                const containerEl = document.getElementById('singleChart');
+            document.getElementById('chartTitle').textContent = chartTitles[chartId - 1];
+            const container = document.getElementById('singleChart');
+            const chart = echarts.init(container);
 
-                titleEl.textContent = chartTitles[chartId - 1] || '';
-                if (!titleEl.textContent) {
-                    titleEl.style.display = 'none';
-                } else {
-                    titleEl.style.display = '';
-                }
+            const optsFn = chartOpts[chartId - 1];
+            const opts = optsFn();
+            chart.setOption(opts);
 
-                const optFn = chartOptFns[chartId - 1];
-                const option = optFn();
+            setTimeout(function() { chart.resize(); }, 100);
 
-                // 销毁旧实例
-                if (containerEl._echartInstance) {
-                    containerEl._echartInstance.dispose();
-                }
-                const chart = echarts.init(containerEl);
-                containerEl._echartInstance = chart;
-                chart.setOption(option);
-
-                // 延迟resize确保正确渲染
-                setTimeout(function() {
-                    chart.resize();
-                }, 100);
-
-                // 响应式监听
-                window.addEventListener('resize', function() {
-                    if (containerEl._echartInstance) {
-                        containerEl._echartInstance.resize();
-                    }
-                });
-            }
-
-            // 页面加载完成后初始化
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
-            }
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
         })();
     </script>
 </body>
