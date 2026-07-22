@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>数据图表</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+        .chart-title {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 16px 0 12px;
+        }
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            min-height: 300px;
+        }
+        @media (max-width:768px) {
+            .chart-title {
+                font-size: 16px;
+            }
+            .chart-container {
+                min-height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="chart-title" id="chartTitle">图表</div>
+        <div class="chart-container" id="singleChart"></div>
+    </div>
+    <script>
+        (function() {
+            const COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1',
+                '#EB2F96',
+                '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
+            ];
+
+            function parseNum(v) {
+                if (v === null || v === undefined || v === '') return null;
+                if (typeof v === 'number') return v;
+                return parseFloat(String(v).replace(/,/g, '')) || 0;
+            }
+
+            function formatLargeNum(n) {
+                if (n === null || n === undefined) return '-';
+                if (Math.abs(n) >= 100000000) return (n / 100000000).toFixed(1) + '亿';
+                if (Math.abs(n) >= 10000) return (n / 10000).toFixed(1) + '万';
+                if (Number.isInteger(n)) return n.toString();
+                return n.toFixed(2);
+            }
+
+            function axisLabelFormatter(val) {
+                if (val === null || val === undefined || val === 0) return '0';
+                if (Math.abs(val) >= 100000000) return (val / 100000000).toFixed(1) + '亿';
+                if (Math.abs(val) >= 10000) return (val / 10000).toFixed(1) + '万';
+                return val.toString();
+            }
+
+            const tooltipBg = 'rgba(0,0,0,0.7)';
+
+            // ==================== 图表配置数组 ====================
+            const chartOpts = [];
+            const chartTitles = [];
+
+            // ---------- 图表1：分款销量占比-饼图 ----------
+            chartTitles[1] = '分款销量占比';
+            chartOpts[1] = (function() {
+                const data = [
+                    { name: '手持显微镜', value: 46365 },
+                    { name: '内窥镜', value: 6487 },
+                    { name: '显微望远二合一', value: 1593 },
+                    { name: '光学显微镜', value: 1211 },
+                    { name: '手机二合一显微镜', value: 86 },
+                    { name: '显微内窥二合一', value: 63 },
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                const total = data.reduce((s, d) => s + d.value, 0);
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + parseNum(p.value).toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 12, color: '#333' },
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: ['42%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                if (showLegend) {
+                                    return '{name|' + p.name + '}\n{percent|' + p.percent + '%}';
+                                } else {
+                                    const idx = p.dataIndex;
+                                    const color = COLORS[idx % COLORS.length];
+                                    return '{dot|●}{name|' + p.name + '}\n{percent|' + p.percent +
+                                        '%}';
+                                }
+                            },
+                            rich: {
+                                dot: {
+                                    fontSize: 14,
+                                    lineHeight: 18,
+                                    verticalAlign: 'middle',
+                                    padding: [0, 4, 0, 0],
+                                },
+                                name: {
+                                    fontSize: 12,
+                                    color: '#333',
+                                    lineHeight: 18,
+                                },
+                                percent: {
+                                    fontSize: 11,
+                                    color: '#666',
+                                    lineHeight: 16,
+                                    padding: [2, 0, 0, 0],
+                                },
+                            },
+                        },
+                        labelLine: {
+                            show: true,
+                            length: 20,
+                            length2: 30,
+                            lineStyle: { color: '#bbb' },
+                        },
+                        emphasis: {
+                            label: { fontSize: 14, fontWeight: 'bold' },
+                            scaleSize: 8,
+                        },
+                        data: data,
+                    }],
+                };
+            })();
+
+            // ---------- 图表2：产品属性销量发布-横向柱状图（无数据） ----------
+            chartTitles[2] = '产品属性销量发布';
+            chartOpts[2] = (function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                };
+            })();
+
+            // ---------- 图表3：产品属性销量占比-横轴柱状图（无数据） ----------
+            chartTitles[3] = '产品属性销量占比';
+            chartOpts[3] = (function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                };
+            })();
+
+            // ---------- 图表4：产品属性销量占比-饼图（无数据） ----------
+            chartTitles[4] = '产品属性销量占比';
+            chartOpts[4] = (function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    series: [],
+                };
+            })();
+
+            // ---------- 图表5：关键词搜索量趋势-多系列折线图 ----------
+            chartTitles[5] = '关键词搜索量趋势';
+            chartOpts[5] = (function() {
+                const allMonths = [];
+                const start = new Date(2022, 0);
+                const end = new Date(2026, 5);
+                const cur = new Date(start);
+                while (cur <= end) {
+                    const y = cur.getFullYear();
+                    const m = String(cur.getMonth() + 1).padStart(2, '0');
+                    allMonths.push(y + '-' + m);
+                    cur.setMonth(cur.getMonth() + 1);
+                }
+                const rawData = {
+                    'kids microscope': {
+                        '2022-01': 10812,
+                        '2022-02': 11966,
+                        '2022-03': 14469,
+                        '2022-04': 13864,
+                        '2022-05': 11937,
+                        '2022-06': 12842,
+                        '2022-07': 12811,
+                        '2022-08': 12782,
+                        '2022-09': 13310,
+                        '2022-10': 16698,
+                        '2022-11': 33111,
+                        '2022-12': 33414,
+                        '2023-01': 12013,
+                        '2023-02': 10679,
+                        '2023-03': 11483,
+                        '2023-04': 10934,
+                        '2023-05': 11618,
+                        '2023-06': 11908,
+                        '2023-07': 11313,
+                        '2023-08': 18553,
+                        '2023-09': 22105,
+                        '2023-10': 36191,
+                        '2023-11': 56031,
+                        '2023-12': 47734,
+                        '2024-01': 15212,
+                        '2024-02': 16344,
+                        '2024-03': 20156,
+                        '2024-04': 21451,
+                        '2024-05': 19819,
+                        '2024-06': 17879,
+                        '2024-07': 27137,
+                        '2024-08': 23144,
+                        '2024-09': 67440,
+                        '2024-10': 66951,
+                        '2024-11': 126798,
+                        '2024-12': 142067,
+                        '2025-01': 30193,
+                        '2025-02': 26866,
+                        '2025-03': 32910,
+                        '2025-04': 30775,
+                        '2025-05': 24214,
+                        '2025-06': 26579,
+                        '2025-07': 26539,
+                        '2025-08': 28877,
+                        '2025-09': 38504,
+                        '2025-10': 54686,
+                        '2025-11': 112717,
+                        '2025-12': 141468,
+                        '2026-01': 37355,
+                        '2026-02': 36653,
+                        '2026-03': 57991,
+                        '2026-04': 54148,
+                        '2026-05': 42803,
+                        '2026-06': 38263,
+                    },
+                    '6 year old boy birthday gift': {
+                        '2022-01': 718,
+                        '2022-02': 3884,
+                        '2022-03': 12852,
+                        '2022-04': 13131,
+                        '2022-05': 13597,
+                        '2022-06': 15336,
+                        '2022-07': 15019,
+                        '2022-08': 14832,
+                        '2022-09': 15764,
+                        '2022-10': 13065,
+                        '2022-11': 6888,
+                        '2022-12': 2752,
+                        '2023-01': 1818,
+                        '2023-02': 5432,
+                        '2023-03': 11663,
+                        '2023-04': 11266,
+                        '2023-05': 3879,
+                        '2023-06': 4008,
+                        '2023-07': 3550,
+                        '2023-08': 3702,
+                        '2023-09': 4761,
+                        '2023-10': 3472,
+                        '2023-11': 1388,
+                        '2024-01': 3159,
+                        '2024-02': 12563,
+                        '2024-03': 20926,
+                        '2024-04': 52756,
+                        '2024-05': 68196,
+                        '2024-06': 65496,
+                        '2024-07': 65363,
+                        '2024-08': 68457,
+                        '2024-09': 75357,
+                        '2024-10': 66589,
+                        '2024-11': 22421,
+                        '2024-12': 1995,
+                        '2025-01': 8973,
+                        '2025-02': 25053,
+                        '2025-03': 47741,
+                        '2025-04': 57095,
+                        '2025-05': 55865,
+                        '2025-06': 52247,
+                        '2025-07': 51696,
+                        '2025-08': 57267,
+                        '2025-09': 68185,
+                        '2025-10': 60374,
+                        '2025-11': 64231,
+                        '2025-12': 36114,
+                        '2026-01': 25143,
+                        '2026-02': 41965,
+                        '2026-03': 55929,
+                        '2026-04': 64362,
+                        '2026-05': 52396,
+                        '2026-06': 50053,
+                    },
+                    'kids borescope': {
+                        '2022-01': 0,
+                        '2022-02': 0,
+                        '2022-03': 0,
+                        '2022-04': 0,
+                        '2022-05': 0,
+                        '2022-06': 0,
+                        '2022-07': 0,
+                        '2022-08': 0,
+                        '2022-09': 0,
+                        '2022-10': 0,
+                        '2022-11': 0,
+                        '2022-12': 0,
+                        '2023-01': 0,
+                        '2023-02': 0,
+                        '2023-03': 0,
+                        '2023-04': 0,
+                        '2023-05': 0,
+                        '2023-06': 0,
+                        '2025-08': 568,
+                        '2025-09': 1444,
+                        '2025-10': 1563,
+                        '2025-11': 5197,
+                        '2025-12': 6950,
+                        '2026-01': 1668,
+                        '2026-02': 1903,
+                        '2026-03': 4772,
+                        '2026-04': 2579,
+                        '2026-05': 2056,
+                        '2026-06': 1844,
+                    },
+                };
+                const seriesNames = ['kids microscope', '6 year old boy birthday gift', 'kids borescope'];
+                const seriesData = seriesNames.map((name, i) => ({
+                    name: name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    data: allMonths.map(m => {
+                        const v = rawData[name] ? rawData[name][m] : undefined;
+                        return v !== undefined ? parseNum(v) : null;
+                    }),
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                if (p.value !== null && p.value !== undefined) {
+                                    s +=
+                                        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                        p.color + ';margin-right:6px;"></span>';
+                                    s += p.seriesName + ': ' + parseNum(p.value)
+                                        .toLocaleString() + '<br/>';
+                                }
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        data: seriesNames,
+                        selected: seriesNames.reduce((acc, n, i) => { acc[n] = i < 3; return acc; }, {}),
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: 50, right: 30, top: 20, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: allMonths,
+                        axisLabel: {
+                            rotate: 45,
+                            fontSize: 10,
+                            interval: Math.max(1, Math.floor(allMonths.length / 20)),
+                            formatter: function(v) { return v; },
+                        },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月搜索量',
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    },
+                    series: seriesData,
+                };
+            })();
+
+            // ---------- 图表6：关键词ABA排名趋势-多系列折线图 ----------
+            chartTitles[6] = '关键词ABA排名趋势';
+            chartOpts[6] = (function() {
+                const allMonths = [];
+                const start = new Date(2022, 0);
+                const end = new Date(2026, 5);
+                const cur = new Date(start);
+                while (cur <= end) {
+                    const y = cur.getFullYear();
+                    const m = String(cur.getMonth() + 1).padStart(2, '0');
+                    allMonths.push(y + '-' + m);
+                    cur.setMonth(cur.getMonth() + 1);
+                }
+                const rawData = {
+                    'kids microscope': {
+                        '2022-01': 94729,
+                        '2022-02': 85188,
+                        '2022-03': 67034,
+                        '2022-04': 72498,
+                        '2022-05': 80722,
+                        '2022-06': 84614,
+                        '2022-07': 74596,
+                        '2022-08': 82964,
+                        '2022-09': 69474,
+                        '2022-10': 47226,
+                        '2022-11': 23222,
+                        '2022-12': 23098,
+                        '2023-01': 95297,
+                        '2023-02': 95575,
+                        '2023-03': 91956,
+                        '2023-04': 92589,
+                        '2023-05': 99814,
+                        '2023-06': 97763,
+                        '2023-07': 95009,
+                        '2023-08': 82695,
+                        '2023-09': 70764,
+                        '2023-10': 40534,
+                        '2023-11': 23167,
+                        '2023-12': 28856,
+                        '2024-01': 106804,
+                        '2024-02': 100413,
+                        '2024-03': 86906,
+                        '2024-04': 85058,
+                        '2024-05': 91536,
+                        '2024-06': 99095,
+                        '2024-07': 65285,
+                        '2024-08': 77516,
+                        '2024-09': 20647,
+                        '2024-10': 20878,
+                        '2024-11': 6131,
+                        '2024-12': 4657,
+                        '2025-01': 53096,
+                        '2025-02': 58550,
+                        '2025-03': 47324,
+                        '2025-04': 50443,
+                        '2025-05': 65527,
+                        '2025-06': 59683,
+                        '2025-07': 60544,
+                        '2025-08': 55756,
+                        '2025-09': 38638,
+                        '2025-10': 24286,
+                        '2025-11': 8100,
+                        '2025-12': 5216,
+                        '2026-01': 40054,
+                        '2026-02': 41392,
+                        '2026-03': 22181,
+                        '2026-04': 24144,
+                        '2026-05': 34168,
+                        '2026-06': 37830,
+                    },
+                    '6 year old boy birthday gift': {
+                        '2022-01': 1459532,
+                        '2022-02': 358346,
+                        '2022-03': 79319,
+                        '2022-04': 77777,
+                        '2022-05': 69545,
+                        '2022-06': 55711,
+                        '2022-07': 55325,
+                        '2022-08': 58713,
+                        '2022-09': 49757,
+                        '2022-10': 82965,
+                        '2022-11': 164798,
+                        '2022-12': 527695,
+                        '2023-01': 777653,
+                        '2023-02': 217544,
+                        '2023-03': 95276,
+                        '2023-04': 95541,
+                        '2023-05': 353279,
+                        '2023-06': 342684,
+                        '2023-07': 387343,
+                        '2023-08': 433497,
+                        '2023-09': 296933,
+                        '2023-10': 486044,
+                        '2023-11': 1279074,
+                        '2024-01': 552920,
+                        '2024-02': 132010,
+                        '2024-03': 83000,
+                        '2024-04': 28885,
+                        '2024-05': 20590,
+                        '2024-06': 21702,
+                        '2024-07': 21728,
+                        '2024-08': 20403,
+                        '2024-09': 17704,
+                        '2024-10': 21374,
+                        '2024-11': 74368,
+                        '2024-12': 748694,
+                        '2025-01': 178281,
+                        '2025-02': 63734,
+                        '2025-03': 29103,
+                        '2025-04': 22463,
+                        '2025-05': 23802,
+                        '2025-06': 25501,
+                        '2025-07': 25685,
+                        '2025-08': 22969,
+                        '2025-09': 17950,
+                        '2025-10': 21530,
+                        '2025-11': 19127,
+                        '2025-12': 40863,
+                        '2026-01': 65986,
+                        '2026-02': 35171,
+                        '2026-03': 23894,
+                        '2026-04': 19232,
+                        '2026-05': 25570,
+                        '2026-06': 26989,
+                    },
+                    'kids borescope': {
+                        '2022-01': 0,
+                        '2022-02': 0,
+                        '2022-03': 0,
+                        '2022-04': 0,
+                        '2022-05': 0,
+                        '2022-06': 0,
+                        '2022-07': 0,
+                        '2022-08': 0,
+                        '2022-09': 0,
+                        '2022-10': 0,
+                        '2022-11': 0,
+                        '2022-12': 0,
+                        '2023-01': 0,
+                        '2023-02': 0,
+                        '2023-03': 0,
+                        '2023-04': 0,
+                        '2023-05': 0,
+                        '2023-06': 0,
+                        '2025-08': 1887709,
+                        '2025-09': 1001878,
+                        '2025-10': 911549,
+                        '2025-11': 299368,
+                        '2025-12': 229878,
+                        '2026-01': 857806,
+                        '2026-02': 782101,
+                        '2026-03': 320841,
+                        '2026-04': 573254,
+                        '2026-05': 711401,
+                        '2026-06': 768153,
+                    },
+                };
+                const seriesNames = ['kids microscope', '6 year old boy birthday gift', 'kids borescope'];
+                const seriesData = seriesNames.map((name, i) => ({
+                    name: name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    data: allMonths.map(m => {
+                        const v = rawData[name] ? rawData[name][m] : undefined;
+                        return v !== undefined ? parseNum(v) : null;
+                    }),
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                if (p.value !== null && p.value !== undefined) {
+                                    s +=
+                                        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                        p.color + ';margin-right:6px;"></span>';
+                                    s += p.seriesName + ': ' + parseNum(p.value)
+                                        .toLocaleString() + '<br/>';
+                                }
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        data: seriesNames,
+                        selected: seriesNames.reduce((acc, n, i) => { acc[n] = i < 3; return acc; }, {}),
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: 55, right: 30, top: 20, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: allMonths,
+                        axisLabel: {
+                            rotate: 45,
+                            fontSize: 10,
+                            interval: Math.max(1, Math.floor(allMonths.length / 20)),
+                        },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'ABA排名',
+                        inverse: true,
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    },
+                    series: seriesData,
+                };
+            })();
+
+            // ---------- 图表7：历史销量趋势-复合图 ----------
+            chartTitles[7] = '历史总销量走势';
+            chartOpts[7] = (function() {
+                const raw = [
+                    ['2024-07', 10389, 409230.48, 799],
+                    ['2024-08', 5181, 196344.21, 370],
+                    ['2024-09', 8409, 298655.25, 600],
+                    ['2024-10', 12077, 425755.5, 862],
+                    ['2024-11', 48226, 1574149.72, 3014],
+                    ['2024-12', 69064, 2284264.65, 4316],
+                    ['2025-01', 10659, 373988.18, 627],
+                    ['2025-02', 7920, 293857.08, 440],
+                    ['2025-03', 14887, 457162.35, 783],
+                    ['2025-04', 16095, 496530.78, 731],
+                    ['2025-05', 13780, 429310.45, 530],
+                    ['2025-06', 15535, 498766.14, 485],
+                    ['2025-07', 22453, 835644.88, 510],
+                    ['2025-08', 18378, 620142.86, 367],
+                    ['2025-09', 22021, 751395.54, 373],
+                    ['2025-10', 39409, 1389497.11, 625],
+                    ['2025-11', 128204, 4366547.72, 1942],
+                    ['2025-12', 193555, 6663898.87, 2688],
+                    ['2026-01', 32315, 1077671.3, 430],
+                    ['2026-02', 30115, 1012508.28, 386],
+                    ['2026-03', 59597, 2021057.5, 726],
+                    ['2026-04', 54871, 1891226.67, 653],
+                    ['2026-05', 50758, 1762707.87, 557],
+                    ['2026-06', 60244, 2000391.13, 608],
+                    ['2026-07', 49321, 1558223.668, 493],
+                ];
+                const xData = raw.map(r => r[0]);
+                const salesVol = raw.map(r => parseNum(r[1]));
+                const salesAmt = raw.map(r => parseNum(r[2]));
+                const avgVol = raw.map(r => parseNum(r[3]));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                s += p.seriesName + ': ' + (p.seriesName === '月销售额' ? '$' :
+                                    '') + parseNum(p.value).toLocaleString() + '<br/>';
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        data: ['月销量', '平均月销量', '月销售额'],
+                        bottom: 0,
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: 55, right: 65, top: 20, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { rotate: 45, fontSize: 10, interval: Math.max(1, Math.floor(xData
+                                .length / 16)) },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: function(v) { return '$' + axisLabelFormatter(
+                                v); }, fontSize: 10 },
+                        splitLine: { show: false },
+                    }, ],
+                    series: [{
+                        name: '月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        data: salesVol,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '50%',
+                    }, {
+                        name: '平均月销量',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: avgVol,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[1] },
+                        itemStyle: { color: COLORS[1] },
+                    }, {
+                        name: '月销售额',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: salesAmt,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 4,
+                        lineStyle: { width: 2, color: COLORS[2] },
+                        itemStyle: { color: COLORS[2] },
+                    }, ],
+                };
+            })();
+
+            // ---------- 图表8：价格趋势-多系列折线图 ----------
+            chartTitles[8] = '价格四分位走势';
+            chartOpts[8] = (function() {
+                const raw = [
+                    ['2024-07', 42.36, 36.485, 28.90, 42.60],
+                    ['2024-08', 33.75, 39.99, 29.99, 41.21],
+                    ['2024-09', 35.22, 34.67, 29.99, 40.84],
+                    ['2024-10', 34.29, 37.08, 30.20, 40.19],
+                    ['2024-11', 32.09, 37.11, 32.23, 40.63],
+                    ['2024-12', 32.80, 40.16, 31.15, 41.95],
+                    ['2025-01', 35.27, 38.555, 31.03, 41.41],
+                    ['2025-02', 38.86, 39.49, 34.50, 42.32],
+                    ['2025-03', 31.23, 34.725, 30.98, 39.13],
+                    ['2025-04', 31.53, 35.62, 28.25, 38.80],
+                    ['2025-05', 31.95, 29.32, 28.11, 37.69],
+                    ['2025-06', 32.40, 34.27, 27.81, 37.44],
+                    ['2025-07', 38.31, 35.44, 29.26, 42.56],
+                    ['2025-08', 33.50, 33.095, 28.00, 40.39],
+                    ['2025-09', 34.26, 33.845, 30.70, 40.85],
+                    ['2025-10', 35.95, 33.99, 28.78, 40.95],
+                    ['2025-11', 33.96, 31.25, 28.56, 39.05],
+                    ['2025-12', 34.65, 32.52, 30.15, 38.26],
+                    ['2026-01', 34.04, 30.37, 28.48, 37.71],
+                    ['2026-02', 34.37, 30.1, 29.65, 35.04],
+                    ['2026-03', 35.26, 30.725, 27.73, 35.33],
+                    ['2026-04', 35.37, 32.185, 27.76, 36.49],
+                    ['2026-05', 35.76, 31.29, 27.83, 33.84],
+                    ['2026-06', 33.87, 32.73, 28.13, 36.49],
+                    ['2026-07', 31.97, 29.74, 27.94, 34.96],
+                ];
+                const xData = raw.map(r => r[0]);
+                const sNames = ['销量加权均价', '月价格中位数', 'Q1分位数', 'Q3分位数'];
+                const seriesData = sNames.map((name, i) => ({
+                    name: name,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 3,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                    data: raw.map(r => parseNum(r[i + 1])),
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                s += p.seriesName + ': $' + parseNum(p.value).toFixed(
+                                    2) + '<br/>';
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        data: sNames,
+                        selected: sNames.reduce((acc, n, i) => { acc[n] = i < 3; return acc; }, {}),
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: 55, right: 30, top: 20, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { rotate: 45, fontSize: 10, interval: Math.max(1, Math.floor(xData
+                                .length / 16)) },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '价格($)',
+                        axisLabel: { formatter: function(v) { return '$' + v.toFixed(0); },
+                        fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    },
+                    series: seriesData,
+                };
+            })();
+
+            // ---------- 图表9：品牌垄断-饼图 ----------
+            chartTitles[9] = '品牌垄断';
+            chartOpts[9] = (function() {
+                const data = [
+                    { name: 'BMDSAE', value: 11429 },
+                    { name: 'BEBANG', value: 6692 },
+                    { name: 'Ashfly', value: 5702 },
+                    { name: 'Odatay', value: 5579 },
+                    { name: 'GMYGBY', value: 2386 },
+                    { name: 'Kids Borescope', value: 2293 },
+                    { name: 'Temodu', value: 1618 },
+                    { name: 'Pozifu', value: 1601 },
+                    { name: 'Acoath', value: 1522 },
+                    { name: 'Trigowalt', value: 1440 },
+                    { name: '其余', value: 15543 },
+                ];
+                const catCount = data.length;
+                const showLegend = catCount <= 8;
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + parseNum(p.value).toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: showLegend ? {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 12, color: '#333' },
+                    } : { show: false },
+                    color: COLORS.slice(0, catCount),
+                    series: [{
+                        type: 'pie',
+                        radius: ['38%', '68%'],
+                        center: ['42%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: function(p) {
+                                if (showLegend) {
+                                    return '{name|' + p.name + '}\n{percent|' + p.percent + '%}';
+                                } else {
+                                    const idx = p.dataIndex;
+                                    const color = COLORS[idx % COLORS.length];
+                                    return '{dot|●}{name|' + p.name + '}\n{percent|' + p.percent +
+                                        '%}';
+                                }
+                            },
+                            rich: {
+                                dot: { fontSize: 14, lineHeight: 18, verticalAlign: 'middle',
+                                    padding: [0, 4, 0, 0] },
+                                name: { fontSize: 12, color: '#333', lineHeight: 18 },
+                                percent: { fontSize: 11, color: '#666', lineHeight: 16, padding: [2, 0,
+                                        0, 0
+                                    ] },
+                            },
+                        },
+                        labelLine: { show: true, length: 18, length2: 26, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data,
+                    }],
+                };
+            })();
+
+            // ---------- 图表10：排名垄断-复合图 ----------
+            chartTitles[10] = '排名垄断';
+            chartOpts[10] = (function() {
+                const xData = ['1~10', '11~20', '21~30', '31~40', '41~50', '51~60', '61~70', '71~80', '81~90',
+                    '91~100'
+                ];
+                const oldAsin = [9, 8, 8, 8, 7, 6, 7, 7, 7, 7];
+                const newAsin = [1, 2, 2, 2, 3, 4, 3, 3, 3, 3];
+                const oldAvg = [3508, 1063, 514, 276, 147, 84, 65, 50, 35, 25];
+                const newAvg = [1477, 1018, 565, 323, 160, 87, 65, 53, 37, 25];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                const unit = p.seriesName.includes('销量') ? '' : '';
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                s += p.seriesName + ': ' + parseNum(p.value).toLocaleString() +
+                                    unit + '<br/>';
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        data: ['老品ASIN数', '新品ASIN数', '老品平均月销量', '新品平均月销量'],
+                        bottom: 0,
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: 50, right: 65, top: 20, bottom: 55 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 10 },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: 'ASIN计数',
+                        axisLabel: { fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    }, {
+                        type: 'value',
+                        name: '平均月销量',
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { show: false },
+                    }, ],
+                    series: [{
+                        name: '老品ASIN数',
+                        type: 'bar',
+                        stack: 'asin',
+                        yAxisIndex: 0,
+                        data: oldAsin,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '40%',
+                    }, {
+                        name: '新品ASIN数',
+                        type: 'bar',
+                        stack: 'asin',
+                        yAxisIndex: 0,
+                        data: newAsin,
+                        itemStyle: { color: COLORS[1] },
+                    }, {
+                        name: '老品平均月销量',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: oldAvg,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { width: 2, color: COLORS[2] },
+                        itemStyle: { color: COLORS[2] },
+                    }, {
+                        name: '新品平均月销量',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: newAvg,
+                        smooth: true,
+                        symbol: 'diamond',
+                        symbolSize: 5,
+                        lineStyle: { width: 2, color: COLORS[3] },
+                        itemStyle: { color: COLORS[3] },
+                    }, ],
+                };
+            })();
+
+            // ---------- 图表11：卖家所属地-饼图 ----------
+            chartTitles[11] = '卖家所属地';
+            chartOpts[11] = (function() {
+                const data = [
+                    { name: 'CN', value: 44907 },
+                    { name: 'CN(HK)', value: 8964 },
+                    { name: 'US', value: 1456 },
+                    { name: 'AMZ', value: 478 },
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + parseNum(p.value).toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 12, color: '#333' },
+                    },
+                    color: COLORS.slice(0, 4),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: ['42%', '50%'],
+                        itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{name|' + '{b}' + '}\n{percent|' + '{d}%' + '}',
+                            rich: {
+                                name: { fontSize: 12, color: '#333', lineHeight: 18 },
+                                percent: { fontSize: 11, color: '#666', lineHeight: 16, padding: [2, 0, 0,
+                                        0
+                                    ] },
+                            },
+                        },
+                        labelLine: { show: true, length: 20, length2: 30, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data,
+                    }],
+                };
+            })();
+
+            // ---------- 图表12：配送方式-饼图 ----------
+            chartTitles[12] = '配送方式';
+            chartOpts[12] = (function() {
+                const data = [
+                    { name: 'AMZ', value: 551 },
+                    { name: 'FBA', value: 55146 },
+                    { name: 'NA', value: 108 },
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + parseNum(p.value).toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 12, color: '#333' },
+                    },
+                    color: COLORS.slice(0, 3),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: ['42%', '50%'],
+                        itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{name|' + '{b}' + '}\n{percent|' + '{d}%' + '}',
+                            rich: {
+                                name: { fontSize: 12, color: '#333', lineHeight: 18 },
+                                percent: { fontSize: 11, color: '#666', lineHeight: 16, padding: [2, 0, 0,
+                                        0
+                                    ] },
+                            },
+                        },
+                        labelLine: { show: true, length: 20, length2: 30, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data,
+                    }],
+                };
+            })();
+
+            // ---------- 图表13：新品销量占比-饼图 ----------
+            chartTitles[13] = '新品销量占比';
+            chartOpts[13] = (function() {
+                const data = [
+                    { name: '3个月内新品', value: 2981 },
+                    { name: '3~6个月内新品', value: 3676 },
+                    { name: '老品', value: 49148 },
+                ];
+                return {
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量: ' + parseNum(p.value).toLocaleString() +
+                                '<br/>占比: ' + p.percent + '%';
+                        }
+                    },
+                    legend: {
+                        type: 'scroll',
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 12, color: '#333' },
+                    },
+                    color: COLORS.slice(0, 3),
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '68%'],
+                        center: ['42%', '50%'],
+                        itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{name|' + '{b}' + '}\n{percent|' + '{d}%' + '}',
+                            rich: {
+                                name: { fontSize: 12, color: '#333', lineHeight: 18 },
+                                percent: { fontSize: 11, color: '#666', lineHeight: 16, padding: [2, 0, 0,
+                                        0
+                                    ] },
+                            },
+                        },
+                        labelLine: { show: true, length: 20, length2: 30, lineStyle: { color: '#bbb' } },
+                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 8 },
+                        data: data,
+                    }],
+                };
+            })();
+
+            // ---------- 图表14：review数分析-堆积柱状图 ----------
+            chartTitles[14] = 'review数分布';
+            chartOpts[14] = (function() {
+                const xData = ['0~10', '10~30', '30~50', '50~100', '100~200', '200~300', '300~400', '400~500',
+                    '500~800', '800~1200', '1200~2000', '2000+'
+                ];
+                const oldData = [206, 601, 228, 1381, 1617, 7786, 2496, 1882, 6911, 16182, 1883, 7975];
+                const newData = [91, 642, 618, 2183, 2283, 483, 357, 0, 0, 0, 0, 0];
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                s += p.seriesName + ': ' + parseNum(p.value).toLocaleString() +
+                                    '<br/>';
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        data: ['老品', '新品'],
+                        bottom: 0,
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: 50, right: 30, top: 20, bottom: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { rotate: 30, fontSize: 10 },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    },
+                    series: [{
+                        name: '老品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: oldData,
+                        itemStyle: { color: COLORS[0] },
+                        barWidth: '55%',
+                    }, {
+                        name: '新品',
+                        type: 'bar',
+                        stack: 'total',
+                        data: newData,
+                        itemStyle: { color: COLORS[1] },
+                    }, ],
+                };
+            })();
+
+            // ---------- 图表15：分款价格分布-复合图 ----------
+            chartTitles[15] = '市场分款价格分布';
+            chartOpts[15] = (function() {
+                const priceRanges = ['9.99-14.99', '14.99-19.99', '19.99-24.99', '24.99-29.99', '29.99-34.99',
+                    '34.99-39.99', '39.99-44.99', '44.99-49.99', '49.99-54.99', '74.99-79.99', '94.99-99.99'
+                ];
+                const styleNames = ['手持显微镜', '显微望远二合一', '内窥镜', '光学显微镜', '显微内窥二合一', '手机二合一显微镜'];
+                const volData = [
+                    [117, 0, 35, 753, 0, 0],
+                    [470, 44, 412, 143, 0, 0],
+                    [9302, 0, 782, 0, 0, 0],
+                    [22731, 1486, 4096, 0, 0, 0],
+                    [7424, 63, 24, 0, 63, 50],
+                    [211, 0, 1102, 0, 0, 36],
+                    [143, 0, 36, 0, 0, 0],
+                    [1483, 0, 0, 0, 0, 0],
+                    [4443, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 315, 0, 0],
+                    [41, 0, 0, 0, 0, 0],
+                ];
+                const amtData = [
+                    [1432, 0, 419, 8659, 0, 0],
+                    [8024, 879, 7669, 2358, 0, 0],
+                    [224423, 0, 17969, 0, 0, 0],
+                    [622899, 42914, 112602, 0, 0, 0],
+                    [252687, 1964, 791, 0, 2078, 1599],
+                    [6525, 0, 34316, 0, 0, 1295],
+                    [5718, 0, 1439, 0, 0, 0],
+                    [45168, 0, 0, 0, 0, 0],
+                    [159903, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 23621, 0, 0],
+                    [4099, 0, 0, 0, 0, 0],
+                ];
+                const barSeries = styleNames.map((name, i) => ({
+                    name: name + '(销量)',
+                    type: 'bar',
+                    stack: 'vol',
+                    yAxisIndex: 0,
+                    data: volData.map(r => parseNum(r[i])),
+                    itemStyle: { color: COLORS[i] },
+                    barWidth: '50%',
+                }));
+                const lineSeries = styleNames.map((name, i) => ({
+                    name: name + '(销售额)',
+                    type: 'line',
+                    yAxisIndex: 1,
+                    data: amtData.map(r => parseNum(r[i])),
+                    smooth: false,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { width: 2, color: COLORS[i] },
+                    itemStyle: { color: COLORS[i] },
+                }));
+                const allSeries = [...barSeries, ...lineSeries];
+                const allNames = allSeries.map(s => s.name);
+                const selectedObj = {};
+                allNames.forEach((n, i) => {
+                    if (i < styleNames.length) {
+                        selectedObj[n] = true;
+                    } else {
+                        const lineIdx = i - styleNames.length;
+                        selectedObj[n] = lineIdx < 3;
+                    }
+                });
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                const isAmt = p.seriesName.includes('销售额');
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                s += p.seriesName + ': ' + (isAmt ? '$' : '') + parseNum(p
+                                    .value).toLocaleString() + '<br/>';
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        data: allNames,
+                        selected: selectedObj,
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 10, color: '#333' },
+                    },
+                    grid: { left: 55, right: 70, top: 20, bottom: 70 },
+                    xAxis: {
+                        type: 'category',
+                        data: priceRanges,
+                        axisLabel: { rotate: 30, fontSize: 9 },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { formatter: function(v) { return '$' + axisLabelFormatter(
+                                v); }, fontSize: 10 },
+                        splitLine: { show: false },
+                    }, ],
+                    series: allSeries,
+                };
+            })();
+
+            // ---------- 图表16：价格-质量联动分析（无数据） ----------
+            chartTitles[16] = '价格-质量联动分析';
+            chartOpts[16] = (function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                };
+            })();
+
+            // ---------- 图表17：品牌价格分布（无数据） ----------
+            chartTitles[17] = '品牌价格分布';
+            chartOpts[17] = (function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                };
+            })();
+
+            // ---------- 图表18：新老品价格分布（无数据） ----------
+            chartTitles[18] = '新老品价格分布';
+            chartOpts[18] = (function() {
+                return {
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#999',
+                            fontSize: 16 } },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                };
+            })();
+
+            // ---------- 图表19：分款星级分布-堆积柱状图 ----------
+            chartTitles[19] = '分款星级分布';
+            chartOpts[19] = (function() {
+                const xData = ['三星半及以下', '四星', '四星半', '五星'];
+                const styleNames = ['手持显微镜', '显微望远二合一', '内窥镜', '光学显微镜', '显微内窥二合一', '手机二合一显微镜'];
+                const rawData = [
+                    [1, 0, 3, 1, 0, 0],
+                    [3, 0, 7, 1, 0, 1],
+                    [46, 5, 20, 3, 1, 1],
+                    [3, 0, 3, 1, 0, 0],
+                ];
+                const seriesData = styleNames.map((name, i) => ({
+                    name: name,
+                    type: 'bar',
+                    stack: 'total',
+                    data: rawData.map(r => r[i]),
+                    itemStyle: { color: COLORS[i] },
+                    barWidth: '50%',
+                }));
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let s = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;background:' +
+                                    p.color + ';margin-right:6px;"></span>';
+                                s += p.seriesName + ': ' + p.value + '<br/>';
+                            });
+                            return s;
+                        },
+                    },
+                    legend: {
+                        type: 'scroll',
+                        bottom: 0,
+                        data: styleNames,
+                        itemWidth: 12,
+                        itemHeight: 12,
+                        textStyle: { fontSize: 10, color: '#333' },
+                    },
+                    grid: { left: 50, right: 30, top: 20, bottom: 55 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        axisLabel: { fontSize: 11 },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '数量',
+                        axisLabel: { fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    },
+                    series: seriesData,
+                };
+            })();
+
+            // ---------- 图表20：评分销量趋势-折线图 ----------
+            chartTitles[20] = '评分销量趋势';
+            chartOpts[20] = (function() {
+                const raw = [
+                    [3.2, 51],
+                    [3.4, 36],
+                    [3.5, 30],
+                    [3.6, 95],
+                    [3.7, 21],
+                    [3.8, 35],
+                    [3.9, 24],
+                    [4.0, 32],
+                    [4.1, 66],
+                    [4.2, 1805],
+                    [4.3, 3428],
+                    [4.4, 6565],
+                    [4.5, 12940],
+                    [4.6, 27671],
+                    [4.7, 2622],
+                    [4.8, 85],
+                    [4.9, 55],
+                    [5.0, 244],
+                ];
+                raw.sort((a, b) => a[0] - b[0]);
+                const xData = raw.map(r => r[0].toFixed(1));
+                const yData = raw.map(r => r[1]);
+                return {
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: tooltipBg,
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            const p = params[0];
+                            return '评分: ' + p.axisValue + '<br/>月销量: ' + parseNum(p.value)
+                                .toLocaleString();
+                        },
+                    },
+                    legend: { show: false },
+                    grid: { left: 55, right: 30, top: 20, bottom: 40 },
+                    xAxis: {
+                        type: 'category',
+                        data: xData,
+                        name: '评分',
+                        axisLabel: { fontSize: 10 },
+                        axisLine: { lineStyle: { color: '#ccc' } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { formatter: axisLabelFormatter, fontSize: 10 },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                    },
+                    series: [{
+                        name: '月销量',
+                        type: 'line',
+                        data: yData,
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { width: 2, color: COLORS[0] },
+                        itemStyle: { color: COLORS[0] },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255,157,25,0.3)' },
+                                { offset: 1, color: 'rgba(255,157,25,0.02)' },
+                            ]),
+                        },
+                    }],
+                };
+            })();
+
+            // ==================== 初始化逻辑 ====================
+            function initChart() {
+                const params = new URLSearchParams(window.location.search);
+                let chartId = parseInt(params.get('id')) || 1;
+                if (chartId < 1 || chartId > 20 || !chartOpts[chartId]) chartId = 1;
+
+                document.getElementById('chartTitle').textContent = chartTitles[chartId] || '';
+                const container = document.getElementById('singleChart');
+                if (container._echartInstance) {
+                    container._echartInstance.dispose();
+                }
+                const chart = echarts.init(container);
+                container._echartInstance = chart;
+                const opt = chartOpts[chartId];
+                if (opt) chart.setOption(opt, true);
+                setTimeout(function() { chart.resize(); }, 100);
+            }
+
+            window.addEventListener('resize', function() {
+                const container = document.getElementById('singleChart');
+                if (container._echartInstance) {
+                    container._echartInstance.resize();
+                }
+            });
+
+            initChart();
+        })();
+    </script>
+</body>
+</html>
