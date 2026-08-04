@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据图表看板</title>
+    <title>可视化图表看板</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
     </script>
     <style>
@@ -57,1088 +57,1089 @@
     </div>
     <script>
         (function() {
+            // ============ 腾讯16色配色数组 ============
             const COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1', '#EB2F96',
                 '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
             ];
 
+            // ============ 工具函数：解析数字（去除逗号） ============
             function parseNum(val) {
-                if (typeof val === 'string') {
-                    return parseFloat(val.replace(/,/g, '')) || 0;
-                }
-                return val || 0;
+                if (val === null || val === undefined || val === '-' || val === '' || val === '无数据') return null;
+                if (typeof val === 'number') return val;
+                return parseFloat(String(val).replace(/,/g, '')) || 0;
             }
 
-            function formatLargeNum(value) {
-                if (Math.abs(value) >= 10000) {
-                    return (value / 10000).toFixed(1) + '万';
+            // ============ 工具函数：Y轴formatter（万单位） ============
+            function formatAxisLabel(val) {
+                if (val >= 10000) {
+                    return (val / 10000).toFixed(val % 10000 === 0 ? 0 : 1) + '万';
                 }
-                return value.toString();
+                return val;
             }
 
-            function formatLargeNumK(value) {
-                if (Math.abs(value) >= 1000000) {
-                    return (value / 1000000).toFixed(2) + 'M';
+            // ============ 工具函数：生成饼图>8类别的rich标签配置 ============
+            function buildPieRichLabels() {
+                const rich = {};
+                for (let i = 0; i < 16; i++) {
+                    rich['dot' + i] = {
+                        backgroundColor: COLORS[i],
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        display: 'inline-block',
+                        verticalAlign: 'middle',
+                        marginRight: 4,
+                    };
                 }
-                if (Math.abs(value) >= 1000) {
-                    return (value / 1000).toFixed(1) + 'K';
-                }
-                return value.toString();
+                return rich;
             }
 
-            function yAxisLabelFormatter(value) {
-                if (Math.abs(value) >= 10000) {
-                    return (value / 10000).toFixed(1) + '万';
-                }
-                if (Math.abs(value) >= 1000) {
-                    return (value / 1000).toFixed(1) + 'K';
-                }
-                return value;
+            function pieLabelFormatterWithDot(params) {
+                const idx = params.dataIndex % 16;
+                return '{dot' + idx + '| }' + params.name + '\n{dot' + idx + '| }' + params.percent + '%';
             }
 
-            function numberWithCommas(x) {
-                if (x === null || x === undefined) return '';
-                return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            }
-
+            // ============ 图表标题数组（索引0-19对应图1-图20） ============
             const chartTitles = [
-                '', '', '', '', '关键词搜索量趋势', '关键词ABA排名趋势', '', '', '', '',
-                '', '', '', '', '市场分款价格分布', '', '', '', '分款星级分布', ''
+                '分款销量占比', // 图1
+                '产品属性销量分布', // 图2
+                '产品属性销量占比', // 图3 - 无数据
+                '产品属性销量占比', // 图4 - 无数据
+                '关键词搜索量趋势', // 图5
+                '关键词ABA排名趋势', // 图6
+                '历史销量趋势', // 图7
+                '价格趋势', // 图8 - 无数据
+                '品牌垄断', // 图9
+                '排名垄断', // 图10 - 无数据
+                '卖家类型与竞争格局', // 图11 - 无数据
+                '卖家类型与竞争格局', // 图12 - 无数据
+                '新品销量占比', // 图13 - 无数据
+                'review数分析', // 图14 - 无数据
+                '市场分款价格分布', // 图15
+                '价格-质量联动分析', // 图16 - 无数据
+                '品牌价格分布', // 图17 - 无数据
+                '新老品价格分布', // 图18 - 无数据
+                '分款星级分布', // 图19
+                '评分销量趋势', // 图20 - 无数据
             ];
 
+            // ============ 空数据图表配置生成函数 ============
+            function createEmptyChartOpt(title) {
+                return {
+                    graphic: {
+                        type: 'text',
+                        left: 'center',
+                        top: 'center',
+                        style: {
+                            text: '暂无数据',
+                            fontSize: 16,
+                            fill: '#999',
+                            fontWeight: 400,
+                        },
+                    },
+                    series: [],
+                };
+            }
+
+            // ============ 构建20个图表配置 ============
             const chartOpts = [];
 
-            // ==================== 图1：分款销量占比-饼图 ====================
+            // ---------- 图1：分款销量占比-饼图（4类，≤8，显示图例） ----------
             (function() {
-                const data = [
+                const rawData = [
                     { name: 'ZINK零墨水', value: 24138 },
                     { name: '染料热升华', value: 16035 },
                     { name: '喷墨/墨盒', value: 17431 },
-                    { name: '拍立得即时显影', value: 5718 }
+                    { name: '拍立得即时显影', value: 5718 },
                 ];
-                const total = data.reduce((s, d) => s + d.value, 0);
-                const option = {
+                const total = rawData.reduce((s, d) => s + d.value, 0);
+                chartOpts.push({
                     tooltip: {
                         trigger: 'item',
                         backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
                         formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + numberWithCommas(p.value) + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
+                            return p.name + '<br/>月销量：' + p.value.toLocaleString() + '<br/>占比：' + p.percent +
+                                '%';
+                        },
                     },
                     legend: {
                         orient: 'vertical',
                         right: '5%',
                         top: 'center',
-                        textStyle: { fontSize: 12, color: '#333' },
                         itemWidth: 12,
                         itemHeight: 12,
-                        itemGap: 10
+                        textStyle: { fontSize: 12, color: '#333' },
                     },
-                    color: COLORS,
                     series: [{
-                        name: '分款销量占比',
                         type: 'pie',
-                        radius: ['45%', '72%'],
                         center: ['40%', '50%'],
+                        radius: ['40%', '68%'],
                         avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 2 },
+                        itemStyle: {
+                            borderColor: '#fff',
+                            borderWidth: 1,
+                        },
                         label: {
                             show: true,
                             position: 'outside',
                             formatter: '{b}\n{d}%',
                             fontSize: 11,
-                            color: '#555',
-                            lineHeight: 16
+                            color: '#333',
+                            lineHeight: 16,
                         },
-                        labelLine: { show: true, length: 20, length2: 30, lineStyle: { color: '#bbb' } },
+                        labelLine: {
+                            show: true,
+                            length: 18,
+                            length2: 30,
+                            lineStyle: { color: '#bbb' },
+                        },
                         emphasis: {
                             label: { fontSize: 14, fontWeight: 'bold' },
-                            scaleSize: 10
+                            scaleSize: 8,
                         },
-                        data: data
-                    }]
-                };
-                chartOpts.push(option);
+                        data: rawData.map((d, i) => ({
+                            ...d,
+                            itemStyle: { color: COLORS[i] },
+                        })),
+                    }],
+                });
             })();
 
-            // ==================== 图2：产品属性销量发布-饼图（21类别>8，隐藏图例） ====================
+            // ---------- 图2：产品属性销量分布-饼图（21类，>8，隐藏图例+标签圆点） ----------
             (function() {
                 const rawData = [
-                    { name: 'White', value: 22380 }, { name: 'Pink', value: 12017 }, { name: 'Yellow',
-                        value: 5917 },
-                    { name: 'Purple', value: 5751 }, { name: 'Luna Pearl', value: 3895 }, { name: 'Rose Pink',
-                        value: 2790 },
-                    { name: 'Green', value: 2643 }, { name: 'Clay White', value: 2526 }, { name: 'Gold',
-                    value: 2491 },
-                    { name: 'Soft Pink', value: 780 }, { name: 'Pure White', value: 515 }, { name: 'Black',
-                        value: 359 },
-                    { name: 'Midnight Green', value: 314 }, { name: 'Blue', value: 119 }, { name: 'Ash White',
-                        value: 165 },
-                    { name: 'Blush Pink', value: 425 }, { name: 'Grey', value: 58 }, { name: 'Slate Gray',
-                    value: 68 },
-                    { name: 'Eclipse', value: 37 }, { name: 'Sage Green', value: 19 }, { name: '无颜色',
-                    value: 53 }
+                    { name: 'White', value: 22380 },
+                    { name: 'Pink', value: 12017 },
+                    { name: 'Yellow', value: 5917 },
+                    { name: 'Purple', value: 5751 },
+                    { name: 'Luna Pearl', value: 3895 },
+                    { name: 'Rose Pink', value: 2790 },
+                    { name: 'Green', value: 2643 },
+                    { name: 'Clay White', value: 2526 },
+                    { name: 'Gold', value: 2491 },
+                    { name: 'Soft Pink', value: 780 },
+                    { name: 'Pure White', value: 515 },
+                    { name: 'Black', value: 359 },
+                    { name: 'Midnight Green', value: 314 },
+                    { name: 'Blue', value: 119 },
+                    { name: 'Ash White', value: 165 },
+                    { name: 'Blush Pink', value: 425 },
+                    { name: 'Grey', value: 58 },
+                    { name: 'Slate Gray', value: 68 },
+                    { name: 'Eclipse', value: 37 },
+                    { name: 'Sage Green', value: 19 },
+                    { name: '无颜色', value: 53 },
                 ];
-                const total = rawData.reduce((s, d) => s + d.value, 0);
-                const option = {
+                const rich = buildPieRichLabels();
+                chartOpts.push({
                     tooltip: {
                         trigger: 'item',
                         backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
                         formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + numberWithCommas(p.value) + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
+                            return p.name + '<br/>月销量：' + p.value.toLocaleString() + '<br/>占比：' + p.percent +
+                                '%';
+                        },
                     },
                     legend: { show: false },
-                    color: COLORS,
                     series: [{
-                        name: '产品属性销量',
                         type: 'pie',
-                        radius: ['40%', '75%'],
-                        center: ['50%', '50%'],
+                        center: ['45%', '50%'],
+                        radius: ['30%', '65%'],
                         avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
-                        minAngle: 2,
+                        itemStyle: { borderColor: '#fff', borderWidth: 1 },
                         label: {
                             show: true,
                             position: 'outside',
-                            formatter: function(p) {
-                                return '● ' + p.name + '\n  ' + p.percent + '%';
-                            },
+                            formatter: pieLabelFormatterWithDot,
                             fontSize: 10,
-                            color: '#555',
-                            lineHeight: 14,
-                            rich: {}
+                            color: '#333',
+                            lineHeight: 15,
+                            rich: rich,
                         },
-                        labelLine: { show: true, length: 12, length2: 16, lineStyle: { color: '#ccc',
-                                width: 0.8 } },
-                        emphasis: { label: { fontSize: 12, fontWeight: 'bold' }, scaleSize: 8 },
-                        data: rawData
-                    }]
-                };
-                chartOpts.push(option);
+                        labelLine: {
+                            show: true,
+                            length: 12,
+                            length2: 22,
+                            lineStyle: { color: '#ccc' },
+                        },
+                        emphasis: {
+                            label: { fontSize: 12, fontWeight: 'bold' },
+                            scaleSize: 6,
+                        },
+                        data: rawData.map((d, i) => ({
+                            ...d,
+                            itemStyle: { color: COLORS[i % 16] },
+                        })),
+                    }],
+                });
             })();
 
-            // ==================== 图3：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图4：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
+            // ---------- 图3：产品属性销量占比-饼图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('产品属性销量占比'));
 
-            // ==================== 图5：关键词搜索量趋势-多系列折线图 ====================
+            // ---------- 图4：产品属性销量占比-饼图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('产品属性销量占比'));
+
+            // ---------- 图5：关键词搜索量趋势-多系列折线图 ----------
             (function() {
-                const rawSeries = {
-                    'photo printer': [],
-                    'sticker printer': [],
-                    'mini photo printer': []
+                const rawSeriesData = {
+                    'photo printer': [
+                        ['2022-01', 4344],
+                        ['2022-02', 3370],
+                        ['2022-03', 5066],
+                        ['2022-04', 4468],
+                        ['2022-05', 4577],
+                        ['2022-06', 4807],
+                        ['2022-07', 4331],
+                        ['2022-08', 4811],
+                        ['2022-09', 4717],
+                        ['2022-10', 4498],
+                        ['2022-11', 2782],
+                        ['2022-12', 2676],
+                        ['2023-01', 4195],
+                        ['2023-02', 4239],
+                        ['2023-03', 4485],
+                        ['2023-04', 4635],
+                        ['2023-05', 3676],
+                        ['2023-06', 3894],
+                        ['2023-07', 3798],
+                        ['2023-08', 4255],
+                        ['2023-09', 3464],
+                        ['2023-10', 2496],
+                        ['2023-11', 1749],
+                        ['2023-12', 1470],
+                        ['2024-01', 2988],
+                        ['2024-02', 3838],
+                        ['2024-03', 4570],
+                        ['2024-04', 4036],
+                        ['2024-05', 3400],
+                        ['2024-06', 4294],
+                        ['2024-07', 3112],
+                        ['2024-08', 3717],
+                        ['2024-09', 3422],
+                        ['2024-10', 3018],
+                        ['2024-11', 1592],
+                        ['2024-12', 1326],
+                        ['2025-01', 2553],
+                        ['2025-02', 3416],
+                        ['2025-03', 4098],
+                        ['2025-04', 4276],
+                        ['2025-05', 4007],
+                        ['2025-06', 4300],
+                        ['2025-07', 3579],
+                        ['2025-08', 3667],
+                        ['2025-09', 3366],
+                        ['2025-10', 2885],
+                        ['2025-11', 1180],
+                        ['2025-12', 977],
+                        ['2026-01', 1884],
+                        ['2026-02', 2625],
+                        ['2026-03', 3580],
+                        ['2026-04', 3785],
+                        ['2026-05', 3787],
+                        ['2026-06', 4164],
+                    ],
+                    'sticker printer': [
+                        ['2022-01', 9718],
+                        ['2022-02', 9616],
+                        ['2022-03', 10789],
+                        ['2022-04', 12007],
+                        ['2022-05', 12534],
+                        ['2022-06', 15786],
+                        ['2022-07', 16952],
+                        ['2022-08', 14613],
+                        ['2022-09', 14213],
+                        ['2022-10', 14607],
+                        ['2022-11', 14579],
+                        ['2022-12', 14469],
+                        ['2023-01', 10541],
+                        ['2023-02', 10000],
+                        ['2023-03', 12068],
+                        ['2023-04', 12754],
+                        ['2023-05', 15849],
+                        ['2023-06', 6761],
+                        ['2023-07', 6610],
+                        ['2023-08', 5412],
+                        ['2023-09', 8000],
+                        ['2023-10', 8931],
+                        ['2023-11', 6870],
+                        ['2023-12', 3862],
+                        ['2024-01', 5651],
+                        ['2024-02', 8455],
+                        ['2024-03', 10043],
+                        ['2024-04', 10270],
+                        ['2024-05', 11886],
+                        ['2024-06', 11683],
+                        ['2024-07', 9989],
+                        ['2024-08', 10554],
+                        ['2024-09', 9501],
+                        ['2024-10', 10485],
+                        ['2024-11', 5543],
+                        ['2024-12', 4521],
+                        ['2025-01', 7052],
+                        ['2025-02', 4565],
+                        ['2025-03', 9787],
+                        ['2025-04', 11313],
+                        ['2025-05', 11803],
+                        ['2025-06', 10535],
+                        ['2025-07', 7857],
+                        ['2025-08', 7869],
+                        ['2025-09', 6968],
+                        ['2025-10', 6920],
+                        ['2025-11', 4267],
+                        ['2025-12', 3234],
+                        ['2026-01', 3978],
+                        ['2026-02', 4590],
+                        ['2026-03', 4728],
+                        ['2026-04', 4906],
+                        ['2026-05', 6108],
+                        ['2026-06', 6611],
+                    ],
+                    'mini photo printer': [
+                        ['2022-01', 49301],
+                        ['2022-02', 54010],
+                        ['2022-03', 58969],
+                        ['2022-04', 53428],
+                        ['2022-05', 49525],
+                        ['2022-06', 53581],
+                        ['2022-07', 45797],
+                        ['2022-08', 54590],
+                        ['2022-09', 52048],
+                        ['2022-10', 48604],
+                        ['2022-11', 29265],
+                        ['2022-12', 21134],
+                        ['2023-01', 41134],
+                        ['2023-02', 56780],
+                        ['2023-03', 54781],
+                        ['2023-04', 62973],
+                        ['2023-05', 29621],
+                        ['2023-06', 43262],
+                        ['2023-07', 42482],
+                        ['2023-08', 47459],
+                        ['2023-09', 50077],
+                        ['2023-10', 38736],
+                        ['2023-11', 21964],
+                        ['2023-12', 14056],
+                        ['2024-01', 23629],
+                        ['2024-02', 35488],
+                        ['2024-03', 43417],
+                        ['2024-04', 39349],
+                        ['2024-05', 23132],
+                        ['2024-06', 23607],
+                        ['2024-07', 23032],
+                        ['2024-08', 27906],
+                        ['2024-09', 28672],
+                        ['2024-10', 29299],
+                        ['2024-11', 15356],
+                        ['2024-12', 13383],
+                        ['2025-01', 19072],
+                        ['2025-02', 31833],
+                        ['2025-03', 35493],
+                        ['2025-04', 43700],
+                        ['2025-05', 31661],
+                        ['2025-06', 34386],
+                        ['2025-07', 27887],
+                        ['2025-08', 27558],
+                        ['2025-09', 25231],
+                        ['2025-10', 23290],
+                        ['2025-11', 11349],
+                        ['2025-12', 8815],
+                        ['2026-01', 13865],
+                        ['2026-02', 22939],
+                        ['2026-03', 34503],
+                        ['2026-04', 38559],
+                        ['2026-05', 38176],
+                        ['2026-06', 33340],
+                    ],
                 };
-                const timePoints = [];
-                const allData = [
-                    ['2026-06', 'photo printer', 4164],
-                    ['2026-05', 'photo printer', 3787],
-                    ['2026-04', 'photo printer', 3785],
-                    ['2026-03', 'photo printer', 3580],
-                    ['2026-02', 'photo printer', 2625],
-                    ['2026-01', 'photo printer', 1884],
-                    ['2025-12', 'photo printer', 977],
-                    ['2025-11', 'photo printer', 1180],
-                    ['2025-10', 'photo printer', 2885],
-                    ['2025-09', 'photo printer', 3366],
-                    ['2025-08', 'photo printer', 3667],
-                    ['2025-07', 'photo printer', 3579],
-                    ['2025-06', 'photo printer', 4300],
-                    ['2025-05', 'photo printer', 4007],
-                    ['2025-04', 'photo printer', 4276],
-                    ['2025-03', 'photo printer', 4098],
-                    ['2025-02', 'photo printer', 3416],
-                    ['2025-01', 'photo printer', 2553],
-                    ['2024-12', 'photo printer', 1326],
-                    ['2024-11', 'photo printer', 1592],
-                    ['2024-10', 'photo printer', 3018],
-                    ['2024-09', 'photo printer', 3422],
-                    ['2024-08', 'photo printer', 3717],
-                    ['2024-07', 'photo printer', 3112],
-                    ['2024-06', 'photo printer', 4294],
-                    ['2024-05', 'photo printer', 3400],
-                    ['2024-04', 'photo printer', 4036],
-                    ['2024-03', 'photo printer', 4570],
-                    ['2024-02', 'photo printer', 3838],
-                    ['2024-01', 'photo printer', 2988],
-                    ['2023-12', 'photo printer', 1470],
-                    ['2023-11', 'photo printer', 1749],
-                    ['2023-10', 'photo printer', 2496],
-                    ['2023-09', 'photo printer', 3464],
-                    ['2023-08', 'photo printer', 4255],
-                    ['2023-07', 'photo printer', 3798],
-                    ['2023-06', 'photo printer', 3894],
-                    ['2023-05', 'photo printer', 3676],
-                    ['2023-04', 'photo printer', 4635],
-                    ['2023-03', 'photo printer', 4485],
-                    ['2023-02', 'photo printer', 4239],
-                    ['2023-01', 'photo printer', 4195],
-                    ['2022-12', 'photo printer', 2676],
-                    ['2022-11', 'photo printer', 2782],
-                    ['2022-10', 'photo printer', 4498],
-                    ['2022-09', 'photo printer', 4717],
-                    ['2022-08', 'photo printer', 4811],
-                    ['2022-07', 'photo printer', 4331],
-                    ['2022-06', 'photo printer', 4807],
-                    ['2022-05', 'photo printer', 4577],
-                    ['2022-04', 'photo printer', 4468],
-                    ['2022-03', 'photo printer', 5066],
-                    ['2022-02', 'photo printer', 3370],
-                    ['2022-01', 'photo printer', 4344],
-                    ['2026-06', 'sticker printer', 6611],
-                    ['2026-05', 'sticker printer', 6108],
-                    ['2026-04', 'sticker printer', 4906],
-                    ['2026-03', 'sticker printer', 4728],
-                    ['2026-02', 'sticker printer', 4590],
-                    ['2026-01', 'sticker printer', 3978],
-                    ['2025-12', 'sticker printer', 3234],
-                    ['2025-11', 'sticker printer', 4267],
-                    ['2025-10', 'sticker printer', 6920],
-                    ['2025-09', 'sticker printer', 6968],
-                    ['2025-08', 'sticker printer', 7869],
-                    ['2025-07', 'sticker printer', 7857],
-                    ['2025-06', 'sticker printer', 10535],
-                    ['2025-05', 'sticker printer', 11803],
-                    ['2025-04', 'sticker printer', 11313],
-                    ['2025-03', 'sticker printer', 9787],
-                    ['2025-02', 'sticker printer', 4565],
-                    ['2025-01', 'sticker printer', 7052],
-                    ['2024-12', 'sticker printer', 4521],
-                    ['2024-11', 'sticker printer', 5543],
-                    ['2024-10', 'sticker printer', 10485],
-                    ['2024-09', 'sticker printer', 9501],
-                    ['2024-08', 'sticker printer', 10554],
-                    ['2024-07', 'sticker printer', 9989],
-                    ['2024-06', 'sticker printer', 11683],
-                    ['2024-05', 'sticker printer', 11886],
-                    ['2024-04', 'sticker printer', 10270],
-                    ['2024-03', 'sticker printer', 10043],
-                    ['2024-02', 'sticker printer', 8455],
-                    ['2024-01', 'sticker printer', 5651],
-                    ['2023-12', 'sticker printer', 3862],
-                    ['2023-11', 'sticker printer', 6870],
-                    ['2023-10', 'sticker printer', 8931],
-                    ['2023-09', 'sticker printer', 8000],
-                    ['2023-08', 'sticker printer', 5412],
-                    ['2023-07', 'sticker printer', 6610],
-                    ['2023-06', 'sticker printer', 6761],
-                    ['2023-05', 'sticker printer', 15849],
-                    ['2023-04', 'sticker printer', 12754],
-                    ['2023-03', 'sticker printer', 12068],
-                    ['2023-02', 'sticker printer', 10000],
-                    ['2023-01', 'sticker printer', 10541],
-                    ['2022-12', 'sticker printer', 14469],
-                    ['2022-11', 'sticker printer', 14579],
-                    ['2022-10', 'sticker printer', 14607],
-                    ['2022-09', 'sticker printer', 14213],
-                    ['2022-08', 'sticker printer', 14613],
-                    ['2022-07', 'sticker printer', 16952],
-                    ['2022-06', 'sticker printer', 15786],
-                    ['2022-05', 'sticker printer', 12534],
-                    ['2022-04', 'sticker printer', 12007],
-                    ['2022-03', 'sticker printer', 10789],
-                    ['2022-02', 'sticker printer', 9616],
-                    ['2022-01', 'sticker printer', 9718],
-                    ['2026-06', 'mini photo printer', 33340],
-                    ['2026-05', 'mini photo printer', 38176],
-                    ['2026-04', 'mini photo printer', 38559],
-                    ['2026-03', 'mini photo printer', 34503],
-                    ['2026-02', 'mini photo printer', 22939],
-                    ['2026-01', 'mini photo printer', 13865],
-                    ['2025-12', 'mini photo printer', 8815],
-                    ['2025-11', 'mini photo printer', 11349],
-                    ['2025-10', 'mini photo printer', 23290],
-                    ['2025-09', 'mini photo printer', 25231],
-                    ['2025-08', 'mini photo printer', 27558],
-                    ['2025-07', 'mini photo printer', 27887],
-                    ['2025-06', 'mini photo printer', 34386],
-                    ['2025-05', 'mini photo printer', 31661],
-                    ['2025-04', 'mini photo printer', 43700],
-                    ['2025-03', 'mini photo printer', 35493],
-                    ['2025-02', 'mini photo printer', 31833],
-                    ['2025-01', 'mini photo printer', 19072],
-                    ['2024-12', 'mini photo printer', 13383],
-                    ['2024-11', 'mini photo printer', 15356],
-                    ['2024-10', 'mini photo printer', 29299],
-                    ['2024-09', 'mini photo printer', 28672],
-                    ['2024-08', 'mini photo printer', 27906],
-                    ['2024-07', 'mini photo printer', 23032],
-                    ['2024-06', 'mini photo printer', 23607],
-                    ['2024-05', 'mini photo printer', 23132],
-                    ['2024-04', 'mini photo printer', 39349],
-                    ['2024-03', 'mini photo printer', 43417],
-                    ['2024-02', 'mini photo printer', 35488],
-                    ['2024-01', 'mini photo printer', 23629],
-                    ['2023-12', 'mini photo printer', 14056],
-                    ['2023-11', 'mini photo printer', 21964],
-                    ['2023-10', 'mini photo printer', 38736],
-                    ['2023-09', 'mini photo printer', 50077],
-                    ['2023-08', 'mini photo printer', 47459],
-                    ['2023-07', 'mini photo printer', 42482],
-                    ['2023-06', 'mini photo printer', 43262],
-                    ['2023-05', 'mini photo printer', 29621],
-                    ['2023-04', 'mini photo printer', 62973],
-                    ['2023-03', 'mini photo printer', 54781],
-                    ['2023-02', 'mini photo printer', 56780],
-                    ['2023-01', 'mini photo printer', 41134],
-                    ['2022-12', 'mini photo printer', 21134],
-                    ['2022-11', 'mini photo printer', 29265],
-                    ['2022-10', 'mini photo printer', 48604],
-                    ['2022-09', 'mini photo printer', 52048],
-                    ['2022-08', 'mini photo printer', 54590],
-                    ['2022-07', 'mini photo printer', 45797],
-                    ['2022-06', 'mini photo printer', 53581],
-                    ['2022-05', 'mini photo printer', 49525],
-                    ['2022-04', 'mini photo printer', 53428],
-                    ['2022-03', 'mini photo printer', 58969],
-                    ['2022-02', 'mini photo printer', 54010],
-                    ['2022-01', 'mini photo printer', 49301]
-                ];
-                const timeSet = new Set();
-                allData.forEach(d => timeSet.add(d[0]));
-                const timesArr = Array.from(timeSet).sort();
-                const timeMap = {};
-                timesArr.forEach((t, i) => { timeMap[t] = i; });
                 const seriesNames = ['photo printer', 'sticker printer', 'mini photo printer'];
-                const seriesData = {};
-                seriesNames.forEach(sn => { seriesData[sn] = new Array(timesArr.length).fill(null); });
-                allData.forEach(d => {
-                    const t = d[0];
-                    const sn = d[1];
-                    const v = d[2];
-                    const idx = timeMap[t];
-                    if (seriesData[sn] !== undefined && idx !== undefined) {
-                        seriesData[sn][idx] = v;
-                    }
+                // 收集所有时间点并排序
+                const timeSet = new Set();
+                seriesNames.forEach(sn => {
+                    rawSeriesData[sn].forEach(d => timeSet.add(d[0]));
                 });
-                const option = {
+                const xAxisData = Array.from(timeSet).sort();
+                const seriesDataArr = seriesNames.map((sn, si) => {
+                    const dataMap = {};
+                    rawSeriesData[sn].forEach(d => { dataMap[d[0]] = d[1]; });
+                    const data = xAxisData.map(t => dataMap[t] !== undefined ? dataMap[t] : null);
+                    return {
+                        name: sn,
+                        type: 'line',
+                        symbol: 'none',
+                        smooth: true,
+                        lineStyle: { width: 2, color: COLORS[si] },
+                        itemStyle: { color: COLORS[si] },
+                        data: data,
+                    };
+                });
+                chartOpts.push({
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
                         formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
+                            let html = params[0].axisValue + '<br/>';
                             params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + numberWithCommas(p.value) + '<br/>';
+                                html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + '：' + (p.value !==
+                                        null ? p.value.toLocaleString() : '-') + '<br/>';
                             });
-                            return s;
-                        }
+                            return html;
+                        },
                     },
                     legend: {
                         top: 0,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 16
+                        data: seriesNames,
+                        selected: seriesNames.reduce((acc, sn, i) => { acc[sn] = i < 3; return acc; }, {}),
+                        textStyle: { fontSize: 11, color: '#333' },
                     },
-                    grid: { left: '3%', right: '6%', top: 40, bottom: 60, containLabel: true },
+                    grid: { left: '8%', right: '6%', top: '12%', bottom: '8%' },
                     xAxis: {
                         type: 'category',
-                        data: timesArr,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        data: xAxisData,
+                        boundaryGap: false,
                         axisLine: { lineStyle: { color: '#ccc' } },
                         axisTick: { show: false },
-                        boundaryGap: false
+                        axisLabel: {
+                            fontSize: 10,
+                            color: '#666',
+                            rotate: 45,
+                            interval: Math.floor(xAxisData.length / 12),
+                        },
+                        splitLine: { show: false },
                     },
                     yAxis: {
                         type: 'value',
                         name: '月搜索量',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
-                        axisLabel: { formatter: yAxisLabelFormatter, fontSize: 10, color: '#666' },
+                        axisLabel: { fontSize: 10, color: '#666', formatter: formatAxisLabel },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        nameTextStyle: { fontSize: 10, color: '#666' },
                     },
-                    color: COLORS,
-                    series: seriesNames.map((sn, i) => ({
-                        name: sn,
-                        type: 'line',
-                        data: seriesData[sn],
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { width: 2 },
-                        connectNulls: true
-                    }))
-                };
-                chartOpts.push(option);
+                    series: seriesDataArr,
+                });
             })();
 
-            // ==================== 图6：关键词ABA排名趋势-多系列折线图 ====================
+            // ---------- 图6：关键词ABA排名趋势-多系列折线图 ----------
             (function() {
-                const allData = [
-                    ['2026-06', 'photo printer', 154149],
-                    ['2026-05', 'photo printer', 174775],
-                    ['2026-04', 'photo printer', 163855],
-                    ['2026-03', 'photo printer', 179365],
-                    ['2026-02', 'photo printer', 213312],
-                    ['2026-01', 'photo printer', 281163],
-                    ['2025-12', 'photo printer', 424213],
-                    ['2025-11', 'photo printer', 382633],
-                    ['2025-10', 'photo printer', 198563],
-                    ['2025-09', 'photo printer', 189015],
-                    ['2025-08', 'photo printer', 169382],
-                    ['2025-07', 'photo printer', 176598],
-                    ['2025-06', 'photo printer', 154035],
-                    ['2025-05', 'photo printer', 157726],
-                    ['2025-04', 'photo printer', 160352],
-                    ['2025-03', 'photo printer', 153961],
-                    ['2025-02', 'photo printer', 189597],
-                    ['2025-01', 'photo printer', 221487],
-                    ['2024-12', 'photo printer', 339533],
-                    ['2024-11', 'photo printer', 308369],
-                    ['2024-10', 'photo printer', 227962],
-                    ['2024-09', 'photo printer', 207225],
-                    ['2024-08', 'photo printer', 197514],
-                    ['2024-07', 'photo printer', 226328],
-                    ['2024-06', 'photo printer', 170611],
-                    ['2024-05', 'photo printer', 209724],
-                    ['2024-04', 'photo printer', 188565],
-                    ['2024-03', 'photo printer', 168490],
-                    ['2024-02', 'photo printer', 180517],
-                    ['2024-01', 'photo printer', 206360],
-                    ['2023-12', 'photo printer', 286146],
-                    ['2023-11', 'photo printer', 254806],
-                    ['2023-10', 'photo printer', 221940],
-                    ['2023-09', 'photo printer', 186862],
-                    ['2023-08', 'photo printer', 170092],
-                    ['2023-07', 'photo printer', 161163],
-                    ['2023-06', 'photo printer', 154547],
-                    ['2023-05', 'photo printer', 165936],
-                    ['2023-04', 'photo printer', 131448],
-                    ['2023-03', 'photo printer', 142545],
-                    ['2023-02', 'photo printer', 146864],
-                    ['2023-01', 'photo printer', 147053],
-                    ['2022-12', 'photo printer', 196139],
-                    ['2022-11', 'photo printer', 200322],
-                    ['2022-10', 'photo printer', 138706],
-                    ['2022-09', 'photo printer', 135769],
-                    ['2022-08', 'photo printer', 137521],
-                    ['2022-07', 'photo printer', 148476],
-                    ['2022-06', 'photo printer', 126889],
-                    ['2022-05', 'photo printer', 130866],
-                    ['2022-04', 'photo printer', 139776],
-                    ['2022-03', 'photo printer', 125075],
-                    ['2022-02', 'photo printer', 165812],
-                    ['2022-01', 'photo printer', 141604],
-                    ['2026-06', 'sticker printer', 123806],
-                    ['2026-05', 'sticker printer', 133377],
-                    ['2026-04', 'sticker printer', 145610],
-                    ['2026-03', 'sticker printer', 146477],
-                    ['2026-02', 'sticker printer', 143433],
-                    ['2026-01', 'sticker printer', 162255],
-                    ['2025-12', 'sticker printer', 196868],
-                    ['2025-11', 'sticker printer', 157165],
-                    ['2025-10', 'sticker printer', 120429],
-                    ['2025-09', 'sticker printer', 128431],
-                    ['2025-08', 'sticker printer', 120451],
-                    ['2025-07', 'sticker printer', 118993],
-                    ['2025-06', 'sticker printer', 92196],
-                    ['2025-05', 'sticker printer', 87552],
-                    ['2025-04', 'sticker printer', 89446],
-                    ['2025-03', 'sticker printer', 96097],
-                    ['2025-02', 'sticker printer', 147242],
-                    ['2025-01', 'sticker printer', 117918],
-                    ['2024-12', 'sticker printer', 150899],
-                    ['2024-11', 'sticker printer', 131009],
-                    ['2024-10', 'sticker printer', 105680],
-                    ['2024-09', 'sticker printer', 119391],
-                    ['2024-08', 'sticker printer', 117274],
-                    ['2024-07', 'sticker printer', 111690],
-                    ['2024-06', 'sticker printer', 98358],
-                    ['2024-05', 'sticker printer', 97439],
-                    ['2024-04', 'sticker printer', 120903],
-                    ['2024-03', 'sticker printer', 113793],
-                    ['2024-02', 'sticker printer', 129175],
-                    ['2024-01', 'sticker printer', 159195],
-                    ['2023-12', 'sticker printer', 183250],
-                    ['2023-11', 'sticker printer', 139904],
-                    ['2023-10', 'sticker printer', 111106],
-                    ['2023-09', 'sticker printer', 130603],
-                    ['2023-08', 'sticker printer', 157901],
-                    ['2023-07', 'sticker printer', 96693],
-                    ['2023-06', 'sticker printer', 96195],
-                    ['2023-05', 'sticker printer', 47273],
-                    ['2023-04', 'sticker printer', 57252],
-                    ['2023-03', 'sticker printer', 60054],
-                    ['2023-02', 'sticker printer', 70218],
-                    ['2023-01', 'sticker printer', 66312],
-                    ['2022-12', 'sticker printer', 51495],
-                    ['2022-11', 'sticker printer', 51080],
-                    ['2022-10', 'sticker printer', 50249],
-                    ['2022-09', 'sticker printer', 51390],
-                    ['2022-08', 'sticker printer', 51072],
-                    ['2022-07', 'sticker printer', 45025],
-                    ['2022-06', 'sticker printer', 46667],
-                    ['2022-05', 'sticker printer', 57842],
-                    ['2022-04', 'sticker printer', 59361],
-                    ['2022-03', 'sticker printer', 65267],
-                    ['2022-02', 'sticker printer', 72211],
-                    ['2022-01', 'sticker printer', 71794],
-                    ['2026-06', 'mini photo printer', 42993],
-                    ['2026-05', 'mini photo printer', 38858],
-                    ['2026-04', 'mini photo printer', 38441],
-                    ['2026-03', 'mini photo printer', 42914],
-                    ['2026-02', 'mini photo printer', 56289],
-                    ['2026-01', 'mini photo printer', 79029],
-                    ['2025-12', 'mini photo printer', 118520],
-                    ['2025-11', 'mini photo printer', 89530],
-                    ['2025-10', 'mini photo printer', 57055],
-                    ['2025-09', 'mini photo printer', 52797],
-                    ['2025-08', 'mini photo printer', 50038],
-                    ['2025-07', 'mini photo printer', 49233],
-                    ['2025-06', 'mini photo printer', 41489],
-                    ['2025-05', 'mini photo printer', 45004],
-                    ['2025-04', 'mini photo printer', 34722],
-                    ['2025-03', 'mini photo printer', 41245],
-                    ['2025-02', 'mini photo printer', 44295],
-                    ['2025-01', 'mini photo printer', 64563],
-                    ['2024-12', 'mini photo printer', 80354],
-                    ['2024-11', 'mini photo printer', 74681],
-                    ['2024-10', 'mini photo printer', 51513],
-                    ['2024-09', 'mini photo printer', 52654],
-                    ['2024-08', 'mini photo printer', 54491],
-                    ['2024-07', 'mini photo printer', 62264],
-                    ['2024-06', 'mini photo printer', 62330],
-                    ['2024-05', 'mini photo printer', 61992],
-                    ['2024-04', 'mini photo printer', 40525],
-                    ['2024-03', 'mini photo printer', 37477],
-                    ['2024-02', 'mini photo printer', 39382],
-                    ['2024-01', 'mini photo printer', 55082],
-                    ['2023-12', 'mini photo printer', 80947],
-                    ['2023-11', 'mini photo printer', 58784],
-                    ['2023-10', 'mini photo printer', 37129],
-                    ['2023-09', 'mini photo printer', 30536],
-                    ['2023-08', 'mini photo printer', 30779],
-                    ['2023-07', 'mini photo printer', 18796],
-                    ['2023-06', 'mini photo printer', 18423],
-                    ['2023-05', 'mini photo printer', 26298],
-                    ['2023-04', 'mini photo printer', 15046],
-                    ['2023-03', 'mini photo printer', 15966],
-                    ['2023-02', 'mini photo printer', 15037],
-                    ['2023-01', 'mini photo printer', 19426],
-                    ['2022-12', 'mini photo printer', 36311],
-                    ['2022-11', 'mini photo printer', 27720],
-                    ['2022-10', 'mini photo printer', 16295],
-                    ['2022-09', 'mini photo printer', 15434],
-                    ['2022-08', 'mini photo printer', 15291],
-                    ['2022-07', 'mini photo printer', 17496],
-                    ['2022-06', 'mini photo printer', 16453],
-                    ['2022-05', 'mini photo printer', 16122],
-                    ['2022-04', 'mini photo printer', 15363],
-                    ['2022-03', 'mini photo printer', 15243],
-                    ['2022-02', 'mini photo printer', 16216],
-                    ['2022-01', 'mini photo printer', 16436]
-                ];
-                const timeSet = new Set();
-                allData.forEach(d => timeSet.add(d[0]));
-                const timesArr = Array.from(timeSet).sort();
-                const timeMap = {};
-                timesArr.forEach((t, i) => { timeMap[t] = i; });
+                const rawSeriesData = {
+                    'photo printer': [
+                        ['2022-01', 141604],
+                        ['2022-02', 165812],
+                        ['2022-03', 125075],
+                        ['2022-04', 139776],
+                        ['2022-05', 130866],
+                        ['2022-06', 126889],
+                        ['2022-07', 148476],
+                        ['2022-08', 137521],
+                        ['2022-09', 135769],
+                        ['2022-10', 138706],
+                        ['2022-11', 200322],
+                        ['2022-12', 196139],
+                        ['2023-01', 147053],
+                        ['2023-02', 146864],
+                        ['2023-03', 142545],
+                        ['2023-04', 131448],
+                        ['2023-05', 165936],
+                        ['2023-06', 154547],
+                        ['2023-07', 161163],
+                        ['2023-08', 170092],
+                        ['2023-09', 186862],
+                        ['2023-10', 221940],
+                        ['2023-11', 254806],
+                        ['2023-12', 286146],
+                        ['2024-01', 206360],
+                        ['2024-02', 180517],
+                        ['2024-03', 168490],
+                        ['2024-04', 188565],
+                        ['2024-05', 209724],
+                        ['2024-06', 170611],
+                        ['2024-07', 226328],
+                        ['2024-08', 197514],
+                        ['2024-09', 207225],
+                        ['2024-10', 227962],
+                        ['2024-11', 308369],
+                        ['2024-12', 339533],
+                        ['2025-01', 221487],
+                        ['2025-02', 189597],
+                        ['2025-03', 153961],
+                        ['2025-04', 160352],
+                        ['2025-05', 157726],
+                        ['2025-06', 154035],
+                        ['2025-07', 176598],
+                        ['2025-08', 169382],
+                        ['2025-09', 189015],
+                        ['2025-10', 198563],
+                        ['2025-11', 382633],
+                        ['2025-12', 424213],
+                        ['2026-01', 281163],
+                        ['2026-02', 213312],
+                        ['2026-03', 179365],
+                        ['2026-04', 163855],
+                        ['2026-05', 174775],
+                        ['2026-06', 154149],
+                    ],
+                    'sticker printer': [
+                        ['2022-01', 71794],
+                        ['2022-02', 72211],
+                        ['2022-03', 65267],
+                        ['2022-04', 59361],
+                        ['2022-05', 57842],
+                        ['2022-06', 46667],
+                        ['2022-07', 45025],
+                        ['2022-08', 51072],
+                        ['2022-09', 51390],
+                        ['2022-10', 50249],
+                        ['2022-11', 51080],
+                        ['2022-12', 51495],
+                        ['2023-01', 66312],
+                        ['2023-02', 70218],
+                        ['2023-03', 60054],
+                        ['2023-04', 57252],
+                        ['2023-05', 47273],
+                        ['2023-06', 96195],
+                        ['2023-07', 96693],
+                        ['2023-08', 157901],
+                        ['2023-09', 130603],
+                        ['2023-10', 111106],
+                        ['2023-11', 139904],
+                        ['2023-12', 183250],
+                        ['2024-01', 159195],
+                        ['2024-02', 129175],
+                        ['2024-03', 113793],
+                        ['2024-04', 120903],
+                        ['2024-05', 97439],
+                        ['2024-06', 98358],
+                        ['2024-07', 111690],
+                        ['2024-08', 117274],
+                        ['2024-09', 119391],
+                        ['2024-10', 105680],
+                        ['2024-11', 131009],
+                        ['2024-12', 150899],
+                        ['2025-01', 117918],
+                        ['2025-02', 147242],
+                        ['2025-03', 96097],
+                        ['2025-04', 89446],
+                        ['2025-05', 87552],
+                        ['2025-06', 92196],
+                        ['2025-07', 118993],
+                        ['2025-08', 120451],
+                        ['2025-09', 128431],
+                        ['2025-10', 120429],
+                        ['2025-11', 157165],
+                        ['2025-12', 196868],
+                        ['2026-01', 162255],
+                        ['2026-02', 143433],
+                        ['2026-03', 146477],
+                        ['2026-04', 145610],
+                        ['2026-05', 133377],
+                        ['2026-06', 123806],
+                    ],
+                    'mini photo printer': [
+                        ['2022-01', 16436],
+                        ['2022-02', 16216],
+                        ['2022-03', 15243],
+                        ['2022-04', 15363],
+                        ['2022-05', 16122],
+                        ['2022-06', 16453],
+                        ['2022-07', 17496],
+                        ['2022-08', 15291],
+                        ['2022-09', 15434],
+                        ['2022-10', 16295],
+                        ['2022-11', 27720],
+                        ['2022-12', 36311],
+                        ['2023-01', 19426],
+                        ['2023-02', 15037],
+                        ['2023-03', 15966],
+                        ['2023-04', 15046],
+                        ['2023-05', 26298],
+                        ['2023-06', 18423],
+                        ['2023-07', 18796],
+                        ['2023-08', 30779],
+                        ['2023-09', 30536],
+                        ['2023-10', 37129],
+                        ['2023-11', 58784],
+                        ['2023-12', 80947],
+                        ['2024-01', 55082],
+                        ['2024-02', 39382],
+                        ['2024-03', 37477],
+                        ['2024-04', 40525],
+                        ['2024-05', 61992],
+                        ['2024-06', 62330],
+                        ['2024-07', 62264],
+                        ['2024-08', 54491],
+                        ['2024-09', 52654],
+                        ['2024-10', 51513],
+                        ['2024-11', 74681],
+                        ['2024-12', 80354],
+                        ['2025-01', 64563],
+                        ['2025-02', 44295],
+                        ['2025-03', 41245],
+                        ['2025-04', 34722],
+                        ['2025-05', 45004],
+                        ['2025-06', 41489],
+                        ['2025-07', 49233],
+                        ['2025-08', 50038],
+                        ['2025-09', 52797],
+                        ['2025-10', 57055],
+                        ['2025-11', 89530],
+                        ['2025-12', 118520],
+                        ['2026-01', 79029],
+                        ['2026-02', 56289],
+                        ['2026-03', 42914],
+                        ['2026-04', 38441],
+                        ['2026-05', 38858],
+                        ['2026-06', 42993],
+                    ],
+                };
                 const seriesNames = ['photo printer', 'sticker printer', 'mini photo printer'];
-                const seriesData = {};
-                seriesNames.forEach(sn => { seriesData[sn] = new Array(timesArr.length).fill(null); });
-                allData.forEach(d => {
-                    const t = d[0];
-                    const sn = d[1];
-                    const v = d[2];
-                    const idx = timeMap[t];
-                    if (seriesData[sn] !== undefined && idx !== undefined) {
-                        seriesData[sn][idx] = v;
-                    }
+                const timeSet = new Set();
+                seriesNames.forEach(sn => {
+                    rawSeriesData[sn].forEach(d => timeSet.add(d[0]));
                 });
-                const option = {
+                const xAxisData = Array.from(timeSet).sort();
+                const seriesDataArr = seriesNames.map((sn, si) => {
+                    const dataMap = {};
+                    rawSeriesData[sn].forEach(d => { dataMap[d[0]] = d[1]; });
+                    const data = xAxisData.map(t => dataMap[t] !== undefined ? dataMap[t] : null);
+                    return {
+                        name: sn,
+                        type: 'line',
+                        symbol: 'none',
+                        smooth: true,
+                        lineStyle: { width: 2, color: COLORS[si] },
+                        itemStyle: { color: COLORS[si] },
+                        data: data,
+                    };
+                });
+                chartOpts.push({
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
                         formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
+                            let html = params[0].axisValue + '<br/>';
                             params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + numberWithCommas(p.value) + '<br/>';
+                                html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                    p.color + ';margin-right:4px;"></span>' + p.seriesName + '：' + (p.value !==
+                                        null ? p.value.toLocaleString() : '-') + '<br/>';
                             });
-                            return s;
-                        }
+                            return html;
+                        },
                     },
                     legend: {
                         top: 0,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 16
+                        data: seriesNames,
+                        selected: seriesNames.reduce((acc, sn, i) => { acc[sn] = i < 3; return acc; }, {}),
+                        textStyle: { fontSize: 11, color: '#333' },
                     },
-                    grid: { left: '3%', right: '6%', top: 40, bottom: 60, containLabel: true },
+                    grid: { left: '8%', right: '6%', top: '12%', bottom: '8%' },
                     xAxis: {
                         type: 'category',
-                        data: timesArr,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
+                        data: xAxisData,
+                        boundaryGap: false,
                         axisLine: { lineStyle: { color: '#ccc' } },
                         axisTick: { show: false },
-                        boundaryGap: false
+                        axisLabel: {
+                            fontSize: 10,
+                            color: '#666',
+                            rotate: 45,
+                            interval: Math.floor(xAxisData.length / 12),
+                        },
+                        splitLine: { show: false },
                     },
                     yAxis: {
                         type: 'value',
                         name: 'ABA排名',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
                         inverse: true,
-                        axisLabel: { formatter: yAxisLabelFormatter, fontSize: 10, color: '#666' },
+                        axisLabel: { fontSize: 10, color: '#666', formatter: formatAxisLabel },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        nameTextStyle: { fontSize: 10, color: '#666' },
                     },
-                    color: COLORS,
-                    series: seriesNames.map((sn, i) => ({
-                        name: sn,
-                        type: 'line',
-                        data: seriesData[sn],
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { width: 2 },
-                        connectNulls: true
-                    }))
-                };
-                chartOpts.push(option);
-            })();
-
-            // ==================== 图7：历史销量趋势-复合图 ====================
-            (function() {
-                const rawData = [
-                    ['2024-08', 19177, 1893841.95, 737],
-                    ['2024-09', 18964, 1962185.44, 702],
-                    ['2024-10', 27695, 2933125.02, 1025],
-                    ['2024-11', 41822, 4165648.03, 1442],
-                    ['2024-12', 105084, 9680671.53, 3623],
-                    ['2025-01', 24582, 2594235.06, 847],
-                    ['2025-02', 12863, 1345407.82, 428],
-                    ['2025-03', 12530, 1408586.12, 417],
-                    ['2025-04', 14122, 1555257.47, 504],
-                    ['2025-05', 20221, 2121705.64, 674],
-                    ['2025-06', 13384, 1387903.30, 418],
-                    ['2025-07', 19000, 1943766.33, 593],
-                    ['2025-08', 15567, 1720333.42, 486],
-                    ['2025-09', 10756, 1232765.73, 325],
-                    ['2025-10', 31129, 3288592.62, 915],
-                    ['2025-11', 71668, 6989262.11, 1990],
-                    ['2025-12', 152085, 14766279.21, 4224],
-                    ['2026-01', 57085, 5605625.51, 1502],
-                    ['2026-02', 43543, 4295371.79, 1088],
-                    ['2026-03', 36233, 3488664.34, 905],
-                    ['2026-04', 32493, 3167527.06, 812],
-                    ['2026-05', 38019, 3675157.88, 950],
-                    ['2026-06', 39638, 3883692.02, 990],
-                    ['2026-07', 37059, 3535772.773, 926],
-                    ['2026-08', 36239, 3507183.099, 905]
-                ];
-                const times = rawData.map(d => d[0]);
-                const salesVolume = rawData.map(d => d[1]);
-                const salesRevenue = rawData.map(d => parseFloat(d[2].toString().replace(/,/g, '')));
-                const avgVolume = rawData.map(d => d[3]);
-                const option = {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                if (p.seriesName === '月销售额') {
-                                    s += p.seriesName + ': $' + numberWithCommas(p.value.toFixed(2)) +
-                                        '<br/>';
-                                } else if (p.seriesName === '平均月销量') {
-                                    s += p.seriesName + ': ' + numberWithCommas(p.value) + '<br/>';
-                                } else {
-                                    s += p.seriesName + ': ' + numberWithCommas(p.value) + '<br/>';
-                                }
-                            });
-                            return s;
-                        }
-                    },
-                    legend: {
-                        top: 0,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 16
-                    },
-                    grid: { left: '3%', right: '6%', top: 40, bottom: 50, containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: times,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        axisTick: { show: false }
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '月销量',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
-                        axisLabel: { formatter: yAxisLabelFormatter, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    }, {
-                        type: 'value',
-                        name: '月销售额($)',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
-                        axisLabel: { formatter: function(v) { return '$' + yAxisLabelFormatter(v); },
-                            fontSize: 10, color: '#666' },
-                        splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    }],
-                    color: COLORS,
-                    series: [{
-                        name: '月销量',
-                        type: 'bar',
-                        data: salesVolume,
-                        barWidth: '55%',
-                        itemStyle: { color: COLORS[0], borderRadius: [0, 0, 0, 0] }
-                    }, {
-                        name: '月销售额',
-                        type: 'line',
-                        yAxisIndex: 1,
-                        data: salesRevenue,
-                        smooth: true,
-                        symbol: 'circle',
-                        symbolSize: 5,
-                        lineStyle: { width: 2.5, color: COLORS[1] },
-                        itemStyle: { color: COLORS[1] }
-                    }]
-                };
-                chartOpts.push(option);
-            })();
-
-            // ==================== 图8：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-
-            // ==================== 图9：品牌垄断-饼图（13类别>8，隐藏图例） ====================
-            (function() {
-                const rawData = [
-                    { name: 'KODAK', value: 10398 }, { name: 'Nelko', value: 5999 }, { name: 'Fujifilm',
-                        value: 5281 },
-                    { name: 'Liene', value: 5270 }, { name: 'HP', value: 3950 }, { name: 'Canon', value: 3407 },
-                    { name: 'Polaroid', value: 1101 }, { name: 'Insta360', value: 283 }, { name: 'Brother',
-                        value: 130 },
-                    { name: 'HPRT', value: 55 }, { name: 'Lifeprint', value: 15 }, { name: 'KENTO MAX',
-                    value: 1 },
-                    { name: 'Amazon Renewed', value: 0 }
-                ];
-                const option = {
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(p) {
-                            return p.name + '<br/>月销量: ' + numberWithCommas(p.value) + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
-                    },
-                    legend: { show: false },
-                    color: COLORS,
-                    series: [{
-                        name: '品牌垄断',
-                        type: 'pie',
-                        radius: ['40%', '75%'],
-                        center: ['50%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 1 },
-                        minAngle: 2,
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: function(p) {
-                                if (p.percent < 1) return '';
-                                return '● ' + p.name + '\n  ' + p.percent + '%';
-                            },
-                            fontSize: 10,
-                            color: '#555',
-                            lineHeight: 14
-                        },
-                        labelLine: { show: true, length: 14, length2: 18, lineStyle: { color: '#ccc',
-                                width: 0.8 } },
-                        emphasis: { label: { fontSize: 12, fontWeight: 'bold' }, scaleSize: 8 },
-                        data: rawData
-                    }]
-                };
-                chartOpts.push(option);
-            })();
-
-            // ==================== 图10：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图11：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图12：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图13：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图14：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-
-            // ==================== 图15：分款价格分布-堆积柱状图+折线复合图 ====================
-            (function() {
-                const priceBands = [
-                    '45.21-50.21', '55.21-60.21', '65.21-70.21', '70.21-75.21', '75.21-80.21',
-                    '85.21-90.21', '90.21-95.21', '95.21-100.21', '100.21-105.21', '110.21-115.21',
-                    '115.21-120.21', '125.21-130.21', '130.21-135.21', '135.21-140.21', '145.21-150.21',
-                    '155.21-160.21', '165.21-170.21', '175.21-180.21', '200.21-205.21', '205.21-210.21'
-                ];
-                const seriesNames = ['ZINK零墨水', '拍立得即时显影', '染料热升华', '喷墨/墨盒'];
-                const volumeData = {
-                    'ZINK零墨水': [0, 0, 55, 272, 9839, 0, 0, 3615, 119, 0, 13, 54, 0, 1157, 378, 321, 0,
-                        463, 0, 0
-                    ],
-                    '拍立得即时显影': [0, 0, 5727, 0, 0, 3763, 414, 283, 2413, 1690, 2530, 0, 0, 0, 0, 0, 449,
-                        541, 0, 130
-                    ],
-                    '染料热升华': [0, 53, 0, 0, 0, 0, 242, 0, 0, 0, 37, 71, 1183, 0, 0, 0, 0, 0, 0, 0],
-                    '喷墨/墨盒': [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 76, 0]
-                };
-                const revenueData = {
-                    'ZINK零墨水': [0, 0, 3813, 20397, 787021, 0, 0, 361425, 12224, 0, 1559, 7019, 0, 161962,
-                        56681, 50165, 0, 83316, 0, 0
-                    ],
-                    '拍立得即时显影': [0, 0, 383651, 0, 0, 338258, 38753, 28297, 248637, 187083, 303574, 0, 0,
-                        0, 0, 0, 76236, 97352, 0, 27298
-                    ],
-                    '染料热升华': [0, 3179, 0, 0, 0, 0, 22987, 0, 0, 0, 4439, 9229, 159645, 0, 0, 0, 0, 0, 0,
-                    0],
-                    '喷墨/墨盒': [90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15351, 0]
-                };
-                const totalRevenue = priceBands.map((_, i) => {
-                    return seriesNames.reduce((sum, sn) => sum + (revenueData[sn][i] || 0), 0);
+                    series: seriesDataArr,
                 });
-                const option = {
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let s = '价格区间: ' + params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                if (p.seriesName === '总月销售额') {
-                                    s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                        p.color +
-                                        ';margin-right:6px;"></span>';
-                                    s += p.seriesName + ': $' + numberWithCommas(p.value.toFixed(
-                                        2)) + '<br/>';
-                                } else {
-                                    s += '<span style="display:inline-block;width:10px;height:10px;background:' +
-                                        p.color + ';margin-right:6px;"></span>';
-                                    s += p.seriesName + '月销量: ' + numberWithCommas(p.value) +
-                                        '<br/>';
-                                }
-                            });
-                            return s;
-                        }
-                    },
-                    legend: {
-                        top: 0,
-                        textStyle: { fontSize: 11, color: '#333' },
-                        itemWidth: 12,
-                        itemHeight: 10,
-                        itemGap: 12,
-                        type: 'scroll'
-                    },
-                    grid: { left: '3%', right: '6%', top: 50, bottom: 60, containLabel: true },
-                    xAxis: {
-                        type: 'category',
-                        data: priceBands,
-                        axisLabel: { rotate: 45, fontSize: 9, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        axisTick: { show: false },
-                        name: '价格区间($)',
-                        nameTextStyle: { fontSize: 11, color: '#888' }
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '月销量',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
-                        axisLabel: { formatter: yAxisLabelFormatter, fontSize: 10, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    }, {
-                        type: 'value',
-                        name: '月销售额($)',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
-                        axisLabel: { formatter: function(v) { return '$' + yAxisLabelFormatter(v); },
-                            fontSize: 10, color: '#666' },
-                        splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
-                    }],
-                    color: COLORS,
-                    series: [
-                        ...seriesNames.map((sn, i) => ({
-                            name: sn,
-                            type: 'bar',
-                            stack: 'volume',
-                            data: volumeData[sn],
-                            barWidth: '60%',
-                            itemStyle: { color: COLORS[i] },
-                            emphasis: { focus: 'series' }
-                        })), {
-                            name: '总月销售额',
-                            type: 'line',
-                            yAxisIndex: 1,
-                            data: totalRevenue,
-                            smooth: true,
-                            symbol: 'circle',
-                            symbolSize: 6,
-                            lineStyle: { width: 2.5, color: COLORS[4] },
-                            itemStyle: { color: COLORS[4] },
-                            z: 10
-                        }
-                    ]
-                };
-                chartOpts.push(option);
             })();
 
-            // ==================== 图16：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图17：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-            // ==================== 图18：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
-
-            // ==================== 图19：分款质量分布-堆积柱状图 ====================
+            // ---------- 图7：历史销量趋势-复合图 ----------
             (function() {
-                const xData = ['三星半及以下', '四星', '四星半', '五星'];
-                const seriesNames = ['ZINK零墨水', '拍立得即时显影', '染料热升华', '喷墨/墨盒'];
-                const data = [
-                    [0, 4, 11, 3],
-                    [0, 2, 11, 1],
-                    [1, 2, 2, 1],
-                    [0, 1, 1, 0]
+                const rawData = [
+                    { time: '2024-08', sales: 19177, revenue: 1893841.95, avg: 737 },
+                    { time: '2024-09', sales: 18964, revenue: 1962185.44, avg: 702 },
+                    { time: '2024-10', sales: 27695, revenue: 2933125.02, avg: 1025 },
+                    { time: '2024-11', sales: 41822, revenue: 4165648.03, avg: 1442 },
+                    { time: '2024-12', sales: 105084, revenue: 9680671.53, avg: 3623 },
+                    { time: '2025-01', sales: 24582, revenue: 2594235.06, avg: 847 },
+                    { time: '2025-02', sales: 12863, revenue: 1345407.82, avg: 428 },
+                    { time: '2025-03', sales: 12530, revenue: 1408586.12, avg: 417 },
+                    { time: '2025-04', sales: 14122, revenue: 1555257.47, avg: 504 },
+                    { time: '2025-05', sales: 20221, revenue: 2121705.64, avg: 674 },
+                    { time: '2025-06', sales: 13384, revenue: 1387903.3, avg: 418 },
+                    { time: '2025-07', sales: 19000, revenue: 1943766.33, avg: 593 },
+                    { time: '2025-08', sales: 15567, revenue: 1720333.42, avg: 486 },
+                    { time: '2025-09', sales: 10756, revenue: 1232765.73, avg: 325 },
+                    { time: '2025-10', sales: 31129, revenue: 3288592.62, avg: 915 },
+                    { time: '2025-11', sales: 71668, revenue: 6989262.11, avg: 1990 },
+                    { time: '2025-12', sales: 152085, revenue: 14766279.21, avg: 4224 },
+                    { time: '2026-01', sales: 57085, revenue: 5605625.51, avg: 1502 },
+                    { time: '2026-02', sales: 43543, revenue: 4295371.79, avg: 1088 },
+                    { time: '2026-03', sales: 36233, revenue: 3488664.34, avg: 905 },
+                    { time: '2026-04', sales: 32493, revenue: 3167527.06, avg: 812 },
+                    { time: '2026-05', sales: 38019, revenue: 3675157.88, avg: 950 },
+                    { time: '2026-06', sales: 39638, revenue: 3883692.02, avg: 990 },
+                    { time: '2026-07', sales: 37059, revenue: 3535772.773, avg: 926 },
+                    { time: '2026-08', sales: 36239, revenue: 3507183.099, avg: 905 },
                 ];
-                const option = {
+                const xData = rawData.map(d => d.time);
+                const salesData = rawData.map(d => d.sales);
+                const revenueData = rawData.map(d => d.revenue);
+                const avgData = rawData.map(d => d.avg);
+                chartOpts.push({
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
                         textStyle: { color: '#fff' },
-                        formatter: function(params) {
-                            let s = '评分: ' + params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + p.value + '<br/>';
-                            });
-                            return s;
-                        }
                     },
                     legend: {
                         top: 0,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        itemWidth: 12,
-                        itemHeight: 10,
-                        itemGap: 14
+                        data: ['月销量', '月销售额', '平均月销量'],
+                        textStyle: { fontSize: 11, color: '#333' },
                     },
-                    grid: { left: '3%', right: '6%', top: 40, bottom: 40, containLabel: true },
+                    grid: { left: '8%', right: '8%', top: '12%', bottom: '6%' },
                     xAxis: {
                         type: 'category',
                         data: xData,
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        axisLine: { lineStyle: { color: '#ccc' } },
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 30, interval: 2 },
                         axisTick: { show: false },
-                        name: '评分星级',
-                        nameTextStyle: { fontSize: 11, color: '#888' }
+                        splitLine: { show: false },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: formatAxisLabel },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 10, color: '#666' },
+                    }, {
+                        type: 'value',
+                        name: '月销售额',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: function(v) { return (v / 10000).toFixed(
+                                    0) + '万'; } },
+                        splitLine: { show: false },
+                        nameTextStyle: { fontSize: 10, color: '#666' },
+                    }],
+                    series: [{
+                        name: '月销量',
+                        type: 'bar',
+                        yAxisIndex: 0,
+                        data: salesData,
+                        itemStyle: { color: COLORS[0] },
+                        barMaxWidth: 20,
+                    }, {
+                        name: '月销售额',
+                        type: 'bar',
+                        yAxisIndex: 1,
+                        data: revenueData,
+                        itemStyle: { color: COLORS[1] },
+                        barMaxWidth: 20,
+                    }, {
+                        name: '平均月销量',
+                        type: 'line',
+                        yAxisIndex: 0,
+                        data: avgData,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        smooth: true,
+                        lineStyle: { width: 2, color: COLORS[2] },
+                        itemStyle: { color: COLORS[2] },
+                    }],
+                });
+            })();
+
+            // ---------- 图8：价格趋势-多系列折线图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('价格趋势'));
+
+            // ---------- 图9：品牌垄断-饼图（13类，>8，隐藏图例+标签圆点） ----------
+            (function() {
+                const rawData = [
+                    { name: 'KODAK', value: 10398 },
+                    { name: 'Nelko', value: 5999 },
+                    { name: 'Fujifilm', value: 5281 },
+                    { name: 'Liene', value: 5270 },
+                    { name: 'HP', value: 3950 },
+                    { name: 'Canon', value: 3407 },
+                    { name: 'Polaroid', value: 1101 },
+                    { name: 'Insta360', value: 283 },
+                    { name: 'Brother', value: 130 },
+                    { name: 'HPRT', value: 55 },
+                    { name: 'Lifeprint', value: 15 },
+                    { name: 'KENTO MAX', value: 1 },
+                    { name: 'Amazon Renewed', value: 0 },
+                ];
+                const rich = buildPieRichLabels();
+                chartOpts.push({
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(p) {
+                            return p.name + '<br/>月销量：' + p.value.toLocaleString() + '<br/>占比：' + p.percent +
+                                '%';
+                        },
+                    },
+                    legend: { show: false },
+                    series: [{
+                        type: 'pie',
+                        center: ['45%', '50%'],
+                        radius: ['35%', '65%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: { borderColor: '#fff', borderWidth: 1 },
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: pieLabelFormatterWithDot,
+                            fontSize: 10,
+                            color: '#333',
+                            lineHeight: 14,
+                            rich: rich,
+                        },
+                        labelLine: {
+                            show: true,
+                            length: 10,
+                            length2: 20,
+                            lineStyle: { color: '#ccc' },
+                        },
+                        emphasis: { scaleSize: 6 },
+                        data: rawData.map((d, i) => ({
+                            ...d,
+                            itemStyle: { color: COLORS[i % 16] },
+                        })),
+                    }],
+                });
+            })();
+
+            // ---------- 图10：排名垄断-复合图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('排名垄断'));
+
+            // ---------- 图11：卖家类型与竞争格局-饼图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('卖家类型与竞争格局'));
+
+            // ---------- 图12：卖家类型与竞争格局-饼图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('卖家类型与竞争格局'));
+
+            // ---------- 图13：新品销量占比-饼图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('新品销量占比'));
+
+            // ---------- 图14：review数分析-堆积柱状图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('review数分析'));
+
+            // ---------- 图15：分款价格分布-堆积柱状图+折线 ----------
+            (function() {
+                const priceSegments = ['40-50', '50-60', '60-70', '70-80', '80-90', '90-100', '100-110', '110-120',
+                    '120-130', '130-140', '140-150', '160-170', '170-180', '180-190', '200-210'
+                ];
+                const seriesNames = ['ZINK零墨水', '拍立得即时显影', '染料热升华', '喷墨/墨盒'];
+                const rawMatrix = [
+                    [2, 0, 0, 10149, 3816, 7760, 108, 50, 58, 1125, 0, 0, 940, 0, 130],
+                    [0, 0, 0, 0, 0, 907, 1785, 1666, 54, 108, 349, 773, 0, 76, 0],
+                    [0, 53, 55, 11834, 0, 579, 0, 2491, 0, 1023, 0, 0, 0, 0, 0],
+                    [0, 0, 17253, 178, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                ];
+                const barSeries = seriesNames.map((sn, si) => ({
+                    name: sn,
+                    type: 'bar',
+                    stack: '销量',
+                    yAxisIndex: 0,
+                    data: rawMatrix[si],
+                    itemStyle: { color: COLORS[si] },
+                    barMaxWidth: 28,
+                }));
+                // 月销售额折线（无数据，全部null）
+                const revenueLine = {
+                    name: '月销售额',
+                    type: 'line',
+                    yAxisIndex: 1,
+                    data: priceSegments.map(() => null),
+                    symbol: 'diamond',
+                    symbolSize: 6,
+                    lineStyle: { width: 2, color: COLORS[4], type: 'dashed' },
+                    itemStyle: { color: COLORS[4] },
+                };
+                chartOpts.push({
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                        formatter: function(params) {
+                            let html = params[0].axisValue + '<br/>';
+                            params.forEach(p => {
+                                if (p.value !== null && p.value !== undefined) {
+                                    html += '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' +
+                                        p.color + ';margin-right:4px;"></span>' + p.seriesName +
+                                        '：' + p.value.toLocaleString() + '<br/>';
+                                }
+                            });
+                            return html;
+                        },
+                    },
+                    legend: {
+                        top: 0,
+                        data: [...seriesNames, '月销售额'],
+                        textStyle: { fontSize: 10, color: '#333' },
+                    },
+                    grid: { left: '8%', right: '8%', top: '14%', bottom: '6%' },
+                    xAxis: {
+                        type: 'category',
+                        data: priceSegments,
+                        axisLabel: { fontSize: 10, color: '#666', rotate: 30 },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                    },
+                    yAxis: [{
+                        type: 'value',
+                        name: '月销量',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: formatAxisLabel },
+                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+                        nameTextStyle: { fontSize: 10, color: '#666' },
+                    }, {
+                        type: 'value',
+                        name: '月销售额($)',
+                        axisLabel: { fontSize: 10, color: '#666', formatter: function(v) { return '$' + (v / 1000)
+                                .toFixed(0) + 'k'; } },
+                        splitLine: { show: false },
+                        nameTextStyle: { fontSize: 10, color: '#666' },
+                    }],
+                    series: [...barSeries, revenueLine],
+                });
+            })();
+
+            // ---------- 图16：价格-质量联动分析（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('价格-质量联动分析'));
+
+            // ---------- 图17：品牌价格分布-堆积柱状图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('品牌价格分布'));
+
+            // ---------- 图18：新老品价格分布-堆积柱状图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('新老品价格分布'));
+
+            // ---------- 图19：分款质量分布-堆积柱状图 ----------
+            (function() {
+                const starLevels = ['四星', '四星半', '四星级', '五星'];
+                const seriesNames = ['ZINK零墨水', '拍立得即时显影', '染料热升华', '喷墨/墨盒'];
+                const rawMatrix = [
+                    [4, 0, 5, 1],
+                    [10, 9, 1, 0],
+                    [6, 1, 2, 3],
+                    [1, 4, 0, 0],
+                ];
+                const barSeries = seriesNames.map((sn, si) => ({
+                    name: sn,
+                    type: 'bar',
+                    stack: 'total',
+                    data: starLevels.map((_, ri) => rawMatrix[ri][si]),
+                    itemStyle: { color: COLORS[si] },
+                    barMaxWidth: 40,
+                    label: {
+                        show: true,
+                        position: 'inside',
+                        fontSize: 10,
+                        color: '#fff',
+                        formatter: function(p) { return p.value > 0 ? p.value : ''; },
+                    },
+                }));
+                chartOpts.push({
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: 'transparent',
+                        textStyle: { color: '#fff' },
+                    },
+                    legend: {
+                        top: 0,
+                        data: seriesNames,
+                        textStyle: { fontSize: 11, color: '#333' },
+                    },
+                    grid: { left: '8%', right: '6%', top: '12%', bottom: '6%' },
+                    xAxis: {
+                        type: 'category',
+                        data: starLevels,
+                        axisLabel: { fontSize: 11, color: '#666' },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
                     },
                     yAxis: {
                         type: 'value',
                         name: '数量',
-                        nameTextStyle: { fontSize: 11, color: '#888' },
                         axisLabel: { fontSize: 10, color: '#666' },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false }
+                        nameTextStyle: { fontSize: 10, color: '#666' },
                     },
-                    color: COLORS,
-                    series: seriesNames.map((sn, i) => ({
-                        name: sn,
-                        type: 'bar',
-                        stack: 'quality',
-                        data: data[i],
-                        barWidth: '50%',
-                        itemStyle: { color: COLORS[i] },
-                        emphasis: { focus: 'series' },
-                        label: {
-                            show: true,
-                            position: 'inside',
-                            fontSize: 10,
-                            color: '#fff',
-                            formatter: function(p) { return p.value > 0 ? p.value : ''; }
-                        }
-                    }))
-                };
-                chartOpts.push(option);
+                    series: barSeries,
+                });
             })();
 
-            // ==================== 图20：无数据 ====================
-            chartOpts.push(getEmptyChartOpt());
+            // ---------- 图20：评分销量趋势-折线图（无数据） ----------
+            chartOpts.push(createEmptyChartOpt('评分销量趋势'));
 
-            function getEmptyChartOpt() {
-                return {
-                    title: {
-                        text: '暂无数据',
-                        left: 'center',
-                        top: 'center',
-                        textStyle: { fontSize: 16, color: '#bbb', fontWeight: 'normal' }
-                    },
-                    tooltip: { show: false },
-                    xAxis: { show: false },
-                    yAxis: { show: false },
-                    series: []
-                };
-            }
-
-            // ==================== 初始化逻辑 ====================
-            function initChart() {
+            // ============ 主逻辑：URL参数解析与图表渲染 ============
+            function init() {
                 const params = new URLSearchParams(window.location.search);
                 let chartId = parseInt(params.get('id')) || 1;
                 if (chartId < 1 || chartId > 20 || isNaN(chartId)) chartId = 1;
                 const idx = chartId - 1;
 
+                // 设置标题
                 const titleEl = document.getElementById('chartTitle');
-                const titleText = chartTitles[idx];
-                if (titleText) {
-                    titleEl.textContent = titleText;
-                    titleEl.style.display = 'block';
-                } else {
-                    titleEl.textContent = '';
-                    titleEl.style.display = 'none';
-                }
+                titleEl.textContent = chartTitles[idx] || '';
 
+                // 获取容器
                 const container = document.getElementById('singleChart');
-                if (window._chartInstance) {
-                    window._chartInstance.dispose();
-                }
-                const chart = echarts.init(container, null, { renderer: 'canvas' });
-                window._chartInstance = chart;
-                chart.setOption(chartOpts[idx]);
+                // 初始化ECharts
+                const chart = echarts.init(container);
+                const opt = chartOpts[idx];
 
+                // 合并全局默认配置
+                const finalOpt = Object.assign({
+                    backgroundColor: 'transparent',
+                    animation: true,
+                }, opt);
+
+                // 确保grid等基础配置存在（对于饼图可能没有grid）
+                chart.setOption(finalOpt);
+
+                // 延迟resize确保渲染完整
                 setTimeout(function() {
                     chart.resize();
                 }, 100);
 
+                // 监听resize
                 window.addEventListener('resize', function() {
-                    if (window._chartInstance) {
-                        window._chartInstance.resize();
-                    }
+                    chart.resize();
                 });
+
+                // 清理旧的resize监听（避免多次初始化时重复绑定）
+                // 使用一个标记来处理
+                if (window._chartResizeHandler) {
+                    window.removeEventListener('resize', window._chartResizeHandler);
+                }
+                window._chartResizeHandler = function() {
+                    chart.resize();
+                };
+                window.addEventListener('resize', window._chartResizeHandler);
             }
 
-            document.addEventListener('DOMContentLoaded', initChart);
-            if (document.readyState === 'complete' || document.readyState === 'interactive') {
-                initChart();
+            // DOM加载完成后初始化
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
             }
         })();
     </script>
