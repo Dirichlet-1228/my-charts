@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据可视化图表</title>
+    <title>关键词趋势</title>
     <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
     </script>
     <style>
@@ -54,7 +54,7 @@
 </head>
 <body>
     <div class="wrapper">
-        <div class="chart-title" id="chartTitle">图表</div>
+        <div class="chart-title" id="chartTitle">加载中...</div>
         <div class="chart-container" id="singleChart"></div>
     </div>
 
@@ -76,24 +76,15 @@
                 return isNaN(n) ? null : n;
             }
 
-            function formatLargeNum(n) {
-                if (n === null || n === undefined) return '-';
-                if (n >= 10000) {
-                    return (n / 10000).toFixed(n >= 100000 ? 1 : 2) + '万';
-                }
-                if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-                return n.toLocaleString();
-            }
-
             function formatAxisLabel(value) {
-                if (value >= 10000) {
-                    return (value / 10000).toFixed(value >= 100000 ? 1 : 2) + '万';
-                }
+                if (value === null || value === undefined) return '';
+                if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                if (value >= 10000) return (value / 10000).toFixed(value >= 100000 ? 1 : 2) + '万';
                 if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
                 return value;
             }
 
-            // 生成月份列表
+            // ==================== 生成月份列表 ====================
             function generateMonths(startYear, startMonth, endYear, endMonth) {
                 const months = [];
                 let y = startYear,
@@ -107,455 +98,152 @@
                 return months;
             }
 
-            // ==================== 图表标题数组 ====================
-            const chartTitles = [
-                '分款销量占比', // 1
-                '产品属性销量发布', // 2
-                '产品属性销量占比', // 3
-                '产品属性销量占比', // 4
-                '关键词搜索量趋势', // 5
-                '关键词ABA排名趋势', // 6
-                '历史销量趋势', // 7
-                '价格趋势', // 8
-                '品牌垄断', // 9
-                '排名垄断', // 10
-                '卖家类型与竞争格局', // 11
-                '卖家类型与竞争格局', // 12
-                '新品销量占比', // 13
-                'Review数分析', // 14
-                '分款价格分布', // 15
-                '价格-质量联动分析', // 16
-                '品牌价格分布', // 17
-                '新老品价格分布', // 18
-                '分款星级分布', // 19
-                '评分销量趋势' // 20
-            ];
+            const ALL_MONTHS = generateMonths(2022, 1, 2026, 7);
 
-            // ==================== 构建20个图表配置 ====================
-            const chartOpts = [];
+            // ==================== 原始数据映射 ====================
+            const rawDataMap = {};
 
-            // ---------- 图1：分款销量占比-饼图 ----------
-            (function() {
-                const data = [
-                    { name: '款式A-经典款', value: 38500 },
-                    { name: '款式B-迷你款', value: 27200 },
-                    { name: '款式C-豪华款', value: 19800 },
-                    { name: '款式D-运动款', value: 15600 },
-                    { name: '款式E-商务款', value: 12300 },
-                    { name: '款式F-儿童款', value: 8900 },
-                ];
-                const total = data.reduce((s, d) => s + d.value, 0);
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                const option = {
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) {
-                            return p.name + '<br/>销量: ' + p.value.toLocaleString() + '<br/>占比: ' + p
-                                .percent + '%';
-                        }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                        scrollDataIndex: 0,
-                        pageButtonItemGap: 4,
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: {
-                            borderColor: 'transparent',
-                            borderWidth: 0,
-                        },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: function(p) {
-                                if (!showLegend) {
-                                    const colorHex = COLORS[p.dataIndex % COLORS.length];
-                                    return '{dot|●} ' + p.name + '\n{d}' + p.percent + '%';
-                                }
-                                return '{b}\n{d}%';
-                            },
-                            rich: {
-                                dot: {
-                                    fontSize: 14,
-                                    padding: [0, 4, 0, 0],
-                                    color: '#FF9D19',
-                                },
-                                d: {
-                                    fontSize: 12,
-                                    color: '#666',
-                                    lineHeight: 18,
-                                }
-                            },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: {
-                            length: 35,
-                            length2: 45,
-                            lineStyle: { color: '#bbb' },
-                        },
-                        emphasis: {
-                            label: { fontSize: 14, fontWeight: 'bold' },
-                            scaleSize: 12,
-                        },
-                        data: data,
-                    }],
-                };
-                // 动态设置rich中的颜色
-                if (!showLegend && data.length > 0) {
-                    option.series[0].label.rich = {};
-                    data.forEach((d, i) => {
-                        const c = COLORS[i % COLORS.length];
-                        option.series[0].label.rich['dot' + i] = {
-                            fontSize: 14,
-                            padding: [0, 4, 0, 0],
-                            color: c,
-                        };
-                    });
-                    // 使用统一formatter
-                    option.series[0].label.formatter = function(p) {
-                        const c = COLORS[p.dataIndex % COLORS.length];
-                        return '{dot|●} ' + p.name + '\n{d|' + p.percent + '%}';
-                    };
-                    option.series[0].label.rich = {
-                        dot: { fontSize: 14, padding: [0, 4, 0, 0] },
-                        d: { fontSize: 12, color: '#666', lineHeight: 18 },
-                    };
-                    // 需要动态颜色，改用每个dataIndex独立设置
-                    // 简化处理：使用统一黑色dot
-                    option.series[0].label.rich.dot.color = '#333';
-                    // 实际通过item级别的设置
-                    option.series[0].label.formatter = function(p) {
-                        const c = COLORS[p.dataIndex % COLORS.length];
-                        return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                    };
+            // tin can phone
+            rawDataMap['tin can phone'] = {
+                '2026-07': { abaRank: 116435, searchVolume: 15039 },
+                '2026-06': { abaRank: 91183, searchVolume: 18278 },
+                '2026-05': { abaRank: 117151, searchVolume: 14401 },
+                '2026-04': { abaRank: 95564, searchVolume: 18171 },
+                '2026-03': { abaRank: 140091, searchVolume: 12482 },
+                '2026-02': { abaRank: 128374, searchVolume: 13386 },
+                '2026-01': { abaRank: 134332, searchVolume: 13637 },
+                '2025-12': { abaRank: 170857, searchVolume: 9493 },
+                '2025-11': { abaRank: 266301, searchVolume: 5775 },
+                '2025-10': { abaRank: 387376, searchVolume: 3797 },
+                '2025-09': { abaRank: 271341, searchVolume: 5797 },
+            };
+            for (let y = 2022; y <= 2023; y++) {
+                const endM = (y === 2023) ? 7 : 12;
+                for (let m = 1; m <= endM; m++) {
+                    const key = y + '-' + String(m).padStart(2, '0');
+                    if (!rawDataMap['tin can phone'][key]) {
+                        rawDataMap['tin can phone'][key] = { abaRank: 0, searchVolume: 0 };
+                    }
                 }
-                chartOpts.push(option);
-            })();
+            }
 
-            // ---------- 图2：产品属性销量发布-饼图 ----------
-            (function() {
-                const data = [
-                    { name: '颜色: 蓝色系', value: 15200 },
-                    { name: '颜色: 粉色系', value: 12800 },
-                    { name: '颜色: 白色系', value: 10600 },
-                    { name: '颜色: 黑色系', value: 9500 },
-                    { name: '材质: 塑料', value: 18800 },
-                    { name: '材质: 硅胶', value: 14200 },
-                    { name: '材质: 金属', value: 7600 },
-                    { name: '尺寸: 小号', value: 11200 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>发布量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
+            // landline phones for kids
+            rawDataMap['landline phones for kids'] = {
+                '2026-07': { abaRank: 441824, searchVolume: 3169 },
+                '2026-06': { abaRank: 501120, searchVolume: 2932 },
+                '2026-05': { abaRank: 552917, searchVolume: 2591 },
+                '2026-04': { abaRank: 480100, searchVolume: 2900 },
+                '2026-03': { abaRank: 448385, searchVolume: 3221 },
+                '2026-02': { abaRank: 486644, searchVolume: 3006 },
+                '2026-01': { abaRank: 289787, searchVolume: 5261 },
+                '2025-12': { abaRank: 481327, searchVolume: 2927 },
+                '2025-11': { abaRank: 507911, searchVolume: 2891 },
+                '2025-10': { abaRank: 534397, searchVolume: 2666 },
+                '2025-09': { abaRank: 462785, searchVolume: 3026 },
+                '2025-07': { abaRank: 2094838, searchVolume: 469 },
+            };
+            for (let y = 2022; y <= 2023; y++) {
+                const endM = (y === 2023) ? 7 : 12;
+                for (let m = 1; m <= endM; m++) {
+                    const key = y + '-' + String(m).padStart(2, '0');
+                    if (!rawDataMap['landline phones for kids'][key]) {
+                        rawDataMap['landline phones for kids'][key] = { abaRank: null, searchVolume: 0 };
+                    }
+                }
+            }
 
-            // ---------- 图3：产品属性销量占比-饼图 ----------
-            (function() {
-                const data = [
-                    { name: '无线款', value: 42000 },
-                    { name: '有线款', value: 31000 },
-                    { name: '蓝牙款', value: 25000 },
-                    { name: '多功能款', value: 18000 },
-                    { name: '基础款', value: 14000 },
-                    { name: '智能款', value: 9500 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>销量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
+            // kids phone
+            rawDataMap['kids phone'] = {
+                '2026-07': { abaRank: 25340, searchVolume: 53048 },
+                '2026-06': { abaRank: 30877, searchVolume: 45764 },
+                '2026-05': { abaRank: 32424, searchVolume: 44020 },
+                '2026-04': { abaRank: 31009, searchVolume: 45023 },
+                '2026-03': { abaRank: 24745, searchVolume: 54277 },
+                '2026-02': { abaRank: 22427, searchVolume: 57849 },
+                '2026-01': { abaRank: 19072, searchVolume: 65355 },
+                '2025-12': { abaRank: 9009, searchVolume: 112702 },
+                '2025-11': { abaRank: 3797, searchVolume: 174097 },
+                '2025-10': { abaRank: 18636, searchVolume: 65969 },
+                '2025-09': { abaRank: 18558, searchVolume: 65619 },
+                '2025-08': { abaRank: 18668, searchVolume: 65151 },
+                '2025-07': { abaRank: 19903, searchVolume: 63416 },
+                '2025-06': { abaRank: 22134, searchVolume: 57695 },
+                '2025-05': { abaRank: 23996, searchVolume: 55036 },
+                '2025-04': { abaRank: 23385, searchVolume: 56339 },
+                '2025-03': { abaRank: 16836, searchVolume: 70247 },
+                '2025-02': { abaRank: 18383, searchVolume: 66380 },
+                '2025-01': { abaRank: 21658, searchVolume: 58718 },
+                '2024-12': { abaRank: 9097, searchVolume: 101298 },
+                '2024-11': { abaRank: 10278, searchVolume: 93971 },
+                '2024-10': { abaRank: 21903, searchVolume: 64137 },
+                '2024-09': { abaRank: 25642, searchVolume: 58022 },
+                '2024-08': { abaRank: 31726, searchVolume: 49017 },
+                '2024-07': { abaRank: 28352, searchVolume: 54091 },
+                '2024-06': { abaRank: 33016, searchVolume: 47457 },
+                '2024-05': { abaRank: 37740, searchVolume: 42514 },
+                '2024-04': { abaRank: 39362, searchVolume: 40917 },
+                '2024-03': { abaRank: 39093, searchVolume: 41581 },
+                '2024-02': { abaRank: 42755, searchVolume: 34859 },
+                '2024-01': { abaRank: 38214, searchVolume: 37389 },
+                '2023-12': { abaRank: 17123, searchVolume: 71022 },
+                '2023-11': { abaRank: 16926, searchVolume: 70229 },
+                '2023-10': { abaRank: 23957, searchVolume: 54667 },
+                '2023-09': { abaRank: 19895, searchVolume: 62840 },
+                '2023-08': { abaRank: 43923, searchVolume: 33273 },
+                '2023-07': { abaRank: 41041, searchVolume: 19100 },
+                '2023-06': { abaRank: 42977, searchVolume: 19577 },
+                '2023-05': { abaRank: 52007, searchVolume: 15734 },
+                '2023-04': { abaRank: 52864, searchVolume: 16571 },
+                '2023-03': { abaRank: 58522, searchVolume: 14561 },
+                '2023-02': { abaRank: 52514, searchVolume: 16407 },
+                '2023-01': { abaRank: 53185, searchVolume: 16448 },
+                '2022-12': { abaRank: 30194, searchVolume: 26497 },
+                '2022-11': { abaRank: 28801, searchVolume: 26864 },
+                '2022-10': { abaRank: 51847, searchVolume: 15757 },
+                '2022-09': { abaRank: 44172, searchVolume: 18534 },
+                '2022-08': { abaRank: 45652, searchVolume: 18216 },
+                '2022-07': { abaRank: 53204, searchVolume: 15078 },
+                '2022-06': { abaRank: 55199, searchVolume: 16156 },
+                '2022-05': { abaRank: 57487, searchVolume: 14772 },
+                '2022-04': { abaRank: 64677, searchVolume: 14807 },
+                '2022-03': { abaRank: 51727, searchVolume: 16163 },
+                '2022-02': { abaRank: 65509, searchVolume: 14233 },
+                '2022-01': { abaRank: 73075, searchVolume: 13740 },
+            };
 
-            // ---------- 图4：产品属性销量占比-饼图2 ----------
-            (function() {
-                const data = [
-                    { name: '年龄段: 3-5岁', value: 35000 },
-                    { name: '年龄段: 6-8岁', value: 42000 },
-                    { name: '年龄段: 9-12岁', value: 28000 },
-                    { name: '年龄段: 12岁以上', value: 15000 },
-                    { name: '性别: 男童', value: 38000 },
-                    { name: '性别: 女童', value: 32000 },
-                    { name: '性别: 中性', value: 20000 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>销量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
+            // ==================== 构建系列数据 ====================
+            const seriesNames = ['tin can phone', 'landline phones for kids', 'kids phone'];
 
-            // ---------- 图5：关键词搜索量趋势-多系列折线图 ----------
-            (function() {
-                const allMonths = generateMonths(2022, 1, 2026, 7);
-                // 原始数据映射
-                const rawData = {
-                    'tin can phone': {
-                        '2026-07': 15039,
-                        '2026-06': 18278,
-                        '2026-05': 14401,
-                        '2026-04': 18171,
-                        '2026-03': 12482,
-                        '2026-02': 13386,
-                        '2026-01': 13637,
-                        '2025-12': 9493,
-                        '2025-11': 5775,
-                        '2025-10': 3797,
-                        '2025-09': 5797,
-                        '2023-07': 0,
-                        '2023-06': 0,
-                        '2023-05': 0,
-                        '2023-04': 0,
-                        '2023-03': 0,
-                        '2023-02': 0,
-                        '2023-01': 0,
-                        '2022-12': 0,
-                        '2022-11': 0,
-                        '2022-10': 0,
-                        '2022-09': 0,
-                        '2022-08': 0,
-                        '2022-07': 0,
-                        '2022-06': 0,
-                        '2022-05': 0,
-                        '2022-04': 0,
-                        '2022-03': 0,
-                        '2022-02': 0,
-                        '2022-01': 0,
-                    },
-                    'landline phones for kids': {
-                        '2026-07': 3169,
-                        '2026-06': 2932,
-                        '2026-05': 2591,
-                        '2026-04': 2900,
-                        '2026-03': 3221,
-                        '2026-02': 3006,
-                        '2026-01': 5261,
-                        '2025-12': 2927,
-                        '2025-11': 2891,
-                        '2025-10': 2666,
-                        '2025-09': 3026,
-                        '2025-07': 469,
-                        '2023-07': 0,
-                        '2023-06': 0,
-                        '2023-05': 0,
-                        '2023-04': 0,
-                        '2023-03': 0,
-                        '2023-02': 0,
-                        '2023-01': 0,
-                        '2022-12': 0,
-                        '2022-11': 0,
-                        '2022-10': 0,
-                        '2022-09': 0,
-                        '2022-08': 0,
-                        '2022-07': 0,
-                        '2022-06': 0,
-                        '2022-05': 0,
-                        '2022-04': 0,
-                        '2022-03': 0,
-                        '2022-02': 0,
-                        '2022-01': 0,
-                    },
-                    'kids phone': {
-                        '2026-07': 53048,
-                        '2026-06': 45764,
-                        '2026-05': 44020,
-                        '2026-04': 45023,
-                        '2026-03': 54277,
-                        '2026-02': 57849,
-                        '2026-01': 65355,
-                        '2025-12': 112702,
-                        '2025-11': 174097,
-                        '2025-10': 65969,
-                        '2025-09': 65619,
-                        '2025-08': 65151,
-                        '2025-07': 63416,
-                        '2025-06': 57695,
-                        '2025-05': 55036,
-                        '2025-04': 56339,
-                        '2025-03': 70247,
-                        '2025-02': 66380,
-                        '2025-01': 58718,
-                        '2024-12': 101298,
-                        '2024-11': 93971,
-                        '2024-10': 64137,
-                        '2024-09': 58022,
-                        '2024-08': 49017,
-                        '2024-07': 54091,
-                        '2024-06': 47457,
-                        '2024-05': 42514,
-                        '2024-04': 40917,
-                        '2024-03': 41581,
-                        '2024-02': 34859,
-                        '2024-01': 37389,
-                        '2023-12': 71022,
-                        '2023-11': 70229,
-                        '2023-10': 54667,
-                        '2023-09': 62840,
-                        '2023-08': 33273,
-                        '2023-07': 19100,
-                        '2023-06': 19577,
-                        '2023-05': 15734,
-                        '2023-04': 16571,
-                        '2023-03': 14561,
-                        '2023-02': 16407,
-                        '2023-01': 16448,
-                        '2022-12': 26497,
-                        '2022-11': 26864,
-                        '2022-10': 15757,
-                        '2022-09': 18534,
-                        '2022-08': 18216,
-                        '2022-07': 15078,
-                        '2022-06': 16156,
-                        '2022-05': 14772,
-                        '2022-04': 14807,
-                        '2022-03': 16163,
-                        '2022-02': 14233,
-                        '2022-01': 13740,
-                    },
-                };
-                const seriesNames = ['tin can phone', 'landline phones for kids', 'kids phone'];
-                const seriesData = seriesNames.map(name => {
-                    return allMonths.map(m => {
-                        const v = rawData[name][m];
-                        return v !== undefined ? v : null;
+            function buildSeriesData(field) {
+                return seriesNames.map(name => {
+                    return ALL_MONTHS.map(m => {
+                        const entry = rawDataMap[name] && rawDataMap[name][m];
+                        if (!entry) return null;
+                        if (field === 'abaRank') {
+                            const rank = entry.abaRank;
+                            if (rank === null || rank === undefined || rank === '') return null;
+                            const num = parseNum(rank);
+                            return (num === null || num === 0) ? null : num;
+                        }
+                        return entry.searchVolume;
                     });
                 });
+            }
+
+            const searchVolumeSeries = buildSeriesData('searchVolume');
+            const abaRankSeries = buildSeriesData('abaRank');
+
+            // ==================== 图表配置生成函数 ====================
+            function createLineChartOption(config) {
+                const {
+                    yAxisName,
+                    yAxisFormatter,
+                    tooltipValueFormatter,
+                    seriesData,
+                    seriesNames,
+                    inverseY = false,
+                } = config;
+
                 const numSeries = seriesNames.length;
                 const selectedLegend = {};
                 if (numSeries > 3) {
@@ -563,7 +251,8 @@
                         selectedLegend[name] = i < 3;
                     });
                 }
-                chartOpts.push({
+
+                return {
                     tooltip: {
                         trigger: 'axis',
                         backgroundColor: 'rgba(0,0,0,0.7)',
@@ -572,11 +261,11 @@
                         formatter: function(params) {
                             let s = params[0].axisValue + '<br/>';
                             params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+                                s +=
+                                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
                                     p.color + ';margin-right:6px;"></span>';
                                 s += p.seriesName + ': ';
-                                s += (p.value !== null && p.value !== undefined) ? p.value
-                                    .toLocaleString() : '-';
+                                s += tooltipValueFormatter(p.value);
                                 s += '<br/>';
                             });
                             return s;
@@ -592,29 +281,30 @@
                         data: seriesNames,
                         selected: Object.keys(selectedLegend).length > 0 ? selectedLegend : undefined,
                     },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '10%' },
+                    grid: { left: '10%', right: '8%', top: '14%', bottom: '10%' },
                     xAxis: {
                         type: 'category',
                         boundaryGap: false,
-                        data: allMonths,
+                        data: ALL_MONTHS,
                         axisLine: { lineStyle: { color: '#ccc' } },
                         axisTick: { show: false },
                         axisLabel: {
                             rotate: 60,
                             fontSize: 10,
                             color: '#666',
-                            interval: Math.floor(allMonths.length / 18),
+                            interval: Math.floor(ALL_MONTHS.length / 16),
                         },
                         splitLine: { show: false },
                     },
                     yAxis: {
                         type: 'value',
-                        name: '月搜索量',
+                        name: yAxisName,
                         nameTextStyle: { fontSize: 11, color: '#666' },
+                        inverse: inverseY,
                         axisLabel: {
                             fontSize: 11,
                             color: '#666',
-                            formatter: formatAxisLabel,
+                            formatter: yAxisFormatter,
                         },
                         splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
                         axisLine: { show: false },
@@ -631,1219 +321,77 @@
                         lineStyle: { width: 2 },
                         emphasis: { focus: 'series' },
                     })),
-                });
-            })();
-
-            // ---------- 图6：关键词ABA排名趋势-多系列折线图 ----------
-            (function() {
-                const allMonths = generateMonths(2022, 1, 2026, 7);
-                const rawData = {
-                    'tin can phone': {
-                        '2026-07': 116435,
-                        '2026-06': 91183,
-                        '2026-05': 117151,
-                        '2026-04': 95564,
-                        '2026-03': 140091,
-                        '2026-02': 128374,
-                        '2026-01': 134332,
-                        '2025-12': 170857,
-                        '2025-11': 266301,
-                        '2025-10': 387376,
-                        '2025-09': 271341,
-                        '2023-07': 0,
-                        '2023-06': 0,
-                        '2023-05': 0,
-                        '2023-04': 0,
-                        '2023-03': 0,
-                        '2023-02': 0,
-                        '2023-01': 0,
-                        '2022-12': 0,
-                        '2022-11': 0,
-                        '2022-10': 0,
-                        '2022-09': 0,
-                        '2022-08': 0,
-                        '2022-07': 0,
-                        '2022-06': 0,
-                        '2022-05': 0,
-                        '2022-04': 0,
-                        '2022-03': 0,
-                        '2022-02': 0,
-                        '2022-01': 0,
-                    },
-                    'landline phones for kids': {
-                        '2026-07': 441824,
-                        '2026-06': 501120,
-                        '2026-05': 552917,
-                        '2026-04': 480100,
-                        '2026-03': 448385,
-                        '2026-02': 486644,
-                        '2026-01': 289787,
-                        '2025-12': 481327,
-                        '2025-11': 507911,
-                        '2025-10': 534397,
-                        '2025-09': 462785,
-                        '2025-07': 2094838,
-                    },
-                    'kids phone': {
-                        '2026-07': 25340,
-                        '2026-06': 30877,
-                        '2026-05': 32424,
-                        '2026-04': 31009,
-                        '2026-03': 24745,
-                        '2026-02': 22427,
-                        '2026-01': 19072,
-                        '2025-12': 9009,
-                        '2025-11': 3797,
-                        '2025-10': 18636,
-                        '2025-09': 18558,
-                        '2025-08': 18668,
-                        '2025-07': 19903,
-                        '2025-06': 22134,
-                        '2025-05': 23996,
-                        '2025-04': 23385,
-                        '2025-03': 16836,
-                        '2025-02': 18383,
-                        '2025-01': 21658,
-                        '2024-12': 9097,
-                        '2024-11': 10278,
-                        '2024-10': 21903,
-                        '2024-09': 25642,
-                        '2024-08': 31726,
-                        '2024-07': 28352,
-                        '2024-06': 33016,
-                        '2024-05': 37740,
-                        '2024-04': 39362,
-                        '2024-03': 39093,
-                        '2024-02': 42755,
-                        '2024-01': 38214,
-                        '2023-12': 17123,
-                        '2023-11': 16926,
-                        '2023-10': 23957,
-                        '2023-09': 19895,
-                        '2023-08': 43923,
-                        '2023-07': 41041,
-                        '2023-06': 42977,
-                        '2023-05': 52007,
-                        '2023-04': 52864,
-                        '2023-03': 58522,
-                        '2023-02': 52514,
-                        '2023-01': 53185,
-                        '2022-12': 30194,
-                        '2022-11': 28801,
-                        '2022-10': 51847,
-                        '2022-09': 44172,
-                        '2022-08': 45652,
-                        '2022-07': 53204,
-                        '2022-06': 55199,
-                        '2022-05': 57487,
-                        '2022-04': 64677,
-                        '2022-03': 51727,
-                        '2022-02': 65509,
-                        '2022-01': 73075,
-                    },
                 };
-                const seriesNames = ['tin can phone', 'landline phones for kids', 'kids phone'];
-                const seriesData = seriesNames.map(name => {
-                    return allMonths.map(m => {
-                        const v = rawData[name][m];
-                        if (v === undefined || v === null) return null;
-                        if (v === 0 && name === 'tin can phone' && m <= '2023-07') return null;
-                        return v;
-                    });
-                });
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ';
-                                s += (p.value !== null && p.value !== undefined) ? p.value
-                                    .toLocaleString() : '-';
-                                s += '<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 16,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: seriesNames,
-                    },
-                    grid: { left: '10%', right: '6%', top: '14%', bottom: '10%' },
-                    xAxis: {
-                        type: 'category',
-                        boundaryGap: false,
-                        data: allMonths,
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        axisTick: { show: false },
-                        axisLabel: {
-                            rotate: 60,
-                            fontSize: 10,
-                            color: '#666',
-                            interval: Math.floor(allMonths.length / 18),
-                        },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ABA排名',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        inverse: true,
-                        axisLabel: { fontSize: 11, color: '#666', formatter: function(v) { return v.toLocaleString(); } },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: COLORS,
-                    series: seriesNames.map((name, i) => ({
-                        name: name,
-                        type: 'line',
-                        data: seriesData[i],
-                        connectNulls: false,
-                        smooth: false,
-                        symbol: 'none',
-                        lineStyle: { width: 2 },
-                        emphasis: { focus: 'series' },
-                    })),
-                });
-            })();
+            }
 
-            // ---------- 图7：历史销量趋势-复合图 ----------
-            (function() {
-                const months = generateMonths(2024, 1, 2026, 7);
-                const salesData = [38500, 42000, 39800, 45600, 51200, 48900, 53500, 56800, 52000, 61000, 65800,
-                    72000, 69500, 78000, 85000, 92000, 88000, 96000, 102000, 108000, 115000, 98000, 89000,
-                    76000, 82000, 95000, 104000, 112000, 125000, 118000, 132000
-                ];
-                const growthRate = salesData.map((v, i) => {
-                    if (i === 0) return null;
-                    return parseFloat(((v - salesData[i - 1]) / salesData[i - 1] * 100).toFixed(1));
-                });
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ';
-                                if (p.seriesName.includes('增长率')) {
-                                    s += (p.value !== null ? p.value + '%' : '-');
-                                } else {
-                                    s += (p.value !== null ? p.value.toLocaleString() : '-');
-                                }
-                                s += '<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 16,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['月销量', '环比增长率'],
-                    },
-                    grid: { left: '8%', right: '8%', top: '14%', bottom: '10%' },
-                    xAxis: {
-                        type: 'category',
-                        data: months,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666', interval: 2 },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '月销量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666', formatter: formatAxisLabel },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    }, {
-                        type: 'value',
-                        name: '增长率(%)',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666', formatter: '{value}%' },
-                        splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    }],
-                    color: COLORS,
-                    series: [{
-                        name: '月销量',
-                        type: 'bar',
-                        data: salesData,
-                        barWidth: '55%',
-                        itemStyle: { color: COLORS[0], borderRadius: [3, 3, 0, 0] },
-                        emphasis: { focus: 'series' },
-                    }, {
-                        name: '环比增长率',
-                        type: 'line',
-                        yAxisIndex: 1,
-                        data: growthRate,
-                        symbol: 'circle',
-                        symbolSize: 5,
-                        lineStyle: { width: 2, color: COLORS[1] },
-                        itemStyle: { color: COLORS[1] },
-                        emphasis: { focus: 'series' },
-                    }],
-                });
-            })();
+            // 搜索量趋势图表配置
+            const searchVolumeOption = createLineChartOption({
+                yAxisName: '月搜索量',
+                yAxisFormatter: formatAxisLabel,
+                tooltipValueFormatter: function(val) {
+                    return (val === null || val === undefined) ? '-' : val.toLocaleString();
+                },
+                seriesData: searchVolumeSeries,
+                seriesNames: seriesNames,
+                inverseY: false,
+            });
 
-            // ---------- 图8：价格趋势-多系列折线图 ----------
-            (function() {
-                const months = generateMonths(2024, 1, 2026, 7);
-                const brands = ['品牌A', '品牌B', '品牌C', '品牌D'];
-                const basePrices = [25.5, 32.0, 19.8, 28.5];
-                const seriesData = brands.map((brand, bi) => {
-                    let price = basePrices[bi];
-                    return months.map((m, i) => {
-                        price += (Math.random() - 0.45) * 1.2;
-                        price = Math.max(basePrices[bi] * 0.7, Math.min(basePrices[bi] * 1.4, price));
-                        return parseFloat(price.toFixed(2));
-                    });
-                });
-                const numSeries = brands.length;
-                const selectedLegend = {};
-                if (numSeries > 3) {
-                    brands.forEach((name, i) => { selectedLegend[name] = i < 3; });
-                }
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': $' + (p.value !== null ? p.value.toFixed(
-                                    2) : '-') + '<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 16,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: brands,
-                        selected: Object.keys(selectedLegend).length > 0 ? selectedLegend : undefined,
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '10%' },
-                    xAxis: {
-                        type: 'category',
-                        boundaryGap: false,
-                        data: months,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666', interval: 3 },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: '价格($)',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666', formatter: '${value}' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: COLORS,
-                    series: brands.map((name, i) => ({
-                        name: name,
-                        type: 'line',
-                        data: seriesData[i],
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { width: 2 },
-                        emphasis: { focus: 'series' },
-                    })),
-                });
-            })();
+            // ABA排名趋势图表配置
+            const abaRankOption = createLineChartOption({
+                yAxisName: 'ABA排名',
+                yAxisFormatter: function(val) {
+                    return (val === null || val === undefined) ? '' : val.toLocaleString();
+                },
+                tooltipValueFormatter: function(val) {
+                    return (val === null || val === undefined) ? '-' : val.toLocaleString();
+                },
+                seriesData: abaRankSeries,
+                seriesNames: seriesNames,
+                inverseY: true,
+            });
 
-            // ---------- 图9：品牌垄断-饼图 ----------
-            (function() {
-                const data = [
-                    { name: '品牌A', value: 52000 },
-                    { name: '品牌B', value: 38000 },
-                    { name: '品牌C', value: 25000 },
-                    { name: '品牌D', value: 18000 },
-                    { name: '品牌E', value: 12000 },
-                    { name: '品牌F', value: 8000 },
-                    { name: '其他品牌', value: 15000 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>销量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
-
-            // ---------- 图10：排名垄断-复合图（双Y轴） ----------
-            (function() {
-                const rankings = [1, 2, 1, 3, 2, 1, 4, 2, 1, 3, 2, 1, 5, 3, 2, 1, 4, 2, 1, 3];
-                const asinCounts = [45, 38, 52, 30, 42, 55, 28, 40, 58, 33, 44, 50, 25, 36, 48, 56, 22, 39, 51, 34];
-                const salesVolumes = [85000, 72000, 98000, 56000, 78000, 102000, 48000, 75000, 110000, 62000, 82000,
-                    95000, 42000, 68000, 90000, 108000, 38000, 71000, 96000, 64000
-                ];
-                const xLabels = rankings.map((r, i) => '#' + r + ' (' + (i + 1) + ')');
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ';
-                                if (p.seriesName.includes('销量')) {
-                                    s += (p.value !== null ? p.value.toLocaleString() : '-');
-                                } else {
-                                    s += (p.value !== null ? p.value : '-');
-                                }
-                                s += '<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 16,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['ASIN计数', '销量'],
-                    },
-                    grid: { left: '8%', right: '8%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: xLabels,
-                        axisLabel: { rotate: 30, fontSize: 10, color: '#666' },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: 'ASIN计数',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    }, {
-                        type: 'value',
-                        name: '销量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666', formatter: formatAxisLabel },
-                        splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    }],
-                    color: COLORS,
-                    series: [{
-                        name: 'ASIN计数',
-                        type: 'bar',
-                        data: asinCounts,
-                        barWidth: '50%',
-                        itemStyle: { color: COLORS[0], borderRadius: [3, 3, 0, 0] },
-                        emphasis: { focus: 'series' },
-                    }, {
-                        name: '销量',
-                        type: 'line',
-                        yAxisIndex: 1,
-                        data: salesVolumes,
-                        symbol: 'circle',
-                        symbolSize: 5,
-                        lineStyle: { width: 2, color: COLORS[1] },
-                        itemStyle: { color: COLORS[1] },
-                        emphasis: { focus: 'series' },
-                    }],
-                });
-            })();
-
-            // ---------- 图11：卖家类型与竞争格局-饼图 ----------
-            (function() {
-                const data = [
-                    { name: '品牌卖家', value: 45000 },
-                    { name: '经销商', value: 32000 },
-                    { name: '个人卖家', value: 18000 },
-                    { name: '工厂直营', value: 22000 },
-                    { name: '跨境卖家', value: 15000 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>销量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
-
-            // ---------- 图12：卖家类型与竞争格局-饼图2 ----------
-            (function() {
-                const data = [
-                    { name: '自有品牌', value: 38000 },
-                    { name: '授权经销商', value: 28000 },
-                    { name: '白牌卖家', value: 20000 },
-                    { name: '代工工厂', value: 16000 },
-                    { name: '批发商', value: 11000 },
-                    { name: '零售商', value: 9000 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>销量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
-
-            // ---------- 图13：新品销量占比-饼图 ----------
-            (function() {
-                const data = [
-                    { name: '新品(0-3个月)', value: 28000 },
-                    { name: '次新品(3-6个月)', value: 35000 },
-                    { name: '成长期(6-12个月)', value: 42000 },
-                    { name: '成熟期(12-24个月)', value: 55000 },
-                    { name: '长尾期(24个月以上)', value: 30000 },
-                ];
-                const catCount = data.length;
-                const showLegend = catCount <= 8;
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'item',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(p) { return p.name + '<br/>销量: ' + p.value.toLocaleString() +
-                                '<br/>占比: ' + p.percent + '%'; }
-                    },
-                    legend: showLegend ? {
-                        orient: 'vertical',
-                        right: '5%',
-                        top: 'center',
-                        itemWidth: 12,
-                        itemHeight: 12,
-                        itemGap: 14,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        type: 'scroll',
-                    } : { show: false },
-                    color: COLORS,
-                    series: [{
-                        type: 'pie',
-                        radius: ['45%', '72%'],
-                        center: ['42%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: { borderColor: 'transparent', borderWidth: 0 },
-                        label: {
-                            show: true,
-                            position: 'outside',
-                            formatter: showLegend ? '{b}\n{d}%' : function(p) {
-                                return '{dot|●} ' + p.name + '\n' + p.percent + '%';
-                            },
-                            rich: { dot: { fontSize: 14, padding: [0, 4, 0, 0], color: '#333' } },
-                            fontSize: 12,
-                            color: '#333',
-                            lineHeight: 18,
-                        },
-                        labelLine: { length: 35, length2: 45, lineStyle: { color: '#bbb' } },
-                        emphasis: { label: { fontSize: 14, fontWeight: 'bold' }, scaleSize: 12 },
-                        data: data,
-                    }],
-                });
-            })();
-
-            // ---------- 图14：Review数分析-堆积柱状图 ----------
-            (function() {
-                const categories = ['款式A', '款式B', '款式C', '款式D', '款式E'];
-                const positive = [850, 620, 780, 540, 690];
-                const neutral = [120, 95, 140, 80, 105];
-                const negative = [45, 38, 55, 30, 42];
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            let total = 0;
-                            params.forEach(p => { total += p.value || 0; });
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + (p.value || 0) + '<br/>';
-                            });
-                            s += '总计: ' + total;
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['好评', '中评', '差评'],
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: categories,
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'Review数量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: [COLORS[2], COLORS[4], COLORS[3]],
-                    series: [
-                        { name: '好评', type: 'bar', stack: 'total', data: positive, barWidth: '50%',
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '中评', type: 'bar', stack: 'total', data: neutral,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '差评', type: 'bar', stack: 'total', data: negative,
-                            itemStyle: { borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } },
-                    ],
-                });
-            })();
-
-            // ---------- 图15：分款价格分布-堆积柱状图 ----------
-            (function() {
-                const categories = ['款式A', '款式B', '款式C', '款式D', '款式E', '款式F'];
-                const lowPrice = [320, 280, 350, 200, 400, 250];
-                const midPrice = [450, 380, 500, 320, 520, 360];
-                const highPrice = [180, 150, 220, 120, 200, 140];
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + (p.value || 0) + ' ASIN<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['低价位(<$20)', '中价位($20-$50)', '高价位(>$50)'],
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: categories,
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: [COLORS[0], COLORS[1], COLORS[5]],
-                    series: [
-                        { name: '低价位(<$20)', type: 'bar', stack: 'total', data: lowPrice, barWidth: '50%',
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '中价位($20-$50)', type: 'bar', stack: 'total', data: midPrice,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '高价位(>$50)', type: 'bar', stack: 'total', data: highPrice,
-                            itemStyle: { borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } },
-                    ],
-                });
-            })();
-
-            // ---------- 图16：价格-质量联动分析-多系列堆积柱状图 ----------
-            (function() {
-                const priceRanges = ['<$15', '$15-$25', '$25-$40', '$40-$60', '>$60'];
-                const highQuality = [120, 200, 280, 180, 90];
-                const midQuality = [200, 350, 420, 250, 120];
-                const lowQuality = [150, 180, 160, 100, 60];
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + (p.value || 0) + ' ASIN<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['高评分(4.5+)', '中评分(3.5-4.5)', '低评分(<3.5)'],
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: priceRanges,
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: [COLORS[2], COLORS[4], COLORS[3]],
-                    series: [
-                        { name: '高评分(4.5+)', type: 'bar', stack: 'total', data: highQuality, barWidth: '50%',
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '中评分(3.5-4.5)', type: 'bar', stack: 'total', data: midQuality,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '低评分(<3.5)', type: 'bar', stack: 'total', data: lowQuality,
-                            itemStyle: { borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } },
-                    ],
-                });
-            })();
-
-            // ---------- 图17：品牌价格分布-堆积柱状图 ----------
-            (function() {
-                const brands = ['品牌A', '品牌B', '品牌C', '品牌D', '品牌E'];
-                const lowP = [180, 220, 150, 280, 200];
-                const midP = [350, 400, 280, 450, 320];
-                const highP = [250, 180, 200, 300, 150];
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + (p.value || 0) + ' ASIN<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['低价位', '中价位', '高价位'],
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: brands,
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: [COLORS[0], COLORS[1], COLORS[5]],
-                    series: [
-                        { name: '低价位', type: 'bar', stack: 'total', data: lowP, barWidth: '50%',
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '中价位', type: 'bar', stack: 'total', data: midP,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '高价位', type: 'bar', stack: 'total', data: highP,
-                            itemStyle: { borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } },
-                    ],
-                });
-            })();
-
-            // ---------- 图18：新老品价格分布-堆积柱状图 ----------
-            (function() {
-                const priceRanges = ['<$15', '$15-$25', '$25-$40', '$40-$60', '>$60'];
-                const newProducts = [250, 320, 180, 90, 40];
-                const oldProducts = [180, 280, 350, 220, 150];
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + (p.value || 0) + ' ASIN<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['新品(≤6个月)', '老品(>6个月)'],
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: priceRanges,
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'ASIN数量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: [COLORS[0], COLORS[1]],
-                    series: [
-                        { name: '新品(≤6个月)', type: 'bar', stack: 'total', data: newProducts, barWidth: '50%',
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '老品(>6个月)', type: 'bar', stack: 'total', data: oldProducts,
-                            itemStyle: { borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } },
-                    ],
-                });
-            })();
-
-            // ---------- 图19：分款星级分布-堆积柱状图 ----------
-            (function() {
-                const styles = ['款式A-经典款', '款式B-迷你款', '款式C-豪华款', '款式D-运动款', '款式E-商务款'];
-                const star1 = [45, 30, 20, 55, 35];
-                const star2 = [80, 55, 40, 90, 60];
-                const star3 = [150, 120, 95, 140, 110];
-                const star4 = [220, 180, 160, 200, 170];
-                const star5 = [180, 140, 120, 160, 150];
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            let total = 0;
-                            params.forEach(p => { total += p.value || 0; });
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ' + (p.value || 0) + '<br/>';
-                            });
-                            s += '总计: ' + total;
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 14,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['1星', '2星', '3星', '4星', '5星'],
-                    },
-                    grid: { left: '8%', right: '6%', top: '14%', bottom: '8%' },
-                    xAxis: {
-                        type: 'category',
-                        data: styles,
-                        axisLabel: { fontSize: 10, color: '#666', rotate: 20 },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: {
-                        type: 'value',
-                        name: 'Review数量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    },
-                    color: [COLORS[3], COLORS[7], COLORS[4], COLORS[2], COLORS[0]],
-                    series: [
-                        { name: '1星', type: 'bar', stack: 'total', data: star1, barWidth: '50%',
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '2星', type: 'bar', stack: 'total', data: star2,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '3星', type: 'bar', stack: 'total', data: star3,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '4星', type: 'bar', stack: 'total', data: star4,
-                            itemStyle: { borderRadius: [0, 0, 0, 0] }, emphasis: { focus: 'series' } },
-                        { name: '5星', type: 'bar', stack: 'total', data: star5,
-                            itemStyle: { borderRadius: [3, 3, 0, 0] }, emphasis: { focus: 'series' } },
-                    ],
-                });
-            })();
-
-            // ---------- 图20：评分销量趋势-折线图 ----------
-            (function() {
-                const months = generateMonths(2024, 1, 2026, 7);
-                const avgRating = [];
-                const salesVol = [];
-                let rating = 4.2;
-                let sales = 38000;
-                for (let i = 0; i < months.length; i++) {
-                    rating += (Math.random() - 0.5) * 0.08;
-                    rating = Math.max(3.6, Math.min(4.7, rating));
-                    avgRating.push(parseFloat(rating.toFixed(2)));
-                    sales += (Math.random() - 0.4) * 3000;
-                    sales = Math.max(15000, Math.min(140000, sales));
-                    salesVol.push(Math.round(sales));
-                }
-                chartOpts.push({
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(0,0,0,0.7)',
-                        borderColor: 'transparent',
-                        textStyle: { color: '#fff', fontSize: 13 },
-                        formatter: function(params) {
-                            let s = params[0].axisValue + '<br/>';
-                            params.forEach(p => {
-                                s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
-                                    p.color + ';margin-right:6px;"></span>';
-                                s += p.seriesName + ': ';
-                                if (p.seriesName.includes('评分')) {
-                                    s += (p.value !== null ? p.value.toFixed(2) : '-');
-                                } else {
-                                    s += (p.value !== null ? p.value.toLocaleString() : '-');
-                                }
-                                s += '<br/>';
-                            });
-                            return s;
-                        },
-                    },
-                    legend: {
-                        top: 6,
-                        left: 'center',
-                        itemWidth: 16,
-                        itemHeight: 10,
-                        itemGap: 20,
-                        textStyle: { fontSize: 12, color: '#333' },
-                        data: ['平均评分', '月销量'],
-                    },
-                    grid: { left: '8%', right: '8%', top: '14%', bottom: '10%' },
-                    xAxis: {
-                        type: 'category',
-                        boundaryGap: false,
-                        data: months,
-                        axisLabel: { rotate: 45, fontSize: 10, color: '#666', interval: 3 },
-                        axisTick: { show: false },
-                        axisLine: { lineStyle: { color: '#ccc' } },
-                        splitLine: { show: false },
-                    },
-                    yAxis: [{
-                        type: 'value',
-                        name: '平均评分',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        min: 3.4,
-                        max: 5.0,
-                        axisLabel: { fontSize: 11, color: '#666', formatter: '{value}' },
-                        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    }, {
-                        type: 'value',
-                        name: '月销量',
-                        nameTextStyle: { fontSize: 11, color: '#666' },
-                        axisLabel: { fontSize: 11, color: '#666', formatter: formatAxisLabel },
-                        splitLine: { show: false },
-                        axisLine: { show: false },
-                        axisTick: { show: false },
-                    }],
-                    color: COLORS,
-                    series: [{
-                        name: '平均评分',
-                        type: 'line',
-                        data: avgRating,
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { width: 2, color: COLORS[0] },
-                        itemStyle: { color: COLORS[0] },
-                        emphasis: { focus: 'series' },
-                    }, {
-                        name: '月销量',
-                        type: 'line',
-                        yAxisIndex: 1,
-                        data: salesVol,
-                        smooth: true,
-                        symbol: 'none',
-                        lineStyle: { width: 2, color: COLORS[1] },
-                        itemStyle: { color: COLORS[1] },
-                        emphasis: { focus: 'series' },
-                    }],
-                });
-            })();
-
-            // ==================== 主逻辑 ====================
+            // ==================== 根据URL参数渲染对应图表 ====================
             function getChartId() {
                 const params = new URLSearchParams(window.location.search);
                 const idStr = params.get('id');
                 if (idStr === null || idStr === '') return 1;
                 const id = parseInt(idStr, 10);
-                if (isNaN(id) || id < 1 || id > 20) return 1;
-                return id;
+                return (id === 1 || id === 2) ? id : 1;
             }
 
-            function initChart() {
-                const chartId = getChartId();
-                const titleEl = document.getElementById('chartTitle');
-                const containerEl = document.getElementById('singleChart');
+            const chartId = getChartId();
+            const titleEl = document.getElementById('chartTitle');
+            const containerEl = document.getElementById('singleChart');
 
-                // 设置标题
-                titleEl.textContent = chartTitles[chartId - 1] || '图表 ' + chartId;
+            // 设置标题
+            titleEl.textContent = chartId === 1 ? '关键词搜索量趋势' : '关键词ABA排名趋势';
 
-                // 销毁旧图表
-                const existingInstance = echarts.getInstanceByDom(containerEl);
-                if (existingInstance) {
-                    existingInstance.dispose();
-                }
+            // 选择对应的图表配置
+            const option = chartId === 1 ? searchVolumeOption : abaRankOption;
 
-                // 初始化新图表
-                const chart = echarts.init(containerEl, null, {
-                    renderer: 'canvas',
-                });
+            // 销毁可能存在的旧图表实例
+            const existingInstance = echarts.getInstanceByDom(containerEl);
+            if (existingInstance) {
+                existingInstance.dispose();
+            }
 
-                const option = chartOpts[chartId - 1];
-                if (option) {
-                    chart.setOption(option);
-                }
+            // 初始化新图表
+            const chart = echarts.init(containerEl, null, { renderer: 'canvas' });
+            chart.setOption(option);
 
-                // 延迟resize
-                setTimeout(function() {
+            // 延迟 resize 确保正确渲染
+            setTimeout(function() {
+                chart.resize();
+            }, 100);
+
+            // 监听窗口大小变化
+            window.addEventListener('resize', function() {
+                if (chart && !chart.isDisposed()) {
                     chart.resize();
-                }, 100);
-
-                // 监听resize
-                window.addEventListener('resize', function() {
-                    if (chart && !chart.isDisposed()) {
-                        chart.resize();
-                    }
-                });
-
-                return chart;
-            }
-
-            // 启动
-            let currentChart = initChart();
-
-            // 监听URL变化（用于SPA场景）
-            let lastUrl = window.location.href;
-            const checkUrlChange = function() {
-                if (window.location.href !== lastUrl) {
-                    lastUrl = window.location.href;
-                    if (currentChart && !currentChart.isDisposed()) {
-                        currentChart.dispose();
-                    }
-                    currentChart = initChart();
                 }
-            };
-            setInterval(checkUrlChange, 300);
-            window.addEventListener('popstate', function() {
-                setTimeout(function() {
-                    if (currentChart && !currentChart.isDisposed()) {
-                        currentChart.dispose();
-                    }
-                    currentChart = initChart();
-                }, 50);
             });
 
-            console.log('图表已就绪，共20个图表。当前显示图表ID: ' + getChartId() +
-                '，可通过URL参数?id=1~20切换。');
+            console.log('✅ 当前显示图表ID: ' + chartId + ' | 标题: ' + titleEl.textContent);
         })();
     </script>
 </body>
