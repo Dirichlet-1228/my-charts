@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据可视化图表</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: transparent;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+        .chart-title {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 16px 0 12px;
+        }
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            min-height: 300px;
+        }
+        @media (max-width: 768px) {
+            .chart-title {
+                font-size: 16px;
+            }
+            .chart-container {
+                min-height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="chart-title" id="chartTitle"></div>
+        <div class="chart-container" id="singleChart"></div>
+    </div>
+    <script>
+        (function() {
+            // ========== 腾讯官方16色 ==========
+            var COLORS = ['#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1', '#EB2F96',
+                '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8', '#95DE64', '#FF7875'
+            ];
+
+            // ========== 工具函数 ==========
+            function parseNumber(val) {
+                if (val === null || val === undefined) return null;
+                if (typeof val === 'number') return val;
+                var str = String(val).replace(/[$,]/g, '').trim();
+                if (str === '' || str === '-' || str === '0') return 0;
+                var num = parseFloat(str);
+                return isNaN(num) ? null : num;
+            }
+
+            function formatWan(val) {
+                if (val === null || val === undefined) return '-';
+                if (val >= 10000) {
+                    return (val / 10000).toFixed(1) + '万';
+                }
+                return String(val);
+            }
+
+            function formatCurrency(val) {
+                if (val === null || val === undefined) return '-';
+                if (val >= 10000) {
+                    return '$' + (val / 10000).toFixed(1) + '万';
+                }
+                return '$' + val.toFixed(2);
+            }
+
+            function formatCurrencyAxis(val) {
+                if (val >= 10000) {
+                    return '$' + (val / 10000).toFixed(0) + '万';
+                }
+                return '$' + val;
+            }
+
+            function formatPriceAxis(val) {
+                return '$' + Number(val).toFixed(2);
+            }
+
+            // 构建时间序列 (从旧到新)
+            function buildTimeSeries(startYear, startMonth, endYear, endMonth) {
+                var result = [];
+                var y = startYear;
+                var m = startMonth;
+                while (y < endYear || (y === endYear && m <= endMonth)) {
+                    result.push(y + '-' + String(m).padStart(2, '0'));
+                    m++;
+                    if (m > 12) {
+                        m = 1;
+                        y++;
+                    }
+                }
+                return result;
+            }
+
+            // 从倒序数据转换为按时间顺序的数值数组
+            function mapDataByTime(records, timeSeries, keyName) {
+                var map = {};
+                for (var i = 0; i < records.length; i++) {
+                    var rec = records[i];
+                    map[rec.month] = rec[keyName];
+                }
+                return timeSeries.map(function(t) {
+                    return (t in map) ? parseNumber(map[t]) : null;
+                });
+            }
+
+            // 基础tooltip样式
+            function baseTooltip(trigger) {
+                return {
+                    trigger: trigger,
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    textStyle: { color: '#fff', fontSize: 12 },
+                    confine: true
+                };
+            }
+
+            // 基础网格线配置
+            function baseGrid() {
+                return {
+                    left: 50,
+                    right: 40,
+                    top: 40,
+                    bottom: 55,
+                    containLabel: true
+                };
+            }
+
+            function baseXAxis(data, opts) {
+                opts = opts || {};
+                return {
+                    type: 'category',
+                    data: data,
+                    axisLine: { lineStyle: { color: '#ddd' } },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#666',
+                        fontSize: 11,
+                        rotate: opts.rotate || 0,
+                        interval: opts.interval !== undefined ? opts.interval : 'auto'
+                    },
+                    splitLine: { show: false }
+                };
+            }
+
+            function baseYAxis(opts) {
+                opts = opts || {};
+                return {
+                    type: 'value',
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#666',
+                        fontSize: 11,
+                        formatter: opts.formatter || null
+                    },
+                    splitLine: {
+                        show: true,
+                        lineStyle: { color: '#E9ECEF', type: 'dashed' }
+                    },
+                    name: opts.name || '',
+                    nameTextStyle: { color: '#999', fontSize: 10 },
+                    min: opts.min,
+                    max: opts.max
+                };
+            }
+
+            function baseLegend(orient, right, top) {
+                return {
+                    orient: orient || 'horizontal',
+                    right: right !== undefined ? right : 0,
+                    top: top !== undefined ? top : 0,
+                    textStyle: { color: '#555', fontSize: 11 },
+                    icon: 'roundRect',
+                    itemWidth: 14,
+                    itemHeight: 8
+                };
+            }
+
+            // 饼图标签自适应
+            function pieLabelConfig(dataLength, seriesName) {
+                if (dataLength <= 8) {
+                    return {
+                        show: true,
+                        position: 'outside',
+                        formatter: '{b}\n{d}%',
+                        fontSize: 11,
+                        color: '#333',
+                        lineHeight: 15,
+                        align: 'center'
+                    };
+                } else {
+                    // 隐藏图例，用rich圆点
+                    return null; // 将在data中单独设置
+                }
+            }
+
+            function buildPieDataWithDots(data, colors) {
+                var result = [];
+                for (var i = 0; i < data.length; i++) {
+                    var item = data[i];
+                    var dotColor = colors[i % colors.length];
+                    result.push({
+                        name: item.name,
+                        value: item.value,
+                        label: {
+                            show: true,
+                            position: 'outside',
+                            formatter: '{dot|●} {b}\n{d}%',
+                            rich: {
+                                dot: {
+                                    color: dotColor,
+                                    fontSize: 12,
+                                    fontWeight: 'bold',
+                                    padding: [0, 4, 0, 0]
+                                }
+                            },
+                            fontSize: 11,
+                            color: '#333',
+                            lineHeight: 15,
+                            align: 'left'
+                        },
+                        labelLine: { show: true, length: 12, length2: 8 }
+                    });
+                }
+                return result;
+            }
+
+            // ========== 数据定义 ==========
+
+            // ---- 图1: 分款销量占比 ----
+            var pie1Data = [
+                { name: '杆球堡垒搭建套装', value: 7029 },
+                { name: '毯子堡垒搭建套装', value: 1649 },
+                { name: '磁力堡垒搭建板', value: 830 },
+                { name: '纸板堡垒搭建套装', value: 144 },
+                { name: '塑料结构堡垒套装', value: 4 }
+            ];
+
+            // ---- 图2: 分款销售额 ----
+            var pie2Data = [
+                { name: '杆球堡垒搭建套装', value: 307433 },
+                { name: '磁力堡垒搭建板', value: 240289 },
+                { name: '毯子堡垒搭建套装', value: 66399 },
+                { name: '纸板堡垒搭建套装', value: 14482 },
+                { name: '塑料结构堡垒套装', value: 191 }
+            ];
+
+            // ---- 图5: 关键词搜索量趋势 ----
+            var timeSeries5 = buildTimeSeries(2022, 1, 2026, 7);
+            var kw1_records = [
+                { month: '2026-07', val: 28314 }, { month: '2026-06', val: 21962 }, { month: '2026-05', val: 21804 },
+                { month: '2026-04', val: 25200 }, { month: '2026-03', val: 31891 }, { month: '2026-02', val: 39846 },
+                { month: '2026-01', val: 45185 }, { month: '2025-12', val: 134880 }, { month: '2025-11', val: 117517 },
+                { month: '2025-10', val: 50318 }, { month: '2025-09', val: 45340 }, { month: '2025-08', val: 30302 },
+                { month: '2025-07', val: 28884 }, { month: '2025-06', val: 27348 }, { month: '2025-05', val: 22929 },
+                { month: '2025-04', val: 23477 }, { month: '2025-03', val: 26039 }, { month: '2025-02', val: 27604 },
+                { month: '2025-01', val: 36396 }, { month: '2024-12', val: 137292 }, { month: '2024-11', val: 118280 },
+                { month: '2024-10', val: 45853 }, { month: '2024-09', val: 37653 }, { month: '2024-08', val: 32552 },
+                { month: '2024-07', val: 32783 }, { month: '2024-06', val: 29506 }, { month: '2024-05', val: 22064 },
+                { month: '2024-04', val: 25093 }, { month: '2024-03', val: 30548 }, { month: '2024-02', val: 30619 },
+                { month: '2024-01', val: 39013 }, { month: '2023-12', val: 201747 }, { month: '2023-11', val: 197634 },
+                { month: '2023-10', val: 97431 }, { month: '2023-09', val: 88710 }, { month: '2023-08', val: 40806 },
+                { month: '2023-07', val: 15117 }, { month: '2023-06', val: 14400 }, { month: '2023-05', val: 12453 },
+                { month: '2023-04', val: 14257 }, { month: '2023-03', val: 17629 }, { month: '2023-02', val: 22939 },
+                { month: '2023-01', val: 25902 }, { month: '2022-12', val: 77256 }, { month: '2022-11', val: 75151 },
+                { month: '2022-10', val: 25925 }, { month: '2022-09', val: 17777 }, { month: '2022-08', val: 18828 },
+                { month: '2022-07', val: 18790 }, { month: '2022-06', val: 19905 }, { month: '2022-05', val: 18594 },
+                { month: '2022-04', val: 22593 }, { month: '2022-03', val: 21451 }, { month: '2022-02', val: 25817 },
+                { month: '2022-01', val: 31780 }
+            ];
+            var kw2_records = [
+                { month: '2026-07', val: 11984 }, { month: '2026-06', val: 8407 }, { month: '2026-05', val: 6763 },
+                { month: '2026-04', val: 6961 }, { month: '2026-03', val: 8613 }, { month: '2026-02', val: 11232 },
+                { month: '2026-01', val: 10015 }, { month: '2025-12', val: 34437 }, { month: '2025-11', val: 30241 },
+                { month: '2025-10', val: 13272 }, { month: '2025-09', val: 10791 }, { month: '2025-08', val: 9604 },
+                { month: '2025-07', val: 11029 }, { month: '2025-06', val: 9244 }, { month: '2025-05', val: 8838 },
+                { month: '2025-04', val: 9137 }, { month: '2025-03', val: 11913 }, { month: '2025-02', val: 13316 },
+                { month: '2025-01', val: 12212 }, { month: '2024-12', val: 41537 }, { month: '2024-11', val: 36837 },
+                { month: '2024-10', val: 19199 }, { month: '2024-09', val: 17073 }, { month: '2024-08', val: 13827 },
+                { month: '2024-07', val: 14559 }, { month: '2024-06', val: 13160 }, { month: '2024-05', val: 9959 },
+                { month: '2024-04', val: 12404 }, { month: '2024-03', val: 14133 }, { month: '2024-02', val: 12594 },
+                { month: '2024-01', val: 12498 }, { month: '2023-12', val: 43509 }, { month: '2023-11', val: 37329 },
+                { month: '2023-10', val: 19531 }, { month: '2023-09', val: 16430 }, { month: '2023-08', val: 14371 },
+                { month: '2023-07', val: 7964 }, { month: '2023-06', val: 8263 }, { month: '2023-05', val: 6314 },
+                { month: '2023-04', val: 7149 }, { month: '2023-03', val: 8015 }, { month: '2023-02', val: 10041 },
+                { month: '2023-01', val: 12646 }, { month: '2022-12', val: 26300 }, { month: '2022-11', val: 21348 },
+                { month: '2022-10', val: 12485 }, { month: '2022-09', val: 9525 }, { month: '2022-08', val: 10379 },
+                { month: '2022-07', val: 10911 }, { month: '2022-06', val: 9659 }, { month: '2022-05', val: 9185 },
+                { month: '2022-04', val: 11671 }, { month: '2022-03', val: 11716 }, { month: '2022-02', val: 13925 },
+                { month: '2022-01', val: 14391 }
+            ];
+            var kw3_records = [
+                { month: '2026-07', val: 2467 }, { month: '2026-06', val: 1396 }, { month: '2026-05', val: 758 },
+                { month: '2026-04', val: 1526 }, { month: '2026-03', val: 2799 }, { month: '2026-02', val: 4801 },
+                { month: '2026-01', val: 3974 }, { month: '2025-12', val: 13872 }, { month: '2025-11', val: 28813 },
+                { month: '2025-10', val: 7673 }, { month: '2025-09', val: 4340 }, { month: '2025-08', val: 2778 },
+                { month: '2025-07', val: 2718 }, { month: '2025-06', val: 3078 }, { month: '2025-05', val: 1510 },
+                { month: '2025-04', val: 1434 }, { month: '2025-03', val: 2164 }, { month: '2025-02', val: 3909 },
+                { month: '2025-01', val: 2203 }, { month: '2024-12', val: 24801 }, { month: '2024-11', val: 65509 },
+                { month: '2024-10', val: 17985 }, { month: '2024-09', val: 15928 }, { month: '2024-07', val: 140 },
+                { month: '2023-07', val: 0 }, { month: '2023-06', val: 0 }, { month: '2023-05', val: 0 },
+                { month: '2023-04', val: 0 }, { month: '2023-03', val: 0 }, { month: '2023-02', val: 0 },
+                { month: '2023-01', val: 0 }, { month: '2022-12', val: 0 }, { month: '2022-11', val: 0 },
+                { month: '2022-10', val: 0 }, { month: '2022-09', val: 0 }, { month: '2022-08', val: 0 },
+                { month: '2022-07', val: 0 }, { month: '2022-06', val: 0 }, { month: '2022-05', val: 0 },
+                { month: '2022-04', val: 0 }, { month: '2022-03', val: 0 }, { month: '2022-02', val: 0 },
+                { month: '2022-01', val: 0 }
+            ];
+            var kw1_data = mapDataByTime(kw1_records, timeSeries5, 'val');
+            var kw2_data = mapDataByTime(kw2_records, timeSeries5, 'val');
+            var kw3_data = mapDataByTime(kw3_records, timeSeries5, 'val');
+
+            // ---- 图6: 关键词ABA排名趋势 ----
+            var timeSeries6 = buildTimeSeries(2022, 1, 2026, 7);
+            var aba1_records = [
+                { month: '2026-07', val: 55806 }, { month: '2026-06', val: 75551 }, { month: '2026-05', val: 74963 },
+                { month: '2026-04', val: 65270 }, { month: '2026-03', val: 47873 }, { month: '2026-02', val: 36965 },
+                { month: '2026-01', val: 31358 }, { month: '2025-12', val: 6073 }, { month: '2025-11', val: 7062 },
+                { month: '2025-10', val: 27167 }, { month: '2025-09', val: 31594 }, { month: '2025-08', val: 50971 },
+                { month: '2025-07', val: 53960 }, { month: '2025-06', val: 59369 }, { month: '2025-05', val: 72692 },
+                { month: '2025-04', val: 68543 }, { month: '2025-03', val: 63603 }, { month: '2025-02', val: 59141 },
+                { month: '2025-01', val: 40755 }, { month: '2024-12', val: 6105 }, { month: '2024-11', val: 8324 },
+                { month: '2024-10', val: 34447 }, { month: '2024-09', val: 42861 }, { month: '2024-08', val: 52582 },
+                { month: '2024-07', val: 50094 }, { month: '2024-06', val: 58670 }, { month: '2024-05', val: 78887 },
+                { month: '2024-04', val: 70265 }, { month: '2024-03', val: 57097 }, { month: '2024-02', val: 49200 },
+                { month: '2024-01', val: 36812 }, { month: '2023-12', val: 3142 }, { month: '2023-11', val: 3200 },
+                { month: '2023-10', val: 10621 }, { month: '2023-09', val: 12158 }, { month: '2023-08', val: 35125 },
+                { month: '2023-07', val: 59488 }, { month: '2023-06', val: 61198 }, { month: '2023-05', val: 79932 },
+                { month: '2023-04', val: 66191 }, { month: '2023-03', val: 44890 }, { month: '2023-02', val: 35354 },
+                { month: '2023-01', val: 29846 }, { month: '2022-12', val: 8801 }, { month: '2022-11', val: 9047 },
+                { month: '2022-10', val: 29897 }, { month: '2022-09', val: 44431 }, { month: '2022-08', val: 44676 },
+                { month: '2022-07', val: 41989 }, { month: '2022-06', val: 40607 }, { month: '2022-05', val: 43532 },
+                { month: '2022-04', val: 35963 }, { month: '2022-03', val: 36834 }, { month: '2022-02', val: 30081 },
+                { month: '2022-01', val: 24755 }
+            ];
+            var aba2_records = [
+                { month: '2026-07', val: 150053 }, { month: '2026-06', val: 191417 }, { month: '2026-05', val: 234211 },
+                { month: '2026-04', val: 230166 }, { month: '2026-03', val: 187198 }, { month: '2026-02', val: 154448 },
+                { month: '2026-01', val: 162510 }, { month: '2025-12', val: 45138 }, { month: '2025-11', val: 50580 },
+                { month: '2025-10', val: 138442 }, { month: '2025-09', val: 154563 }, { month: '2025-08', val: 168773 },
+                { month: '2025-07', val: 157616 }, { month: '2025-06', val: 173670 }, { month: '2025-05', val: 183212 },
+                { month: '2025-04', val: 175321 }, { month: '2025-03', val: 139330 }, { month: '2025-02', val: 122929 },
+                { month: '2025-01', val: 134120 }, { month: '2024-12', val: 35267 }, { month: '2024-11', val: 40899 },
+                { month: '2024-10', val: 90687 }, { month: '2024-09', val: 102142 }, { month: '2024-08', val: 133851 },
+                { month: '2024-07', val: 118788 }, { month: '2024-06', val: 141869 }, { month: '2024-05', val: 169637 },
+                { month: '2024-04', val: 153093 }, { month: '2024-03', val: 134204 }, { month: '2024-02', val: 123534 },
+                { month: '2024-01', val: 127915 }, { month: '2023-12', val: 32511 }, { month: '2023-11', val: 38579 },
+                { month: '2023-10', val: 79734 }, { month: '2023-09', val: 100236 }, { month: '2023-08', val: 118693 },
+                { month: '2023-07', val: 137639 }, { month: '2023-06', val: 133404 }, { month: '2023-05', val: 180519 },
+                { month: '2023-04', val: 158327 }, { month: '2023-03', val: 135648 }, { month: '2023-02', val: 101594 },
+                { month: '2023-01', val: 84459 }, { month: '2022-12', val: 29461 }, { month: '2022-11', val: 36457 },
+                { month: '2022-10', val: 79170 }, { month: '2022-09', val: 108443 }, { month: '2022-08', val: 100530 },
+                { month: '2022-07', val: 100354 }, { month: '2022-06', val: 106219 }, { month: '2022-05', val: 114953 },
+                { month: '2022-04', val: 97280 }, { month: '2022-03', val: 84883 }, { month: '2022-02', val: 73298 },
+                { month: '2022-01', val: 69650 }
+            ];
+            var aba3_records = [
+                { month: '2026-07', val: 603679 }, { month: '2026-06', val: 1049818 }, { month: '2026-05', val: 1532041 },
+                { month: '2026-04', val: 928104 }, { month: '2026-03', val: 500974 }, { month: '2026-02', val: 315179 },
+                { month: '2026-01', val: 378205 }, { month: '2025-12', val: 122355 }, { month: '2025-11', val: 52931 },
+                { month: '2025-10', val: 208175 }, { month: '2025-09', val: 346616 }, { month: '2025-08', val: 506737 },
+                { month: '2025-07', val: 526608 }, { month: '2025-06', val: 449902 }, { month: '2025-05', val: 1010809 },
+                { month: '2025-04', val: 1019653 }, { month: '2025-03', val: 667877 }, { month: '2025-02', val: 377050 },
+                { month: '2025-01', val: 642326 }, { month: '2024-12', val: 65083 }, { month: '2024-11', val: 18598 },
+                { month: '2024-10', val: 101083 }, { month: '2024-09', val: 114757 }, { month: '2024-07', val: 2337607 },
+                { month: '2023-07', val: 0 }, { month: '2023-06', val: 0 }, { month: '2023-05', val: 0 },
+                { month: '2023-04', val: 0 }, { month: '2023-03', val: 0 }, { month: '2023-02', val: 0 },
+                { month: '2023-01', val: 0 }, { month: '2022-12', val: 0 }, { month: '2022-11', val: 0 },
+                { month: '2022-10', val: 0 }, { month: '2022-09', val: 0 }, { month: '2022-08', val: 0 },
+                { month: '2022-07', val: 0 }, { month: '2022-06', val: 0 }, { month: '2022-05', val: 0 },
+                { month: '2022-04', val: 0 }, { month: '2022-03', val: 0 }, { month: '2022-02', val: 0 },
+                { month: '2022-01', val: 0 }
+            ];
+            var aba1_data = mapDataByTime(aba1_records, timeSeries6, 'val');
+            var aba2_data = mapDataByTime(aba2_records, timeSeries6, 'val');
+            var aba3_data = mapDataByTime(aba3_records, timeSeries6, 'val');
+
+            // ---- 图7: 历史销量趋势-复合图 ----
+            var time7 = ['2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03',
+                '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11',
+                '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'
+            ];
+            var salesVol = [10099, 13708, 19506, 43385, 104852, 10505, 10213, 8687, 8144, 8698, 10675, 12736, 10039,
+                10216, 13326, 35972, 83672, 12391, 10102, 9761, 7985, 7951, 9392, 9236, 9765
+            ];
+            var salesRev = [465311.45, 643662.65, 903851.73, 1899787.95, 5015027.82, 492175.71, 452886.96, 381084.27,
+                356481.32, 382464.69, 471855.98, 544521.44, 445862.33, 452001.43, 593866.98, 1638794.27,
+                4295894.96, 688175.93, 592735.30, 590692.42, 471058.70, 506693.74, 658091.24, 616813.00, 646881.96
+            ];
+            var magRev = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9521.80, 13728.47, 25983.91, 96620.89, 67549.66,
+                100676.64, 129056.32, 150965.15, 96269.42, 145023.42, 243128.16, 229939.92, 236481.02
+            ];
+
+            // ---- 图8: 价格趋势 ----
+            var time8 = ['2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03',
+                '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11',
+                '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'
+            ];
+            var priceWeighted = [45.59, 46.57, 46.16, 43.38, 46.52, 45.79, 43.54, 43.13, 43.12, 43.28, 43.54, 42.25,
+                43.60, 42.85, 43.41, 43.85, 49.88, 49.37, 57.57, 58.87, 57.98, 61.84, 67.85, 64.64, 61.60
+            ];
+            var priceMedian = [43.77, 44.43, 44.99, 44.34, 46.31, 45.99, 44.99, 44.28, 42.98, 41.97, 43.14, 43.21,
+                44.99, 42.95, 41.96, 41.32, 47.30, 46.02, 48.41, 45.55, 45.34, 45.34, 44.95, 43.49, 43.65
+            ];
+            var priceMag = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 232.67, 238.15, 265.48, 249.50, 264.36, 159.99,
+                302.96, 298.24, 293.05, 300.24, 291.25, 265.86, 247.85
+            ];
+
+            // ---- 图9: 品牌垄断 ----
+            var pie9Data = [
+                { name: 'Asweets', value: 237 },
+                { name: 'Umoving', value: 234 },
+                { name: 'Superspace', value: 189 },
+                { name: 'Make-A-Fort', value: 101 },
+                { name: 'Kersliker', value: 44 },
+                { name: 'Noodlenaut', value: 43 },
+                { name: 'MageForts', value: 42 },
+                { name: 'MindAzure', value: 32 },
+                { name: 'ZGXIAOLE', value: 31 },
+                { name: 'Gereat', value: 21 },
+                { name: 'Kraftzoo', value: 4 }
+            ];
+
+            // ---- 图11: 卖家所属地 ----
+            var pie11Data = [
+                { name: 'CN', value: 4481 },
+                { name: 'US', value: 3078 },
+                { name: 'CN(HK)', value: 852 },
+                { name: 'AMZ', value: 557 },
+                { name: 'GB', value: 513 },
+                { name: 'FR', value: 73 },
+                { name: 'PE', value: 59 },
+                { name: 'NA', value: 43 }
+            ];
+
+            // ---- 图12: 配送方式 ----
+            var pie12Data = [
+                { name: 'NA', value: 43 },
+                { name: 'FBA', value: 8700 },
+                { name: 'AMZ', value: 557 },
+                { name: 'FBM', value: 356 }
+            ];
+
+            // ---- 图14: review数分析 ----
+            var reviewCats = ['0~10', '10~30', '30~50', '50~100', '300~400', '500~800', '2000+'];
+            var reviewOld = [4, 116, 211, 234, 63, 38, 0];
+            var reviewNew = [119, 162, 0, 0, 0, 0, 31];
+
+            // ---- 图15: 分款价格分布 ----
+            var priceBands = ['19.99-24.99', '24.99-29.99', '29.99-34.99', '34.99-39.99', '39.99-44.99', '44.99-49.99',
+                '49.99-54.99', '59.99-64.99', '64.99-69.99', '69.99-74.99', '79.99-84.99', '89.99-94.99',
+                '99.99-104.99', '129.99-134.99', '144.99-149.99', '149.99-154.99', '189.99-194.99',
+                '199.99-204.99', '249.99-254.99', '289.99-294.99', '294.99-299.99', '304.99-309.99',
+                '379.99-384.99', '444.99-449.99'
+            ];
+            var priceDist1 = [46, 122, 490, 957, 2657, 1731, 155, 341, 332, 168, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0
+            ];
+            var priceDist2 = [0, 43, 435, 0, 1034, 0, 137, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            var priceDist3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 211, 24, 87, 8, 4, 27, 31, 234, 162];
+            var priceDist4 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 0, 0, 38, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            var priceDist5 = [0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+            // ---- 图19: 分款星级分布 ----
+            var starCats = ['三星半及以下', '四星', '四星半', '五星'];
+            var starDist1 = [4, 7, 14, 4];
+            var starDist2 = [1, 1, 9, 0];
+            var starDist3 = [3, 2, 4, 4];
+            var starDist4 = [0, 2, 1, 0];
+            var starDist5 = [0, 0, 1, 0];
+
+            // ========== 构建20个图表标题 ==========
+            var chartTitles = [
+                '分款销量占比', // 1
+                '分款销售额', // 2
+                '产品属性销量占比', // 3
+                '产品属性销量占比', // 4
+                '关键词搜索量趋势', // 5
+                '关键词ABA排名趋势', // 6
+                '历史销售趋势', // 7
+                '价格趋势', // 8
+                '品牌垄断（磁力板）', // 9
+                '排名垄断', // 10
+                '卖家所属地', // 11
+                '配送方式', // 12
+                '新品销量占比', // 13
+                '磁力板review数', // 14
+                '市场分款价格分布', // 15
+                '价格-质量联动分析', // 16
+                '品牌价格分布', // 17
+                '新老品价格分布', // 18
+                '分款星级分布', // 19
+                '评分销量趋势' // 20
+            ];
+
+            // ========== 构建20个图表配置 ==========
+            var chartOpts = [];
+
+            // ---- 图1: 分款销量占比-饼图 ----
+            chartOpts[0] = {
+                color: COLORS,
+                tooltip: baseTooltip('item'),
+                legend: (pie1Data.length <= 8) ? baseLegend('vertical', 10, 'middle') : { show: false },
+                grid: baseGrid(),
+                series: [{
+                    name: '月销量',
+                    type: 'pie',
+                    radius: ['35%', '65%'],
+                    center: ['42%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                    label: (pie1Data.length <= 8) ? {
+                        show: true,
+                        position: 'outside',
+                        formatter: '{b}\n{d}%',
+                        fontSize: 11,
+                        color: '#333',
+                        lineHeight: 15,
+                        align: 'center'
+                    } : { show: false },
+                    labelLine: (pie1Data.length <= 8) ? { show: true, length: 15, length2: 10 } : { show: false },
+                    data: (pie1Data.length <= 8) ? pie1Data : buildPieDataWithDots(pie1Data, COLORS)
+                }]
+            };
+
+            // ---- 图2: 分款销售额-饼图 ----
+            chartOpts[1] = {
+                color: COLORS,
+                tooltip: baseTooltip('item'),
+                legend: (pie2Data.length <= 8) ? baseLegend('vertical', 10, 'middle') : { show: false },
+                grid: baseGrid(),
+                series: [{
+                    name: '月销售额',
+                    type: 'pie',
+                    radius: ['35%', '65%'],
+                    center: ['42%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                    label: (pie2Data.length <= 8) ? {
+                        show: true,
+                        position: 'outside',
+                        formatter: '{b}\n{d}%',
+                        fontSize: 11,
+                        color: '#333',
+                        lineHeight: 15,
+                        align: 'center'
+                    } : { show: false },
+                    labelLine: (pie2Data.length <= 8) ? { show: true, length: 15, length2: 10 } : { show: false },
+                    data: (pie2Data.length <= 8) ? pie2Data : buildPieDataWithDots(pie2Data, COLORS)
+                }]
+            };
+
+            // ---- 图3: 无数据占位 ----
+            chartOpts[2] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+            // ---- 图4: 无数据占位 ----
+            chartOpts[3] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+
+            // ---- 图5: 关键词搜索量趋势-多系列折线图 ----
+            chartOpts[4] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 60, right: 30, top: 45, bottom: 55, containLabel: true },
+                xAxis: baseXAxis(timeSeries5, { rotate: 45, interval: 5 }),
+                yAxis: baseYAxis({ formatter: function(val) { return formatWan(val); } }),
+                series: [
+                    { name: 'fort building kit', type: 'line', smooth: true, data: kw1_data, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[0] } },
+                    { name: 'kids fort', type: 'line', smooth: true, data: kw2_data, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[1] } },
+                    { name: 'magnetic fort building panels', type: 'line', smooth: true, data: kw3_data,
+                        symbol: 'circle', symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[2] } }
+                ]
+            };
+
+            // ---- 图6: 关键词ABA排名趋势-多系列折线图 ----
+            chartOpts[5] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 60, right: 30, top: 45, bottom: 55, containLabel: true },
+                xAxis: baseXAxis(timeSeries6, { rotate: 45, interval: 5 }),
+                yAxis: baseYAxis({ formatter: function(val) { return formatWan(val); } }),
+                series: [
+                    { name: 'fort building kit', type: 'line', smooth: true, data: aba1_data, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[0] } },
+                    { name: 'kids fort', type: 'line', smooth: true, data: aba2_data, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[1] } },
+                    { name: 'magnetic fort building panels', type: 'line', smooth: true, data: aba3_data,
+                        symbol: 'circle', symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[2] } }
+                ]
+            };
+
+            // ---- 图7: 历史销量趋势-复合图 ----
+            chartOpts[6] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 60, right: 60, top: 45, bottom: 55, containLabel: true },
+                xAxis: baseXAxis(time7, { rotate: 30 }),
+                yAxis: [
+                    baseYAxis({ formatter: function(val) { return formatWan(val); }, name: '销量' }),
+                    baseYAxis({ formatter: function(val) { return formatCurrencyAxis(val); }, name: '销售额',
+                        min: 0 })
+                ],
+                series: [{
+                    name: '月总销量',
+                    type: 'bar',
+                    data: salesVol,
+                    yAxisIndex: 0,
+                    barWidth: '45%',
+                    itemStyle: { color: COLORS[0] }
+                }, {
+                    name: '月总销售额',
+                    type: 'line',
+                    data: salesRev,
+                    yAxisIndex: 1,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 5,
+                    lineStyle: { width: 2 },
+                    itemStyle: { color: COLORS[1] }
+                }, {
+                    name: '磁力板月总销售额',
+                    type: 'line',
+                    data: magRev,
+                    yAxisIndex: 1,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 5,
+                    lineStyle: { width: 2, type: 'solid' },
+                    itemStyle: { color: COLORS[2] }
+                }]
+            };
+
+            // ---- 图8: 价格趋势-多系列折线图 ----
+            chartOpts[7] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 60, right: 30, top: 45, bottom: 55, containLabel: true },
+                xAxis: baseXAxis(time8, { rotate: 30 }),
+                yAxis: baseYAxis({ formatter: function(val) { return formatPriceAxis(val); } }),
+                series: [
+                    { name: '销量加权均价', type: 'line', smooth: true, data: priceWeighted, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[0] } },
+                    { name: '月价格中位数', type: 'line', smooth: true, data: priceMedian, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[1] } },
+                    { name: '磁力板均价', type: 'line', smooth: true, data: priceMag, symbol: 'circle',
+                        symbolSize: 4, lineStyle: { width: 2 }, itemStyle: { color: COLORS[2] } }
+                ]
+            };
+
+            // ---- 图9: 品牌垄断-饼图 (11个类别>8，隐藏图例，用圆点) ----
+            chartOpts[8] = {
+                color: COLORS,
+                tooltip: baseTooltip('item'),
+                legend: { show: false },
+                grid: baseGrid(),
+                series: [{
+                    name: '月销量',
+                    type: 'pie',
+                    radius: ['30%', '65%'],
+                    center: ['50%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                    label: { show: false },
+                    labelLine: { show: false },
+                    data: buildPieDataWithDots(pie9Data, COLORS)
+                }]
+            };
+
+            // ---- 图10: 无数据占位 ----
+            chartOpts[9] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+
+            // ---- 图11: 卖家所属地-饼图 (8个类别≤8) ----
+            chartOpts[10] = {
+                color: COLORS,
+                tooltip: baseTooltip('item'),
+                legend: baseLegend('vertical', 10, 'middle'),
+                grid: baseGrid(),
+                series: [{
+                    name: '月销量',
+                    type: 'pie',
+                    radius: ['35%', '65%'],
+                    center: ['42%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                    label: {
+                        show: true,
+                        position: 'outside',
+                        formatter: '{b}\n{d}%',
+                        fontSize: 11,
+                        color: '#333',
+                        lineHeight: 15,
+                        align: 'center'
+                    },
+                    labelLine: { show: true, length: 15, length2: 10 },
+                    data: pie11Data
+                }]
+            };
+
+            // ---- 图12: 配送方式-饼图 (4个类别≤8) ----
+            chartOpts[11] = {
+                color: COLORS,
+                tooltip: baseTooltip('item'),
+                legend: baseLegend('vertical', 10, 'middle'),
+                grid: baseGrid(),
+                series: [{
+                    name: '月销量',
+                    type: 'pie',
+                    radius: ['35%', '65%'],
+                    center: ['42%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: { borderWidth: 1, borderColor: '#fff' },
+                    label: {
+                        show: true,
+                        position: 'outside',
+                        formatter: '{b}\n{d}%',
+                        fontSize: 11,
+                        color: '#333',
+                        lineHeight: 15,
+                        align: 'center'
+                    },
+                    labelLine: { show: true, length: 15, length2: 10 },
+                    data: pie12Data
+                }]
+            };
+
+            // ---- 图13: 无数据占位 ----
+            chartOpts[12] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+
+            // ---- 图14: review数分析-堆积柱状图 ----
+            chartOpts[13] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 50, right: 30, top: 45, bottom: 55, containLabel: true },
+                xAxis: baseXAxis(reviewCats, {}),
+                yAxis: baseYAxis({ formatter: null }),
+                series: [
+                    { name: '老品', type: 'bar', stack: 'total', data: reviewOld, barWidth: '45%',
+                        itemStyle: { color: COLORS[0] } },
+                    { name: '新品', type: 'bar', stack: 'total', data: reviewNew, barWidth: '45%',
+                        itemStyle: { color: COLORS[1] } }
+                ]
+            };
+
+            // ---- 图15: 分款价格分布-堆积柱状图 ----
+            chartOpts[14] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 50, right: 30, top: 45, bottom: 80, containLabel: true },
+                xAxis: baseXAxis(priceBands, { rotate: 60 }),
+                yAxis: baseYAxis({ formatter: function(val) { return formatWan(val); } }),
+                series: [
+                    { name: '杆球堡垒搭建套装', type: 'bar', stack: 'total', data: priceDist1, barWidth: '55%',
+                        itemStyle: { color: COLORS[0] } },
+                    { name: '毯子堡垒搭建套装', type: 'bar', stack: 'total', data: priceDist2, barWidth: '55%',
+                        itemStyle: { color: COLORS[1] } },
+                    { name: '磁力堡垒搭建板', type: 'bar', stack: 'total', data: priceDist3, barWidth: '55%',
+                        itemStyle: { color: COLORS[2] } },
+                    { name: '纸板堡垒搭建套装', type: 'bar', stack: 'total', data: priceDist4, barWidth: '55%',
+                        itemStyle: { color: COLORS[3] } },
+                    { name: '塑料结构堡垒套装', type: 'bar', stack: 'total', data: priceDist5, barWidth: '55%',
+                        itemStyle: { color: COLORS[4] } }
+                ]
+            };
+
+            // ---- 图16: 无数据占位 ----
+            chartOpts[15] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+            // ---- 图17: 无数据占位 ----
+            chartOpts[16] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+            // ---- 图18: 无数据占位 ----
+            chartOpts[17] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+
+            // ---- 图19: 分款星级分布-堆积柱状图 ----
+            chartOpts[18] = {
+                color: COLORS,
+                tooltip: baseTooltip('axis'),
+                legend: baseLegend('horizontal', 10, 0),
+                grid: { left: 50, right: 30, top: 45, bottom: 55, containLabel: true },
+                xAxis: baseXAxis(starCats, {}),
+                yAxis: baseYAxis({ formatter: null }),
+                series: [
+                    { name: '杆球堡垒搭建套装', type: 'bar', stack: 'total', data: starDist1, barWidth: '50%',
+                        itemStyle: { color: COLORS[0] } },
+                    { name: '毯子堡垒搭建套装', type: 'bar', stack: 'total', data: starDist2, barWidth: '50%',
+                        itemStyle: { color: COLORS[1] } },
+                    { name: '磁力堡垒搭建板', type: 'bar', stack: 'total', data: starDist3, barWidth: '50%',
+                        itemStyle: { color: COLORS[2] } },
+                    { name: '纸板堡垒搭建套装', type: 'bar', stack: 'total', data: starDist4, barWidth: '50%',
+                        itemStyle: { color: COLORS[3] } },
+                    { name: '塑料结构堡垒套装', type: 'bar', stack: 'total', data: starDist5, barWidth: '50%',
+                        itemStyle: { color: COLORS[4] } }
+                ]
+            };
+
+            // ---- 图20: 无数据占位 ----
+            chartOpts[19] = {
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
+                xAxis: { show: false },
+                yAxis: { show: false },
+                series: []
+            };
+
+            // ========== URL参数解析 & 渲染 ==========
+            var urlParams = new URLSearchParams(window.location.search);
+            var rawId = urlParams.get('id');
+            var chartId = parseInt(rawId, 10);
+            if (isNaN(chartId) || chartId < 1 || chartId > 20) {
+                chartId = 1;
+            }
+
+            var titleEl = document.getElementById('chartTitle');
+            var chartEl = document.getElementById('singleChart');
+
+            titleEl.textContent = chartTitles[chartId - 1] || ('图表' + chartId);
+
+            var myChart = echarts.init(chartEl);
+            var opts = chartOpts[chartId - 1] || chartOpts[0];
+            myChart.setOption(opts, true);
+
+            // 延迟100ms调用resize
+            setTimeout(function() {
+                myChart.resize();
+            }, 100);
+
+            // 响应式
+            window.addEventListener('resize', function() {
+                if (myChart) {
+                    myChart.resize();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
