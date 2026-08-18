@@ -705,26 +705,32 @@
                 }]
             };
 
-            // ---- 图10: 上架时序图 ----
+            // ---- 图10: 上架时序图----
 chartOpts[9] = {
     color: COLORS,
     tooltip: {
         trigger: 'item',
-        formatter: function(params) {
-            if (params.value && params.value.length >= 3) {
-                var date = params.value[0];
-                var volume = params.value[1];
-                var revenue = params.value[2];
-                return params.name + '<br/>上架时间: ' + date + '<br/>月销量: ' + volume + '<br/>月销售额: $' + revenue.toFixed(2);
-            }
-            return '';
-        },
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.75)',
         borderColor: 'transparent',
         textStyle: { color: '#fff', fontSize: 12 },
-        confine: true
+        confine: true,
+        formatter: function(params) {
+            if (params.data && params.data.value) {
+                var brand = params.data.value[1];
+                var date = params.data.value[0];
+                var volume = params.data.volume;
+                var revenue = params.data.value[2];
+                var category = params.data.category;
+                return '<strong>' + brand + '</strong><br/>' +
+                       '上架时间：' + date + '<br/>' +
+                       '月销量：' + volume + '<br/>' +
+                       '月销售额：$' + revenue.toFixed(2) + '<br/>' +
+                       '品类：' + category;
+            }
+            return '';
+        }
     },
-    grid: { left: 60, right: 40, top: 45, bottom: 80, containLabel: true },
+    grid: { left: 120, right: 50, top: 40, bottom: 60, containLabel: true },
     xAxis: {
         type: 'time',
         name: '上架时间',
@@ -735,52 +741,54 @@ chartOpts[9] = {
             color: '#666',
             fontSize: 11,
             formatter: function(value) {
-                return echarts.format.formatTime('yyyy-MM-dd', value);
-            }
+                return echarts.format.formatTime('yyyy-MM', value);
+            },
+            rotate: 0
         },
-        splitLine: { show: false }
+        splitLine: { show: true, lineStyle: { color: '#f0f0f0', type: 'dashed' } }
     },
     yAxis: {
-        type: 'value',
-        name: '月销量',
-        nameTextStyle: { color: '#999', fontSize: 10 },
-        axisLine: { show: false },
+        type: 'category',
+        data: ['Kraftzoo', 'Gereat', 'ZGXIAOLE', 'MindAzure', 'MageForts', 'Kersliker',
+               'Noodlenaut', 'Make-A-Fort', 'Superspace', 'Umoving', 'Asweets'],
+        axisLine: { lineStyle: { color: '#ddd' } },
         axisTick: { show: false },
-        axisLabel: { color: '#666', fontSize: 11 },
-        splitLine: { show: true, lineStyle: { color: '#E9ECEF', type: 'dashed' } }
+        axisLabel: { color: '#555', fontSize: 12 },
+        splitLine: { show: true, lineStyle: { color: '#f0f0f0', type: 'dashed' } }
     },
     series: [{
         name: '产品上架',
         type: 'scatter',
+        encode: {
+            x: 0,   // 时间
+            y: 1    // 品牌
+        },
         data: [
-            { name: 'Make-A-Fort (纸板)', value: ['2021-07-29', 32, 3199], category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
-            { name: 'Make-A-Fort (纸板)', value: ['2022-09-14', 54, 6209], category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
-            { name: 'Asweets (磁力板)', value: ['2025-06-10', 211, 31647], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'MageForts (磁力板)', value: ['2025-08-19', 21, 2099], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'MageForts (磁力板)', value: ['2025-11-07', 17, 1699], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Umoving (磁力板)', value: ['2025-12-18', 234, 88917], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Kraftzoo (塑料)', value: ['2025-12-29', 3, 179], category: '塑料结构堡垒套装', itemStyle: { color: COLORS[2] } },
-            { name: 'Kersliker (磁力板)', value: ['2026-01-28', 2, 579], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Superspace (磁力板)', value: ['2026-02-02', 27, 8073], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Noodlenaut (纸板)', value: ['2026-02-09', 43, 3439], category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
-            { name: 'Asweets (磁力板)', value: ['2026-02-18', 24, 4799], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Kersliker (磁力板)', value: ['2026-02-27', 39, 7799], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Superspace (磁力板)', value: ['2026-03-05', 162, 72738], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'MindAzure (磁力板)', value: ['2026-05-08', 6, 1499], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'Gereat (磁力板)', value: ['2026-05-23', 19, 3799], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'MindAzure (磁力板)', value: ['2026-06-10', 24, 4559], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
-            { name: 'ZGXIAOLE (磁力板)', value: ['2026-06-10', 27, 8363], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } }
+            { value: ['2021-07-29', 'Make-A-Fort', 3199], volume: 32, category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
+            { value: ['2022-09-14', 'Make-A-Fort', 6209], volume: 54, category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
+            { value: ['2025-06-10', 'Asweets', 31647], volume: 211, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2025-08-19', 'MageForts', 2099], volume: 21, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2025-11-07', 'MageForts', 1699], volume: 17, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2025-12-18', 'Umoving', 88917], volume: 234, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2025-12-29', 'Kraftzoo', 179], volume: 3, category: '塑料结构堡垒套装', itemStyle: { color: COLORS[2] } },
+            { value: ['2026-01-28', 'Kersliker', 579], volume: 2, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-02-02', 'Superspace', 8073], volume: 27, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-02-09', 'Noodlenaut', 3439], volume: 43, category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
+            { value: ['2026-02-18', 'Asweets', 4799], volume: 24, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-02-27', 'Kersliker', 7799], volume: 39, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-03-05', 'Superspace', 72738], volume: 162, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-05-08', 'MindAzure', 1499], volume: 6, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-05-23', 'Gereat', 3799], volume: 19, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-06-10', 'MindAzure', 4559], volume: 24, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { value: ['2026-06-10', 'ZGXIAOLE', 8363], volume: 27, category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } }
         ],
         symbolSize: function(val) {
-            // 气泡大小根据月销售额，范围约179~88917，用平方根缩放
-            return Math.sqrt(val[2]) * 1.2;
+            // 气泡大小依据月销售额（val[2]），范围约179~88917，使用平方根缩放避免过大
+            var revenue = val[2] || 0;
+            return Math.max(8, Math.sqrt(revenue) * 1.1);
         },
         emphasis: {
-            itemStyle: {
-                shadowBlur: 10,
-                shadowOffsetX: 0,
-                shadowColor: 'rgba(0,0,0,0.5)'
-            }
+            itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' }
         }
     }]
 };
