@@ -505,7 +505,7 @@
                 '历史销售趋势', // 7
                 '价格趋势', // 8
                 '品牌垄断（磁力板）', // 9
-                '排名垄断', // 10
+                '上架时序图', // 10
                 '卖家所属地', // 11
                 '配送方式', // 12
                 '新品销量占比', // 13
@@ -705,13 +705,85 @@
                 }]
             };
 
-            // ---- 图10: 无数据占位 ----
-            chartOpts[9] = {
-                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#bbb', fontSize: 18 } },
-                xAxis: { show: false },
-                yAxis: { show: false },
-                series: []
-            };
+            // ---- 图10: 上架时序图 ----
+chartOpts[9] = {
+    color: COLORS,
+    tooltip: {
+        trigger: 'item',
+        formatter: function(params) {
+            if (params.value && params.value.length >= 3) {
+                var date = params.value[0];
+                var volume = params.value[1];
+                var revenue = params.value[2];
+                return params.name + '<br/>上架时间: ' + date + '<br/>月销量: ' + volume + '<br/>月销售额: $' + revenue.toFixed(2);
+            }
+            return '';
+        },
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderColor: 'transparent',
+        textStyle: { color: '#fff', fontSize: 12 },
+        confine: true
+    },
+    grid: { left: 60, right: 40, top: 45, bottom: 80, containLabel: true },
+    xAxis: {
+        type: 'time',
+        name: '上架时间',
+        nameTextStyle: { color: '#999', fontSize: 10 },
+        axisLine: { lineStyle: { color: '#ddd' } },
+        axisTick: { show: false },
+        axisLabel: {
+            color: '#666',
+            fontSize: 11,
+            formatter: function(value) {
+                return echarts.format.formatTime('yyyy-MM-dd', value);
+            }
+        },
+        splitLine: { show: false }
+    },
+    yAxis: {
+        type: 'value',
+        name: '月销量',
+        nameTextStyle: { color: '#999', fontSize: 10 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#666', fontSize: 11 },
+        splitLine: { show: true, lineStyle: { color: '#E9ECEF', type: 'dashed' } }
+    },
+    series: [{
+        name: '产品上架',
+        type: 'scatter',
+        data: [
+            { name: 'Make-A-Fort (纸板)', value: ['2021-07-29', 32, 3199], category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
+            { name: 'Make-A-Fort (纸板)', value: ['2022-09-14', 54, 6209], category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
+            { name: 'Asweets (磁力板)', value: ['2025-06-10', 211, 31647], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'MageForts (磁力板)', value: ['2025-08-19', 21, 2099], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'MageForts (磁力板)', value: ['2025-11-07', 17, 1699], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Umoving (磁力板)', value: ['2025-12-18', 234, 88917], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Kraftzoo (塑料)', value: ['2025-12-29', 3, 179], category: '塑料结构堡垒套装', itemStyle: { color: COLORS[2] } },
+            { name: 'Kersliker (磁力板)', value: ['2026-01-28', 2, 579], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Superspace (磁力板)', value: ['2026-02-02', 27, 8073], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Noodlenaut (纸板)', value: ['2026-02-09', 43, 3439], category: '纸板堡垒搭建套装', itemStyle: { color: COLORS[1] } },
+            { name: 'Asweets (磁力板)', value: ['2026-02-18', 24, 4799], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Kersliker (磁力板)', value: ['2026-02-27', 39, 7799], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Superspace (磁力板)', value: ['2026-03-05', 162, 72738], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'MindAzure (磁力板)', value: ['2026-05-08', 6, 1499], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'Gereat (磁力板)', value: ['2026-05-23', 19, 3799], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'MindAzure (磁力板)', value: ['2026-06-10', 24, 4559], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } },
+            { name: 'ZGXIAOLE (磁力板)', value: ['2026-06-10', 27, 8363], category: '磁力堡垒搭建板', itemStyle: { color: COLORS[0] } }
+        ],
+        symbolSize: function(val) {
+            // 气泡大小根据月销售额，范围约179~88917，用平方根缩放
+            return Math.sqrt(val[2]) * 1.2;
+        },
+        emphasis: {
+            itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0,0,0,0.5)'
+            }
+        }
+    }]
+};
 
             // ---- 图11: 卖家所属地-饼图 (8个类别≤8) ----
             chartOpts[10] = {
