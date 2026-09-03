@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>便携打印机市场分析</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { height:100%; margin:0; background:transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        .wrapper { display:flex; flex-direction:column; height:100vh; width:100%; }
+        .chart-title { flex-shrink:0; text-align:center; font-size:18px; font-weight:600; color:#1a1a2e; margin:16px 0 12px; }
+        .chart-container { flex:1; width:100%; min-height:300px; }
+        @media (max-width:768px) { .chart-title { font-size:16px; } .chart-container { min-height:250px; } }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div id="chartTitle" class="chart-title"></div>
+        <div id="singleChart" class="chart-container"></div>
+    </div>
+
+    <script>
+        // ===================== 配色方案 =====================
+        const COLORS = ['#FF9D19','#4682EB','#52C41A','#F5222D','#FAAD14','#0FC6C2','#722ED1','#EB2F96',
+                        '#13C2C2','#7CB305','#B37FEB','#FF6B35','#4080FF','#FFBBA8','#95DE64','#FF7875'];
+
+        // ===================== 工具函数 =====================
+        function median(values) {
+            if (!values.length) return null;
+            const sorted = [...values].sort((a,b)=>a-b);
+            const mid = Math.floor(sorted.length/2);
+            return sorted.length % 2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
+        }
+        function quantile(values, q) {
+            const sorted = [...values].sort((a,b)=>a-b);
+            const pos = (sorted.length - 1) * q;
+            const base = Math.floor(pos);
+            const rest = pos - base;
+            if (sorted[base+1] !== undefined) return sorted[base] + rest * (sorted[base+1] - sorted[base]);
+            return sorted[base];
+        }
+        function calcBoxplot(dataArr) {
+            const values = dataArr.map(d => d[0]);
+            return [Math.min(...values), quantile(values,0.25), median(values), quantile(values,0.75), Math.max(...values)];
+        }
+
+        // ===================== 原始价格数据（用于图8、15、16、17、18） =====================
+        const rawPriceData = [
+            [98.99, '银盐化学成像', 'Fujifilm', 50, '裸机', 0],
+            [139.99, 'ZINK 无墨热敏', 'Kodak', 18, '套装', 20],
+            [129.95, '银盐化学成像', 'Fujifilm', 100, '裸机', 0],
+            [129.95, '银盐化学成像', 'Fujifilm', 100, '裸机', 0],
+            [219.00, '银盐化学成像', 'Fujifilm', null, '套装', 10],
+            [99.95, 'ZINK 无墨热敏', 'Canon', 50, '套装', 10],
+            [99.95, 'ZINK 无墨热敏', 'Canon', 500, '套装', 11],
+            [106.95, 'ZINK 无墨热敏', 'Canon', 500, '套装', 11],
+            [88.15, '色带式热升华', 'Polaroid', 50, '裸机', 0],
+            [139.99, '色带式热升华', 'Polaroid', 400, '套装', 40],
+            [111.25, '色带式热升华', 'Polaroid', 200, '套装', 40],
+            [88.39, '色带式热升华', 'Polaroid', 100, '裸机', 0],
+            [95.00, '色带式热升华', 'Polaroid', null, '裸机', 0],
+            [139.99, '色带式热升华', 'Polaroid', null, '套装', 40],
+            [179.95, 'ZINK 无墨热敏', 'Canon', 400, '套装', 110],
+            [179.95, 'ZINK 无墨热敏', 'Canon', 300, '套装', 110],
+            [104.99, '色带式热升华', 'Kodak', null, '套装', 38],
+            [94.99, '色带式热升华', 'Kodak', 50, '套装', 38],
+            [94.99, '色带式热升华', 'Kodak', 100, '套装', 38],
+            [149.95, '银盐化学成像', 'Fujifilm', 50, '套装', 20],
+            [134.95, '银盐化学成像', 'Fujifilm', 500, '套装', 20],
+            [134.95, '银盐化学成像', 'Fujifilm', 500, '套装', 20],
+            [134.95, '银盐化学成像', 'Fujifilm', 300, '套装', 20],
+            [184.99, 'ZINK 无墨热敏', 'HP', null, '套装', 60],
+            [80.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 5],
+            [169.95, '银盐化学成像', 'Fujifilm', 100, '套装', 40],
+            [169.95, '银盐化学成像', 'Fujifilm', 50, '套装', 40],
+            [169.95, '银盐化学成像', 'Fujifilm', 50, '套装', 40],
+            [139.95, '银盐化学成像', 'Fujifilm', null, '套装', 20],
+            [119.99, 'ZINK 无墨热敏', 'HP', null, '套装', 20],
+            [80.80, '银盐化学成像', 'Fujifilm', null, '套装', 10],
+            [95.67, '银盐化学成像', 'Fujifilm', null, '套装', 10],
+            [96.10, '银盐化学成像', 'Fujifilm', null, '套装', 10],
+            [69.99, '色带式热升华', 'HPRT', null, '套装', 10],
+            [69.34, '色带式热升华', 'HPRT', null, '套装', 10],
+            [158.40, '银盐化学成像', 'Fujifilm', 50, '裸机', 0],
+            [56.99, '色带式热升华', 'Polaroid', 50, '裸机', 0],
+            [79.99, '色带式热升华', 'Kodak', 500, '套装', 38],
+            [79.99, '色带式热升华', 'Kodak', null, '2件套', 76],
+            [79.99, '色带式热升华', 'Kodak', null, '2件套', 76],
+            [79.99, '色带式热升华', 'Kodak', null, '3件套', 114],
+            [106.43, '色带式热升华', 'Kodak', null, '套装', 8],
+            [79.99, '色带式热升华', 'Kodak', 1000, '套装', 38],
+            [79.99, '色带式热升华', 'Kodak', 3000, '套装', 38],
+            [68.99, '色带式热升华', 'Kodak', null, '套装', 8],
+            [149.99, '色带式热升华', 'Polaroid', 50, '套装', 60],
+            [105.00, '色带式热升华', 'Polaroid', null, '套装', 10],
+            [98.78, '色带式热升华', 'Kodak', null, '套装', 98],
+            [95.99, '热气泡彩色喷墨', 'Nelko', 100, '套装', 50],
+            [108.99, '热气泡彩色喷墨', 'Nelko', null, '套装', 100],
+            [175.00, '银盐化学成像', 'Fujifilm', 50, '套装', 40],
+            [195.00, '银盐化学成像', 'Fujifilm', 50, '套装', 40],
+            [175.00, '银盐化学成像', 'Fujifilm', null, '套装', 40],
+            [99.95, '银盐化学成像', 'Fujifilm', 100, '裸机', 0],
+            [94.95, '银盐化学成像', 'Fujifilm', 500, '裸机', 0],
+            [99.95, '银盐化学成像', 'Fujifilm', 300, '裸机', 0],
+            [129.99, 'ZINK 无墨热敏', 'Kodak', 50, '套装', 20],
+            [116.99, 'ZINK 无墨热敏', 'Kodak', 100, '套装', 75],
+            [116.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 20],
+            [89.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 5],
+            [179.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 20],
+            [116.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 20],
+            [116.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 20],
+            [129.99, 'ZINK 无墨热敏', 'Kodak', 300, '套装', 75],
+            [116.99, 'ZINK 无墨热敏', 'Kodak', 100, '套装', 75],
+            [71.99, 'ZINK 无墨热敏', 'Kodak', 200, '套装', 5],
+            [116.99, 'ZINK 无墨热敏', 'Kodak', 100, '套装', 75],
+            [71.99, 'ZINK 无墨热敏', 'Kodak', 200, '套装', 5],
+            [96.00, 'ZINK 无墨热敏', 'Kodak', null, '套装', 5],
+            [179.99, 'ZINK 无墨热敏', 'Kodak', null, '套装', 20],
+            [71.99, 'ZINK 无墨热敏', 'Kodak', 200, '套装', 5],
+            [71.99, 'ZINK 无墨热敏', 'Kodak', 1000, '套装', 5],
+            [129.99, '色带式热升华', 'Polaroid', null, '套装', 40],
+            [139.99, '色带式热升华', 'Polaroid', null, '套装', 40],
+            [88.99, '色带式热升华', 'Insta360', null, '裸机', 0],
+            [88.99, '色带式热升华', 'Insta360', 100, '裸机', 0],
+            [125.99, 'ZINK 无墨热敏', 'HP', 50, '套装', 20],
+            [80.99, 'ZINK 无墨热敏', 'HP', 500, '套装', 10],
+            [80.99, 'ZINK 无墨热敏', 'HP', 1000, '套装', 10],
+            [139.99, 'ZINK 无墨热敏', 'HP', null, '套装', 20],
+            [80.99, 'ZINK 无墨热敏', 'HP', 500, '套装', 10],
+            [125.99, 'ZINK 无墨热敏', 'HP', 50, '套装', 20],
+            [139.99, 'ZINK 无墨热敏', 'HP', 50, '套装', 75],
+            [125.99, 'ZINK 无墨热敏', 'HP', 100, '套装', 75],
+            [125.99, 'ZINK 无墨热敏', 'HP', 50, '套装', 20],
+            [125.99, 'ZINK 无墨热敏', 'HP', 100, '套装', 75],
+            [125.99, 'ZINK 无墨热敏', 'HP', 50, '套装', 75],
+            [139.99, 'ZINK 无墨热敏', 'HP', null, '套装', 20],
+            [80.99, 'ZINK 无墨热敏', 'HP', 500, '套装', 10],
+            [96.99, 'ZINK 无墨热敏', 'HP', null, '套装', 10],
+            [129.99, 'ZINK 无墨热敏', 'HP', null, '套装', 60],
+            [86.99, 'ZINK 无墨热敏', 'Liene', 500, '套装', 50],
+            [86.99, 'ZINK 无墨热敏', 'Liene', 500, '套装', 50],
+            [86.99, 'ZINK 无墨热敏', 'Liene', 500, '套装', 50],
+            [69.99, 'ZINK 无墨热敏', 'Liene', 100, '套装', 10],
+            [69.99, '热气泡彩色喷墨', 'Nelko', 500, '套装', 20],
+            [79.99, '热气泡彩色喷墨', 'Nelko', 1000, '套装', 20],
+            [82.99, '热气泡彩色喷墨', 'Nelko', null, '套装', 20],
+            [82.99, '热气泡彩色喷墨', 'Nelko', null, '套装', 20],
+            [82.99, '热气泡彩色喷墨', 'Nelko', null, '套装', 20],
+            [69.99, '热气泡彩色喷墨', 'Nelko', 4000, '套装', 20],
+            [69.99, '热气泡彩色喷墨', 'Nelko', 1000, '套装', 20],
+            [119.99, '色带式热升华', 'Liene', 1000, '套装', 50],
+            [99.99, '色带式热升华', 'Liene', 1000, '套装', 10],
+            [119.99, '色带式热升华', 'Liene', 1000, '套装', 50],
+            [129.99, '银盐化学成像', 'Fujifilm', null, '套装', 10],
+            [139.95, '银盐化学成像', 'Fujifilm', 50, '套装', 40],
+            [94.49, 'ZINK 无墨热敏', 'HP', 50, '套装', 20],
+            [45.21, 'ZINK 无墨热敏', 'Lifeprint', null, '套装', 10],
+            [179.93, '银盐化学成像', 'Fujifilm', 50, '裸机', 0],
+            [85.49, 'ZINK 无墨热敏', 'Kodak', 50, '套装', 20],
+            [119.99, 'ZINK 无墨热敏', 'Lifeprint', null, '套装', 5]
+        ];
+
+        // 技术路线映射颜色
+        const techColorMap = {
+            '银盐化学成像': COLORS[0],
+            'ZINK 无墨热敏': COLORS[1],
+            '色带式热升华': COLORS[2],
+            '热气泡彩色喷墨': COLORS[3]
+        };
+
+        // ===================== 图表配置数组 =====================
+        const chartOpts = [];
+        const chartTitles = [];
+
+        // ---- 图1：分款销量占比-饼图 ----
+        chartTitles[0] = '';
+        chartOpts[0] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                data: [
+                    { value: 14706, name: 'ZINK 无墨热敏' },
+                    { value: 10438, name: '色带式热升华' },
+                    { value: 8037, name: '热气泡彩色喷墨' },
+                    { value: 5429, name: '银盐化学成像' }
+                ],
+                label: { formatter: '{b}\n{d}%', color: '#333' },
+                labelLine: { length: 15, length2: 10 },
+                itemStyle: { borderColor: '#fff', borderWidth: 2 }
+            }],
+            color: COLORS
+        };
+
+        // ---- 图2：主机色系销量-横向柱状图 ----
+        chartTitles[1] = '主机色系销量';
+        chartOpts[1] = {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            grid: { left: '10%', right: '5%', bottom: '5%', top: '5%', containLabel: true },
+            xAxis: { type: 'value', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            yAxis: { type: 'category', data: ['白色系','粉色系','紫色系','金色系','黑色系','绿色系','黄色系','蓝色系'], axisLine: { show: false }, axisTick: { show: false } },
+            series: [{
+                type: 'bar',
+                data: [13218, 3900, 2650, 2000, 1900, 1800, 1050, 300],
+                barWidth: '60%',
+                itemStyle: { color: COLORS[0] }
+            }]
+        };
+
+        // ---- 图3：产品型号销量TOP10-饼图 ----
+        chartTitles[2] = '产品型号销量TOP10';
+        chartOpts[2] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                data: [
+                    { value: 6500, name: 'Nelko PP01' },
+                    { value: 4500, name: 'Kodak Mini 2 Retro' },
+                    { value: 3000, name: 'HP Sprocket' },
+                    { value: 3000, name: 'Liene Pearl N200 Pro' },
+                    { value: 2600, name: 'Fujifilm Instax Mini Link 3' },
+                    { value: 2300, name: 'Kodak Step' },
+                    { value: 1700, name: 'Canon Ivy 2 Mini' },
+                    { value: 1600, name: 'Liene Pearl K100' },
+                    { value: 800, name: 'Polaroid Hi-Print' },
+                    { value: 200, name: 'Fujifilm Instax Square Link' },
+                    { value: 3618, name: '其余' }
+                ],
+                label: { formatter: '{b}\n{d}%', color: '#333' },
+                labelLine: { length: 15, length2: 10 },
+                itemStyle: { borderColor: '#fff', borderWidth: 2 }
+            }],
+            color: COLORS
+        };
+
+        // ---- 图4：无数据，空白 ----
+        chartTitles[3] = '';
+        chartOpts[3] = {};
+
+        // ---- 图5：关键词搜索量趋势-折线图 ----
+        chartTitles[4] = '关键词搜索量趋势';
+        const searchMonths = ['2022-01','2022-02','2022-03','2022-04','2022-05','2022-06','2022-07','2022-08','2022-09','2022-10','2022-11','2022-12','2023-01','2023-02','2023-03','2023-04','2023-05','2023-06','2023-07','2023-08','2023-09','2023-10','2023-11','2023-12','2024-01','2024-02','2024-03','2024-04','2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07'];
+        const searchData = {
+            'photo printer': [141604,165812,125075,139776,130866,126889,148476,137521,135769,138706,200322,196139,147053,146864,142545,131448,165936,154547,161163,170092,186862,221940,254806,286146,206360,180517,168490,188565,209724,170611,226328,197514,207225,227962,308369,339533,221487,189597,153961,160352,157726,154035,176598,169382,189015,198563,382633,424213,281163,213312,179365,163855,174775,154149,186171],
+            'mini photo printer': [16436,16216,15243,15363,16122,16453,17496,15291,15434,16295,27720,36311,19426,15037,15966,15046,26298,18423,18796,30779,30536,37129,58784,80947,55082,39382,37477,40525,61992,62330,62264,54491,52654,51513,74681,80354,64563,44295,41245,34722,45004,41489,49233,50038,52797,57055,89530,118520,79029,56289,42914,38441,38858,42993,43791],
+            'photo printer for iphone': [32586,24723,20083,23763,25368,24917,33507,29466,27899,27346,56762,90922,52378,36928,20489,22375,12050,25891,26501,46377,38724,28333,88319,93357,39806,44252,49761,46210,55854,54531,62274,58542,59046,63056,97874,121846,69971,53781,45443,47104,54097,57719,60732,56462,55978,63000,101369,117623,69221,56345,43719,45380,50181,50121,55726]
+        };
+        const seriesSearch = Object.keys(searchData).map((key, idx) => ({
+            name: key,
+            type: 'line',
+            data: searchData[key],
+            itemStyle: { color: COLORS[idx] },
+            lineStyle: { width: 2 }
+        }));
+        chartOpts[4] = {
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            legend: { top: '5%', selected: seriesSearch.reduce((acc, s, i) => { acc[s.name] = i < 3; return acc; }, {}) },
+            grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
+            xAxis: { type: 'category', data: searchMonths, boundaryGap: false },
+            yAxis: { type: 'value', name: '月搜索量', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: seriesSearch,
+            color: COLORS
+        };
+
+        // ---- 图6：关键词ABA排名趋势-折线图 ----
+        chartTitles[5] = '关键词ABA排名趋势';
+        const abaData = {
+            'photo printer': [4344,3370,5066,4468,4577,4807,4331,4811,4717,4498,2782,2676,4195,4239,4485,4635,3676,3894,3798,4255,3464,2496,1749,1470,2988,3838,4570,4036,3400,4294,3112,3717,3422,3018,1592,1326,2553,3416,4098,4276,4007,4300,3579,3667,3366,2885,1180,977,1884,2625,3580,3785,3787,4164,3137],
+            'mini photo printer': [49301,54010,58969,53428,49525,53581,45797,54590,52048,48604,29265,21134,41134,56780,54781,62973,29621,43262,42482,47459,50077,38736,21964,14056,23629,35488,43417,39349,23132,23607,23032,27906,28672,29299,15356,13383,19072,31833,35493,43700,31661,34386,27887,27558,25231,23290,11349,8815,13865,22939,34503,38559,38176,33340,32975],
+            'photo printer for iphone': [23637,31576,39270,34644,31273,31220,23292,27415,29007,28842,12953,7261,14170,21354,38727,36853,92905,31527,30085,29907,36410,53411,12294,11381,35472,31534,31201,33436,27090,27644,23338,25019,25180,22558,9514,7080,16601,24624,31832,30186,24981,22334,20963,23560,23136,20171,9045,7585,17432,23266,32388,30965,26853,27513,23702]
+        };
+        const seriesAba = Object.keys(abaData).map((key, idx) => ({
+            name: key,
+            type: 'line',
+            data: abaData[key],
+            itemStyle: { color: COLORS[idx] },
+            lineStyle: { width: 2 }
+        }));
+        chartOpts[5] = {
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            legend: { top: '5%', selected: seriesAba.reduce((acc, s, i) => { acc[s.name] = i < 3; return acc; }, {}) },
+            grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
+            xAxis: { type: 'category', data: searchMonths, boundaryGap: false },
+            yAxis: { type: 'value', name: 'ABA排名', inverse: true, splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: seriesAba,
+            color: COLORS
+        };
+
+        // ---- 图7：历史销量趋势-复合图 ----
+        chartTitles[6] = '历史销售趋势';
+        const historyMonths = ['2024-09','2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09'];
+        const totalSales = [18288,27175,41480,104947,24268,12485,12199,13907,19913,13016,18682,15191,10427,30901,71552,151110,56276,42667,35332,31668,37347,38824,33260,39869,42900];
+        const totalRevenue = [1888569.10,2869855.63,4119686.17,9660612.19,2551566.35,1301901.98,1364857.77,1524329.85,2074683.88,1333090.84,1895835.49,1666970.66,1189570.56,3255892.84,6980587.96,14690793.34,5541935.90,4216552.61,3398398.97,3083980.93,3612897.86,3782441.68,3156961.02,3777707.78,4157583.61];
+        const inkSales = [null,null,null,null,null,null,null,null,null,null,null,null,null,75,401,2119,2587,3700,4590,4706,6795,9584,6000,8267,7710];
+        const inkRevenue = [null,null,null,null,null,null,null,null,null,null,null,null,null,8999.25,52125.99,165726.98,176666.23,250157.00,313910.10,327156.83,482819.59,687855.90,417248.48,567417.00,540062.70];
+        chartOpts[6] = {
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            legend: { top: '5%' },
+            grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
+            xAxis: { type: 'category', data: historyMonths },
+            yAxis: [
+                { type: 'value', name: '月总销量', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+                { type: 'value', name: '月总销售额 ($)', axisLabel: { formatter: val => '$' + (val/1000).toFixed(0) + 'k' }, splitLine: { show: false } }
+            ],
+            series: [
+                { name: '月总销量', type: 'bar', data: totalSales, itemStyle: { color: COLORS[0] }, yAxisIndex: 0 },
+                { name: '月总销售额', type: 'line', data: totalRevenue, itemStyle: { color: COLORS[1] }, yAxisIndex: 1, lineStyle: { width: 2 } },
+                { name: '喷墨月总销量', type: 'bar', data: inkSales, itemStyle: { color: COLORS[2] }, yAxisIndex: 0 },
+                { name: '喷墨月总销售额', type: 'line', data: inkRevenue, itemStyle: { color: COLORS[3] }, yAxisIndex: 1, lineStyle: { width: 2 } }
+            ],
+            color: COLORS
+        };
+
+        // ---- 图8：价格与销量关系（散点图） ----
+        chartTitles[7] = '价格与销量关系';
+        const salesScatterData = rawPriceData.filter(d => d[3] !== null).map(d => ({ price: d[0], sales: d[3], tech: d[1], brand: d[2] }));
+        const salesTechList = [...new Set(salesScatterData.map(d => d.tech))];
+        const scatterSeries8 = salesTechList.map((tech, idx) => ({
+            name: tech,
+            type: 'scatter',
+            data: salesScatterData.filter(d => d.tech === tech).map(d => [d.price, d.sales, d.brand]),
+            symbolSize: d => Math.sqrt(d[1]) / 5,
+            itemStyle: { color: COLORS[idx] }
+        }));
+        chartOpts[7] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' }, formatter: params => `${params.value[2]}<br/>价格: $${params.value[0]}<br/>销量: ${params.value[1]}` },
+            xAxis: { type: 'value', name: '价格（美元）', min: 40, max: 230, splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            yAxis: { type: 'log', name: '销量', min: 10, splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: scatterSeries8,
+            color: COLORS
+        };
+
+        // ---- 图9：品牌垄断-饼图 ----
+        chartTitles[8] = '';
+        chartOpts[8] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                data: [
+                    { value: 8037, name: 'Nelko' },
+                    { value: 6362, name: 'KODAK' },
+                    { value: 5429, name: 'Fujifilm' },
+                    { value: 5034, name: 'Liene' },
+                    { value: 4658, name: 'HP' },
+                    { value: 3766, name: '柯达' },
+                    { value: 3425, name: 'Canon' },
+                    { value: 1491, name: 'Polaroid' },
+                    { value: 227, name: 'Insta360' },
+                    { value: 96, name: 'HPRT' },
+                    { value: 50, name: 'Lifeprint' },
+                    { value: 35, name: 'The Imaging World' }
+                ],
+                label: { formatter: '{b}\n{d}%', color: '#333' },
+                labelLine: { length: 15, length2: 10 },
+                itemStyle: { borderColor: '#fff', borderWidth: 2 }
+            }],
+            color: COLORS
+        };
+
+        // ---- 图10：无数据，空白 ----
+        chartTitles[9] = '';
+        chartOpts[9] = {};
+
+        // ---- 图11：无数据，空白 ----
+        chartTitles[10] = '';
+        chartOpts[10] = {};
+
+        // ---- 图12：无数据，空白 ----
+        chartTitles[11] = '';
+        chartOpts[11] = {};
+
+        // ---- 图13：新品销量占比-饼图 ----
+        chartTitles[12] = '';
+        chartOpts[12] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                data: [
+                    { value: 27036, name: '老品' },
+                    { value: 11337, name: '1年内新品' },
+                    { value: 202, name: '半年内新品' },
+                    { value: 35, name: '3个月以内新品' }
+                ],
+                label: { formatter: '{b}\n{d}%', color: '#333' },
+                labelLine: { length: 15, length2: 10 },
+                itemStyle: { borderColor: '#fff', borderWidth: 2 }
+            }],
+            color: COLORS
+        };
+
+        // ---- 图14：无数据，空白 ----
+        chartTitles[13] = '';
+        chartOpts[13] = {};
+
+        // ---- 图15：总体价格分布（堆积柱状图） ----
+        chartTitles[14] = '总体价格分布';
+        const bins = [];
+        for (let i = 40; i < 230; i += 10) bins.push(i);
+        const binLabels = bins.map(b => b + '-' + (b+9));
+        const techGroups = ['银盐化学成像', 'ZINK 无墨热敏', '色带式热升华', '热气泡彩色喷墨'];
+        const techHist = {};
+        techGroups.forEach(tech => { techHist[tech] = new Array(bins.length).fill(0); });
+        rawPriceData.forEach(record => {
+            const price = record[0], tech = record[1];
+            for (let i = 0; i < bins.length; i++) {
+                if (price >= bins[i] && price < bins[i]+10) { techHist[tech][i]++; break; }
+            }
+        });
+        const meanPrice = rawPriceData.reduce((s, r) => s + r[0], 0) / rawPriceData.length;
+        const allPrices = rawPriceData.map(r => r[0]);
+        const medianPrice = median(allPrices);
+        chartOpts[14] = {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            legend: { top: '5%' },
+            xAxis: { type: 'category', data: binLabels, axisLabel: { rotate: 45 } },
+            yAxis: { type: 'value', name: 'SKU 数量', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: techGroups.map((tech, idx) => ({
+                name: tech,
+                type: 'bar',
+                stack: 'total',
+                data: techHist[tech],
+                itemStyle: { color: techColorMap[tech] },
+                markLine: idx === 0 ? {
+                    symbol: 'none',
+                    data: [
+                        { xAxis: '80-89', lineStyle: { color: COLORS[4], type: 'dashed' }, label: { formatter: '主力价格带起点' } },
+                        { xAxis: '140-149', lineStyle: { color: COLORS[4], type: 'dashed' }, label: { formatter: '主力价格带终点' } },
+                        { yAxis: medianPrice, lineStyle: { color: COLORS[5], type: 'dashed' }, label: { formatter: '中位数: ' + medianPrice.toFixed(1) } },
+                        { yAxis: meanPrice, lineStyle: { color: COLORS[6], type: 'dotted' }, label: { formatter: '均值: ' + meanPrice.toFixed(1) } }
+                    ]
+                } : undefined
+            })),
+            color: COLORS
+        };
+
+        // ---- 图16：技术路线价格分层（箱线图+散点） ----
+        chartTitles[15] = '技术路线价格分层';
+        const boxplotData16 = techGroups.map(tech => {
+            const filtered = rawPriceData.filter(d => d[1] === tech);
+            return { name: tech, boxplot: calcBoxplot(filtered), scatter: filtered.map(d => d[0]) };
+        });
+        chartOpts[15] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            xAxis: { type: 'category', data: techGroups },
+            yAxis: { type: 'value', name: '价格（美元）', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: [
+                { name: '箱线图', type: 'boxplot', data: boxplotData16.map(d => d.boxplot), itemStyle: { color: COLORS[0], borderColor: '#333' } },
+                { name: '散点', type: 'scatter', data: boxplotData16.flatMap((d, idx) => d.scatter.map(v => [idx, v])), symbolSize: 6, itemStyle: { color: '#999', opacity: 0.6 } }
+            ],
+            color: COLORS
+        };
+
+        // ---- 图17：品牌价格区间（条形图+散点） ----
+        chartTitles[16] = '品牌价格区间';
+        const brands = ['Fujifilm','Kodak','Canon','HP','Polaroid','Nelko','Liene','HPRT','Insta360','Lifeprint'];
+        const brandStats = brands.map(b => {
+            const filtered = rawPriceData.filter(d => d[2] === b);
+            const prices = filtered.map(d => d[0]);
+            return { name: b, mean: prices.reduce((s,p)=>s+p,0)/prices.length, min: Math.min(...prices), max: Math.max(...prices) };
+        }).sort((a,b)=>a.mean-b.mean);
+        chartOpts[16] = {
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' }, formatter: params => { const idx = params[0].dataIndex; const b = brandStats[idx]; return `${b.name}<br/>均价: $${b.mean.toFixed(1)}<br/>最低: $${b.min}<br/>最高: $${b.max}`; } },
+            grid: { left: '15%', right: '5%', bottom: '5%', top: '5%', containLabel: true },
+            xAxis: { type: 'value', name: '价格（美元）', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            yAxis: { type: 'category', data: brandStats.map(d => d.name) },
+            series: [
+                { name: '平均价格', type: 'bar', data: brandStats.map(d => d.mean), itemStyle: { color: COLORS[0] }, label: { show: true, position: 'right', formatter: d => d.value.toFixed(1) } },
+                { name: '最低价', type: 'scatter', data: brandStats.map((d, idx) => [d.min, idx]), symbolSize: 10, itemStyle: { color: COLORS[1] }, tooltip: { show: false } },
+                { name: '最高价', type: 'scatter', data: brandStats.map((d, idx) => [d.max, idx]), symbolSize: 10, itemStyle: { color: COLORS[2] }, tooltip: { show: false } }
+            ],
+            color: COLORS
+        };
+
+        // ---- 图18：裸机与套装价格对比（分组箱线图） ----
+        chartTitles[17] = '裸机与套装价格对比';
+        const bareData = rawPriceData.filter(d => d[4] === '裸机').map(d => d[0]);
+        const bundleData = rawPriceData.filter(d => d[4] === '套装' || d[4] === '2件套' || d[4] === '3件套').map(d => d[0]);
+        const boxBare = calcBoxplot(rawPriceData.filter(d => d[4] === '裸机'));
+        const boxBundle = calcBoxplot(rawPriceData.filter(d => d[4] === '套装' || d[4] === '2件套' || d[4] === '3件套'));
+        chartOpts[17] = {
+            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            xAxis: { type: 'category', data: ['裸机', '套装'] },
+            yAxis: { type: 'value', name: '价格（美元）', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: [
+                { type: 'boxplot', data: [boxBare, boxBundle], itemStyle: { color: COLORS[0] } },
+                { type: 'scatter', data: [...bareData.map(v => [0, v]), ...bundleData.map(v => [1, v])], symbolSize: 8, itemStyle: { color: '#888', opacity: 0.5 } }
+            ],
+            color: COLORS
+        };
+
+        // ---- 图19：分款星级分布（堆积柱状图） ----
+        chartTitles[18] = '分款星级分布';
+        const starOrder = ['五星', '四星半', '四星级', '四星'];
+        const starTechData = {
+            '银盐化学成像': [5, 6, 1, 0],
+            'ZINK 无墨热敏': [0, 8, 3, 5],
+            '色带式热升华': [0, 2, 3, 5],
+            '热气泡彩色喷墨': [0, 0, 1, 1]
+        };
+        chartOpts[18] = {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
+            legend: { top: '5%' },
+            grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
+            xAxis: { type: 'category', data: starOrder },
+            yAxis: { type: 'value', name: 'ASIN数', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
+            series: Object.keys(starTechData).map((tech, idx) => ({
+                name: tech,
+                type: 'bar',
+                stack: 'total',
+                data: starTechData[tech],
+                itemStyle: { color: techColorMap[tech] }
+            })),
+            color: COLORS
+        };
+
+        // ---- 图20：无数据，空白 ----
+        chartTitles[19] = '';
+        chartOpts[19] = {};
+
+        // ===================== 初始化渲染 =====================
+        const params = new URLSearchParams(window.location.search);
+        const id = parseInt(params.get('id')) || 1;
+        const validId = id >= 1 && id <= 20 ? id : 1;
+        const titleEl = document.getElementById('chartTitle');
+        const chartEl = document.getElementById('singleChart');
+        titleEl.textContent = chartTitles[validId-1] || '';
+        const chart = echarts.init(chartEl);
+        const opt = chartOpts[validId-1];
+        chart.setOption(opt);
+        setTimeout(() => chart.resize(), 100);
+        window.addEventListener('resize', () => chart.resize());
+    </script>
+</body>
+</html>
