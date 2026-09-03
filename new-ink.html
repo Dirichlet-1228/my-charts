@@ -316,22 +316,56 @@
 
         // ---- 图8：价格与销量关系（散点图） ----
         chartTitles[7] = '价格与销量关系';
-        const salesScatterData = rawPriceData.filter(d => d[3] !== null).map(d => ({ price: d[0], sales: d[3], tech: d[1], brand: d[2] }));
-        const salesTechList = [...new Set(salesScatterData.map(d => d.tech))];
-        const scatterSeries8 = salesTechList.map((tech, idx) => ({
-            name: tech,
-            type: 'scatter',
-            data: salesScatterData.filter(d => d.tech === tech).map(d => [d.price, d.sales, d.brand]),
-            symbolSize: d => Math.sqrt(d[1]) / 5,
-            itemStyle: { color: COLORS[idx] }
-        }));
-        chartOpts[7] = {
-            tooltip: { trigger: 'item', backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' }, formatter: params => `${params.value[2]}<br/>价格: $${params.value[0]}<br/>销量: ${params.value[1]}` },
-            xAxis: { type: 'value', name: '价格（美元）', min: 40, max: 230, splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
-            yAxis: { type: 'log', name: '销量', min: 10, splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
-            series: scatterSeries8,
-            color: COLORS
-        };
+const salesScatterData = rawPriceData.filter(d => d[3] !== null).map(d => ({
+    price: d[0],
+    sales: d[3],
+    tech: d[1],
+    brand: d[2]
+}));
+const salesTechList = [...new Set(salesScatterData.map(d => d.tech))];
+const scatterSeries8 = salesTechList.map((tech, idx) => ({
+    name: tech,
+    type: 'scatter',
+    data: salesScatterData.filter(d => d.tech === tech).map(d => [d.price, d.sales, d.brand]),
+    // 增大气泡：基础大小15，最大45，按销量平方根缩放
+    symbolSize: d => Math.max(15, Math.min(45, Math.sqrt(d[1]) / 1.5)),
+    itemStyle: { 
+        color: techColorMap[tech] || COLORS[idx], 
+        opacity: 0.85 
+    }
+}));
+
+chartOpts[7] = {
+    tooltip: {
+        trigger: 'item',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderWidth: 0,
+        textStyle: { color: '#fff' },
+        formatter: params => {
+            const [price, sales, brand] = params.value;
+            return `<b>${params.seriesName}</b><br/>品牌：${brand}<br/>价格：$${price}<br/>销量：${sales}`;
+        }
+    },
+    legend: {
+        top: '5%',
+        textStyle: { fontSize: 12 }
+    },
+    xAxis: {
+        type: 'value',
+        name: '价格（美元）',
+        min: 40,
+        max: 230,
+        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } }
+    },
+    yAxis: {
+        type: 'log',
+        name: '销量',
+        min: 10,
+        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } }
+    },
+    series: scatterSeries8,
+    color: salesTechList.map(tech => techColorMap[tech] || COLORS[salesTechList.indexOf(tech)])
+};
 
         // ---- 图9：品牌垄断-饼图 ----
         chartTitles[8] = '';
