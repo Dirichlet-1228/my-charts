@@ -528,29 +528,40 @@ chartOpts[7] = {
         };
 
         // ---- 图19：分款星级分布（堆积柱状图） ----
-        chartTitles[18] = '分款星级分布';
-        const starOrder = ['五星', '四星半', '四星级', '四星'];
-        const starTechData = {
-            '银盐化学成像': [5, 6, 1, 0],
-            'ZINK 无墨热敏': [0, 8, 3, 5],
-            '色带式热升华': [0, 2, 3, 5],
-            '热气泡彩色喷墨': [0, 0, 1, 1]
-        };
-        chartOpts[18] = {
-            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 0, textStyle: { color: '#fff' } },
-            legend: { top: '5%' },
-            grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
-            xAxis: { type: 'category', data: starOrder },
-            yAxis: { type: 'value', name: 'ASIN数', splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } } },
-            series: Object.keys(starTechData).map((tech, idx) => ({
-                name: tech,
-                type: 'bar',
-                stack: 'total',
-                data: starTechData[tech],
-                itemStyle: { color: techColorMap[tech] }
-            })),
-            color: COLORS
-        };
+       chartTitles[18] = '分款星级分布';
+const starOrder = ['五星', '四星半', '四星', '三星半及以下'];
+const starTechData = {
+    '银盐化学成像': [5, 6, 1, 0],
+    'ZINK 无墨热敏': [0, 8, 3, 5],
+    '色带式热升华': [0, 2, 3, 5],
+    '热气泡彩色喷墨': [0, 0, 1, 1]
+};
+chartOpts[18] = {
+    tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderWidth: 0,
+        textStyle: { color: '#fff' }
+    },
+    legend: { top: '5%' },
+    grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
+    xAxis: { type: 'category', data: starOrder },
+    yAxis: {
+        type: 'value',
+        name: 'ASIN数量',
+        splitLine: { lineStyle: { color: '#E9ECEF', type: 'dashed' } },
+        minInterval: 1
+    },
+    series: Object.keys(starTechData).map((tech, idx) => ({
+        name: tech,
+        type: 'bar',
+        stack: 'total',
+        data: starTechData[tech],
+        itemStyle: { color: techColorMap[tech] || COLORS[idx] }
+    })),
+    color: COLORS
+};
 
         // ---- 图20：无数据，空白 ----
         chartTitles[19] = '';
