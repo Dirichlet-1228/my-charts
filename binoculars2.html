@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据分析图表</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+  .wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+  }
+  .chart-title {
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 16px 0 12px;
+  }
+  .chart-container {
+    flex: 1;
+    width: 100%;
+    min-height: 300px;
+    position: relative;
+  }
+
+  /* ---------- HTML 卡片模式 ---------- */
+  .html-panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 16px;
+    overflow: hidden;
+  }
+  .panel-body {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    overflow: auto;
+  }
+  .user-card,
+  .prio-card {
+    flex: 1 1 0;
+    min-width: 210px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #E6E8EB;
+    border-radius: 8px;
+    background: #FFFFFF;
+  }
+  .card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .user-title,
+  .prio-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a2e;
+    line-height: 1.4;
+  }
+  .badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .badge-p0 { color: #B26A00; background: #FFF4E6; border: 1px solid #FFD8A8; }
+  .badge-p1 { color: #2C5FB8; background: #EAF2FE; border: 1px solid #B9D3F8; }
+  .badge-p2 { color: #389E0D; background: #F0FBE8; border: 1px solid #C6EBAE; }
+  .badge-exclude { color: #8C8C8C; background: #F5F5F5; border: 1px solid #E0E0E0; }
+
+  .row { display: flex; flex-direction: column; gap: 3px; }
+  .row-label { font-size: 12px; color: #8C8C8C; }
+  .row-value { font-size: 13px; color: #333333; line-height: 1.6; }
+
+  .prio-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .prio-list li {
+    position: relative;
+    padding-left: 16px;
+    font-size: 13px;
+    color: #333333;
+    line-height: 1.5;
+  }
+  .prio-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #FF9D19;
+  }
+  .prio-card.p0 .prio-list li::before { background: #FF9D19; }
+  .prio-card.p1 .prio-list li::before { background: #4682EB; }
+  .prio-card.p2 .prio-list li::before { background: #52C41A; }
+
+  .conclusion {
+    flex-shrink: 0;
+    margin-top: 12px;
+    text-align: center;
+    font-size: 13px;
+    color: #595959;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 768px) {
+    .chart-title { font-size: 16px; }
+    .chart-container { min-height: 250px; }
+    .panel-body { flex-direction: column; }
+    .user-card,
+    .prio-card { flex: 0 0 auto; min-width: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div id="chartTitle" class="chart-title"></div>
+  <div id="singleChart" class="chart-container"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============ 基础配置 ============ */
+  var COLORS = [
+    '#FF9D19', '#4682EB', '#52C41A', '#F5222D', '#FAAD14', '#0FC6C2', '#722ED1',
+    '#EB2F96', '#13C2C2', '#7CB305', '#B37FEB', '#FF6B35', '#4080FF', '#FFBBA8',
+    '#95DE64', '#FF7875'
+  ];
+
+  var FONT_FAMILY = "-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif";
+
+  var titleEl = document.getElementById('chartTitle');
+  var containerEl = document.getElementById('singleChart');
+  var chart = null;
+
+  /* 去掉千分位逗号后再转数字 */
+  function toNum(v) {
+    if (typeof v === 'string') {
+      return Number(v.replace(/,/g, '').trim());
+    }
+    return Number(v);
+  }
+
+  /* 解析 URL 中的 id 参数，范围 1~5，非法时默认 1 */
+  function getChartId() {
+    var params = new URLSearchParams(window.location.search);
+    var id = parseInt(params.get('id'), 10);
+    if (!(id >= 1 && id <= 5)) {
+      id = 1;
+    }
+    return id;
+  }
+
+  /* 清理上一次渲染 */
+  function clearAll() {
+    if (chart) {
+      chart.dispose();
+      chart = null;
+    }
+    containerEl.innerHTML = '';
+  }
+
+  /* 图表下方的结论文字（ECharts graphic） */
+  function conclusionGraphic(text) {
+    return [{
+      type: 'text',
+      left: 'center',
+      bottom: 8,
+      silent: true,
+      z: 100,
+      style: {
+        text: text,
+        fill: '#595959',
+        fontSize: 13,
+        fontFamily: FONT_FAMILY
+      }
+    }];
+  }
+
+  /* ============ id=1：用户画像卡片 ============ */
+  function render1() {
+    titleEl.textContent = '用户画像与目标优先级';
+
+    var cards = [
+      {
+        title: '核心用户-成人夜间户外观察',
+        badge: 'P0',
+        badgeClass: 'badge-p0',
+        rows: [
+          { label: '使用场景', value: '夜间观察、露营、狩猎、安防巡检' },
+          { label: '核心任务', value: '全黑环境看清目标、快速开始观察' },
+          { label: '关键需求', value: '红外夜视、清晰屏幕、对焦简单、续航、耐用' },
+          { label: '主要痛点', value: '夜视距离不足、画面模糊、对焦慢、品控不稳' }
+        ]
+      },
+      {
+        title: '次核心用户-日夜两用用户',
+        badge: 'P0',
+        badgeClass: 'badge-p0',
+        rows: [
+          { label: '使用场景', value: '白天观察、夜间观察、户外旅行' },
+          { label: '核心任务', value: '一台设备完成日夜观察和拍照录像' },
+          { label: '关键需求', value: '日间数字望远、夜间红外、双圆屏、拍照录像、便携' },
+          { label: '主要痛点', value: '切换复杂、日间画质不足、屏幕体验差' }
+        ]
+      },
+      {
+        title: '次核心用户-自然观察和拍照用户',
+        badge: 'P1',
+        badgeClass: 'badge-p1',
+        rows: [
+          { label: '使用场景', value: '观鸟、野生动物、旅行、摄影记录' },
+          { label: '核心任务', value: '观察和拍照使用同一画面' },
+          { label: '关键需求', value: '清晰度、变焦、拍照录像、稳定、存储' },
+          { label: '主要痛点', value: '看到的和拍到的不一致、摄像头质量差' }
+        ]
+      },
+      {
+        title: '非目标用户',
+        badge: '排除',
+        badgeClass: 'badge-exclude',
+        rows: [
+          { label: '用户类型', value: '专业光学用户、天文用户、专业热成像、儿童玩具' },
+          { label: '原因', value: '专业性能、价格逻辑或产品形态与新品不匹配' }
+        ]
+      }
+    ];
+
+    var html = '<div class="html-panel"><div class="panel-body">';
+    cards.forEach(function (card) {
+      html += '<div class="user-card">';
+      html += '<div class="card-head">';
+      html += '<div class="user-title">' + card.title + '</div>';
+      html += '<span class="badge ' + card.badgeClass + '">' + card.badge + '</span>';
+      html += '</div>';
+      card.rows.forEach(function (row) {
+        html += '<div class="row">';
+        html += '<div class="row-label">' + row.label + '</div>';
+        html += '<div class="row-value">' + row.value + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div></div>';
+
+    containerEl.innerHTML = html;
+  }
+
+  /* ============ id=2：场景需求热力图 ============ */
+  function render2() {
+    titleEl.textContent = '场景需求热度交叉验证';
+    chart = echarts.init(containerEl);
+
+    var xData = ['Amazon评论', 'Alexa问题', 'Reddit评论'];
+    var yData = ['夜间观察', '观鸟/自然', '摄影记录', '户外露营', '旅行/游轮', '狩猎', '安防巡检', '家庭/儿童'];
+
+    var raw = [
+      ['21.2', '71.4', '27.7'],
+      ['10.9', '42.9', '26.8'],
+      ['7.5', '54.3', '18.0'],
+      ['8.7', '37.1', '4.1'],
+      ['8.5', '22.9', '4.4'],
+      ['4.9', '14.3', '3.4'],
+      ['1.3', '11.4', '2.4'],
+      ['8.2', '5.7', '2.9']
+    ];
+
+    var data = [];
+    var maxVal = 0;
+    raw.forEach(function (row, yi) {
+      row.forEach(function (val, xi) {
+        var n = toNum(val);
+        if (n > maxVal) { maxVal = n; }
+        data.push([xi, yi, n]);
+      });
+    });
+
+    var option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        position: 'top',
+        backgroundColor: 'rgba(255,255,255,0.96)',
+        borderColor: '#E6E8EB',
+        borderWidth: 1,
+        textStyle: { color: '#1a1a2e', fontSize: 12 },
+        formatter: function (p) {
+          return xData[p.value[0]] + ' · ' + yData[p.value[1]] +
+                 '<br/>需求占比：<b>' + p.value[2] + '%</b>';
+        }
+      },
+      grid: {
+        left: 90,
+        right: 80,
+        top: 30,
+        bottom: 70,
+        containLabel: false
+      },
+      xAxis: {
+        type: 'category',
+        data: xData,
+        splitArea: { show: true },
+        axisLine: { lineStyle: { color: '#E0E0E0' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#595959', fontSize: 12 }
+      },
+      yAxis: {
+        type: 'category',
+        data: yData,
+        inverse: true,
+        splitArea: { show: true },
+        axisLine: { lineStyle: { color: '#E0E0E0' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#595959', fontSize: 12 }
+      },
+      visualMap: {
+        min: 0,
+        max: 80,
+        calculable: true,
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        itemWidth: 12,
+        itemHeight: 110,
+        text: ['高', '低'],
+        textStyle: { color: '#8C8C8C', fontSize: 11 },
+        inRange: {
+          color: ['#F7F9FC', '#FFE9CC', '#FFD199', '#FFB44D', '#FF9D19']
+        }
+      },
+      series: [{
+        name: '需求占比',
+        type: 'heatmap',
+        data: data,
+        label: {
+          show: true,
+          fontSize: 11,
+          color: '#333333',
+          formatter: function (p) {
+            return p.value[2] + '%';
+          }
+        },
+        itemStyle: {
+          borderColor: '#FFFFFF',
+          borderWidth: 2,
+          borderRadius: 4
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#1a1a2e',
+            borderWidth: 2
+          }
+        }
+      }],
+      graphic: conclusionGraphic('夜间观察、自然观察和摄影记录是三个数据源共同验证的核心场景。')
+    };
+
+    chart.setOption(option);
+  }
+
+  /* ============ id=3：痛点严重度与提及量气泡图 ============ */
+  function render3() {
+    titleEl.textContent = '用户痛点优先级';
+    chart = echarts.init(containerEl);
+
+    var list = [
+      { name: '夜视距离不足', mentions: '168', star: 2.83, key: true },
+      { name: '客服/售后', mentions: '115', star: 1.90, key: false },
+      { name: '对焦/延迟', mentions: '111', star: 2.58, key: true },
+      { name: '做工/耐用性', mentions: '57', star: 1.77, key: true },
+      { name: '操作复杂', mentions: '54', star: 3.07, key: false },
+      { name: '画面/清晰度问题', mentions: '51', star: 2.10, key: true },
+      { name: '价格/性价比', mentions: '46', star: 2.41, key: false },
+      { name: '屏幕/显示问题', mentions: '45', star: 3.42, key: false },
+      { name: '电池/续航', mentions: '34', star: 3.06, key: false },
+      { name: '尺寸/重量/佩戴', mentions: '29', star: 3.69, key: false },
+      { name: '功能不符/虚假宣传', mentions: '22', star: 1.59, key: false }
+    ];
+
+    var data = list.map(function (item) {
+      var mentions = toNum(item.mentions);
+      var severity = Number((5 - item.star).toFixed(2));
+      return {
+        name: item.name,
+        value: [mentions, severity],
+        star: item.star,
+        itemStyle: {
+          color: item.key ? '#FF9D19' : 'rgba(70,130,235,0.55)',
+          borderColor: '#FFFFFF',
+          borderWidth: 1,
+          opacity: 0.95
+        },
+        label: {
+          show: true,
+          position: 'top',
+          fontSize: 11,
+          color: item.key ? '#C96F00' : '#8C8C8C',
+          fontWeight: item.key ? 600 : 400
+        }
+      };
+    });
+
+    var option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        backgroundColor: 'rgba(255,255,255,0.96)',
+        borderColor: '#E6E8EB',
+        borderWidth: 1,
+        textStyle: { color: '#1a1a2e', fontSize: 12 },
+        formatter: function (p) {
+          var d = p.data;
+          return '<b>' + d.name + '</b><br/>' +
+                 '提及次数：' + d.value[0] + '<br/>' +
+                 '平均星级：' + d.star.toFixed(2) + '<br/>' +
+                 '严重度：' + d.value[1].toFixed(2);
+        }
+      },
+      grid: {
+        left: 70,
+        right: 50,
+        top: 60,
+        bottom: 76
+      },
+      xAxis: {
+        type: 'value',
+        name: '提及次数',
+        nameLocation: 'middle',
+        nameGap: 32,
+        nameTextStyle: { color: '#8C8C8C', fontSize: 12 },
+        min: 0,
+        max: 190,
+        axisLine: { show: true, lineStyle: { color: '#E0E0E0' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#8C8C8C', fontSize: 12 },
+        splitLine: { lineStyle: { color: '#F0F0F0' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: '严重度评分',
+        nameLocation: 'middle',
+        nameGap: 44,
+        nameTextStyle: { color: '#8C8C8C', fontSize: 12 },
+        min: 0,
+        max: 4,
+        axisLine: { show: true, lineStyle: { color: '#E0E0E0' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#8C8C8C', fontSize: 12 },
+        splitLine: { lineStyle: { color: '#F0F0F0' } }
+      },
+      series: [{
+        name: '用户痛点',
+        type: 'scatter',
+        data: data,
+        symbolSize: function (val) {
+          return Math.max(16, Math.sqrt(val[0]) * 3);
+        },
+        labelLayout: { hideOverlap: true },
+        emphasis: { scale: 1.08 },
+        itemStyle: {
+          borderColor: '#FFFFFF',
+          borderWidth: 1
+        }
+      }],
+      graphic: conclusionGraphic('新品优先解决夜视距离、画面清晰度、对焦延迟和品控稳定问题。')
+    };
+
+    chart.setOption(option);
+  }
+
+  /* ============ id=4：购买关注因素横向柱状图 ============ */
+  function render4() {
+    titleEl.textContent = '购买前最关注的问题';
+    chart = echarts.init(containerEl);
+
+    var raw = [
+      ['夜视距离', '24'],
+      ['画面清晰度', '23'],
+      ['双目观看', '21'],
+      ['拍照录像', '19'],
+      ['价格', '15'],
+      ['电池续航', '13'],
+      ['便携性', '12'],
+      ['配件与存储', '12'],
+      ['屏幕体验', '11'],
+      ['产品对比', '7'],
+      ['防水耐用', '6'],
+      ['头戴佩戴', '4']
+    ];
+
+    var names = [];
+    var seriesData = [];
+
+    raw.forEach(function (item, i) {
+      names.push(item[0]);
+      seriesData.push({
+        value: toNum(item[1]),
+        itemStyle: {
+          color: COLORS[i % COLORS.length],
+          borderRadius: [0, 4, 4, 0]
+        }
+      });
+    });
+
+    var option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: 'rgba(255,255,255,0.96)',
+        borderColor: '#E6E8EB',
+        borderWidth: 1,
+        textStyle: { color: '#1a1a2e', fontSize: 12 },
+        formatter: function (params) {
+          var p = params[0];
+          return p.name + '：<b>' + p.value + '</b>';
+        }
+      },
+      grid: {
+        left: 96,
+        right: 60,
+        top: 30,
+        bottom: 70
+      },
+      xAxis: {
+        type: 'value',
+        max: 28,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#8C8C8C', fontSize: 12 },
+        splitLine: { lineStyle: { color: '#F0F0F0' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: names,
+        inverse: true,
+        axisLine: { lineStyle: { color: '#E0E0E0' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#595959', fontSize: 12 }
+      },
+      series: [{
+        name: '关注度',
+        type: 'bar',
+        data: seriesData,
+        barWidth: '55%',
+        label: {
+          show: true,
+          position: 'right',
+          color: '#595959',
+          fontSize: 12,
+          formatter: '{c}'
+        },
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0]
+        }
+      }],
+      graphic: conclusionGraphic('用户购买前首先确认夜视距离、画面清晰度和双目体验，其次才是拍照、价格和续航。')
+    };
+
+    chart.setOption(option);
+  }
+
+  /* ============ id=5：功能优先级矩阵 ============ */
+  function render5() {
+    titleEl.textContent = '新品功能优先级';
+
+    var columns = [
+      {
+        cls: 'p0',
+        title: 'P0 必须满足',
+        badge: 'P0',
+        badgeClass: 'badge-p0',
+        items: [
+          '主动红外夜视',
+          '双圆屏双目观看',
+          '日间数字望远',
+          '观察与拍照保持一致',
+          '快速对焦和低延迟',
+          '可靠续航'
+        ]
+      },
+      {
+        cls: 'p1',
+        title: 'P1 差异化功能',
+        badge: 'P1',
+        badgeClass: 'badge-p1',
+        items: [
+          '头戴或三脚架适配',
+          '防水防雾防摔',
+          '存储卡和文件传输',
+          '轻量化和人体工学'
+        ]
+      },
+      {
+        cls: 'p2',
+        title: 'P2 加分功能',
+        badge: 'P2',
+        badgeClass: 'badge-p2',
+        items: [
+          'WiFi/App',
+          '4K高规格',
+          '高级夜视模式'
+        ]
+      }
+    ];
+
+    var html = '<div class="html-panel"><div class="panel-body">';
+    columns.forEach(function (col) {
+      html += '<div class="prio-card ' + col.cls + '">';
+      html += '<div class="card-head">';
+      html += '<div class="prio-title">' + col.title + '</div>';
+      html += '<span class="badge ' + col.badgeClass + '">' + col.badge + '</span>';
+      html += '</div>';
+      html += '<ul class="prio-list">';
+      col.items.forEach(function (item) {
+        html += '<li>' + item + '</li>';
+      });
+      html += '</ul>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<div class="conclusion">首版产品必须围绕夜视、双圆屏、日间观察、拍摄一致性和续航建立核心体验。</div>';
+    html += '</div>';
+
+    containerEl.innerHTML = html;
+  }
+
+  /* ============ 渲染调度 ============ */
+  function render() {
+    clearAll();
+    var id = getChartId();
+    switch (id) {
+      case 1: render1(); break;
+      case 2: render2(); break;
+      case 3: render3(); break;
+      case 4: render4(); break;
+      case 5: render5(); break;
+      default: render1(); break;
+    }
+  }
+
+  /* 窗口尺寸变化时重绘 */
+  window.addEventListener('resize', function () {
+    if (chart) {
+      chart.resize();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
