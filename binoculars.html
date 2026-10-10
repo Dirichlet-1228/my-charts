@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据可视化</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; margin:0; background:transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+  .wrapper { display:flex; flex-direction:column; height:100vh; width:100%; }
+  .chart-title { flex-shrink:0; text-align:center; font-size:18px; font-weight:600; color:#1a1a2e; margin:16px 0 12px; }
+  .chart-container { flex:1; width:100%; min-height:300px; }
+  @media (max-width:768px) { .chart-title { font-size:16px; } .chart-container { min-height:250px; } }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="chart-title" id="chartTitle"></div>
+  <div class="chart-container" id="singleChart"></div>
+</div>
+
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ========================= 基础配置 ========================= */
+  var PALETTE = ['#FF9D19','#4682EB','#52C41A','#F5222D','#FAAD14','#0FC6C2','#722ED1','#EB2F96',
+                 '#13C2C2','#7CB305','#B37FEB','#FF6B35','#4080FF','#FFBBA8','#95DE64','#FF7875'];
+
+  var baseTooltip = {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderWidth: 0,
+    padding: [8, 12],
+    textStyle: { color: '#fff', fontSize: 12 },
+    extraCssText: 'border-radius:4px;'
+  };
+
+  function num(v)  { return Number(v).toLocaleString('en-US'); }
+  function num2(v) { return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function shortNum(v) {
+    var a = Math.abs(v);
+    if (a >= 100000000) return (v / 100000000).toFixed(1) + '亿';
+    if (a >= 10000)     return (v / 10000).toFixed(1) + '万';
+    if (a >= 1000)      return (v / 1000).toFixed(1) + 'K';
+    return String(v);
+  }
+
+  var catAxisBase = {
+    type: 'category',
+    axisLine: { lineStyle: { color: '#D9DEE4' } },
+    axisTick: { show: false },
+    axisLabel: { color: '#5a6472', fontSize: 11 },
+    splitLine: { show: false }
+  };
+
+  var valAxisBase = {
+    type: 'value',
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: '#5a6472', fontSize: 11 },
+    splitLine: { show: true, lineStyle: { color: '#E9ECEF', type: 'dashed' } }
+  };
+
+  function emptyOption() {
+    return {
+      graphic: [{
+        type: 'text',
+        left: 'center',
+        top: 'middle',
+        style: { text: '暂无数据', fill: '#c2c8d2', fontSize: 16, fontWeight: 400 }
+      }]
+    };
+  }
+
+  /* ========================= 饼图通用构造 ========================= */
+  function makePie(data, valueName) {
+    valueName = valueName || '月销量';
+    var many = data.length > 8;                 // 类别 > 8 时隐藏图例，标签前加彩色圆点
+    var rich = {};
+    PALETTE.forEach(function (c, i) {
+      rich['d' + i] = { color: c, fontSize: 12, fontWeight: 'bold' };
+    });
+
+    var pieData = data.map(function (d, i) {
+      return { name: d.name, value: d.value, itemStyle: { color: PALETTE[i % PALETTE.length] } };
+    });
+
+    return {
+      color: PALETTE,
+      tooltip: Object.assign({}, baseTooltip, {
+        trigger: 'item',
+        formatter: function (p) {
+          return p.marker + ' ' + p.name + '<br/>' + valueName + '：' + num(p.value) + '（' + p.percent + '%）';
+        }
+      }),
+      legend: many ? { show: false } : {
+        type: 'scroll',
+        orient: 'vertical',
+        right: 16,
+        top: 'middle',
+        icon: 'circle',
+        itemWidth: 10,
+        itemHeight: 10,
+        itemGap: 10,
+        pageTextStyle: { color: '#4a4a68' },
+        pageIconColor: '#4682EB',
+        pageIconInactiveColor: '#ccc',
+        textStyle: { color: '#4a4a68', fontSize: 12 }
+      },
+      series: [{
+        type: 'pie',
+        radius: many ? ['34%', '60%'] : ['36%', '58%'],
+        center: many ? ['50%', '54%'] : ['38%', '54%'],
+        minAngle: 3,
+        avoidLabelOverlap: true,
+        itemStyle: { borderWidth: 0 },
+        label: many ? {
+          show: true,
+          position: 'outside',
+          formatter: function (p) {
+            return '{d' + (p.dataIndex % PALETTE.length) + '|●} ' + p.name + '\n' + p.percent + '%';
+          },
+          rich: rich,
+          color: '#3a4252',
+          fontSize: 12,
+          lineHeight: 16
+        } : {
+          show: true,
+          position: 'outside',
+          formatter: '{b}\n{d}%',
+          color: '#3a4252',
+          fontSize: 12,
+          lineHeight: 16
+        },
+        labelLine: { show: true, length: 12, length2: 16, lineStyle: { color: '#c8ced8' } },
+        emphasis: { label: { fontSize: 13, fontWeight: 'bold' } },
+        data: pieData
+      }]
+    };
+  }
+
+  /* ========================= 堆积柱状图通用构造 ========================= */
+  function makeStackedBar(categories, seriesList, yName, valueUnit) {
+    valueUnit = valueUnit || '';
+    return {
+      color: PALETTE,
+      tooltip: Object.assign({}, baseTooltip, {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,0,0,0.04)' } },
+        formatter: function (params) {
+          var total = 0;
+          params.forEach(function (p) { total += Number(p.value) || 0; });
+          var s = '<b>' + params[0].axisValue + '</b>';
+          params.forEach(function (p) {
+            s += '<br/>' + p.marker + ' ' + p.seriesName + '：' + num(p.value) + valueUnit;
+          });
+          s += '<br/>合计：' + num(total) + valueUnit;
+          return s;
+        }
+      }),
+      legend: {
+        top: 0, left: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10,
+        textStyle: { color: '#4a4a68', fontSize: 12 }
+      },
+      grid: { left: 10, right: 24, top: 50, bottom: 10, containLabel: true },
+      xAxis: Object.assign({}, catAxisBase, { data: categories }),
+      yAxis: Object.assign({}, valAxisBase, {
+        name: yName || '',
+        nameTextStyle: { color: '#5a6472', fontSize: 12 },
+        axisLabel: { color: '#5a6472', fontSize: 11, formatter: shortNum }
+      }),
+      series: seriesList.map(function (s, i) {
+        return {
+          name: s.name,
+          type: 'bar',
+          stack: 'total',
+          barMaxWidth: 42,
+          itemStyle: { color: PALETTE[i % PALETTE.length] },
+          emphasis: { focus: 'series' },
+          data: s.data
+        };
+      })
+    };
+  }
+
+  /* ========================= 时间轴（2022-01 ~ 2026-09，共57个月） ========================= */
+  var MONTHS = (function () {
+    var arr = [];
+    for (var y = 2022; y <= 2026; y++) {
+      for (var m = 1; m <= 12; m++) {
+        if (y === 2026 && m > 9) break;
+        arr.push(y + '-' + (m < 10 ? '0' + m : m));
+      }
+    }
+    return arr;
+  })();
+
+  /* ========================= 20 个图表配置 ========================= */
+  var chartTitles = [
+    '分款销量占比',
+    '产品款式价格销量矩阵',
+    '产品属性销量占比',
+    '产品属性销量占比',
+    '关键词搜索量趋势',
+    '关键词ABA排名趋势',
+    '历史销售趋势',
+    '夜视仪品牌集中度',
+    '望远镜品牌集中度',
+    '排名垄断',
+    '卖家类型与竞争格局',
+    '卖家类型与竞争格局',
+    '新品销量占比',
+    'Review数分析',
+    '分款价格分布',
+    '价格-质量联动分析',
+    '品牌价格分布',
+    '新老品价格分布',
+    '分款星级分布',
+    '评分销量趋势'
+  ];
+
+  var chartOpts = [];
+
+  /* ---------- (1) 分款销量占比 - 饼图 ---------- */
+  chartOpts[0] = makePie([
+    { name: '光学望远镜',   value: 82256 },
+    { name: '数码夜视双目', value: 11970 },
+    { name: '头戴夜视仪',   value: 974 },
+    { name: '数码拍照双筒', value: 57 }
+  ]);
+
+  /* ---------- (2) 产品款式价格销量矩阵 - 气泡图 ---------- */
+  chartOpts[1] = (function () {
+    var items = [
+      { name: '光学望远镜',   samples: 109, price: 78.61,  sales: 82256, revenue: 6465961 },
+      { name: '数码夜视双目', samples: 61,  price: 80.46,  sales: 11970, revenue: 963136  },
+      { name: '头戴夜视仪',   samples: 9,   price: 150.20, sales: 974,   revenue: 146299  },
+      { name: '数码拍照双筒', samples: 1,   price: 125.00, sales: 57,    revenue: 7125    }
+    ];
+    var maxRev = Math.max.apply(null, items.map(function (d) { return d.revenue; }));
+    var sizeOf = function (v) { return 14 + 56 * Math.sqrt(v / maxRev); };
+
+    var series = items.map(function (d, i) {
+      return {
+        name: d.name,
+        type: 'scatter',
+        data: [[d.price, d.sales, d.revenue, d.samples]],
+        symbolSize: function (val) { return sizeOf(val[2]); },
+        itemStyle: { color: PALETTE[i % PALETTE.length], opacity: 0.75 },
+        emphasis: { itemStyle: { opacity: 1 } },
+        z: 5
+      };
+    });
+
+    series.push({
+      name: '新品目标',
+      type: 'scatter',
+      data: [[59.99, 0]],
+      symbol: 'star',
+      symbolSize: 26,
+      itemStyle: { color: '#F5222D' },
+      label: {
+        show: true,
+        position: 'top',
+        distance: 8,
+        formatter: '新品目标 $59.99',
+        color: '#F5222D',
+        fontSize: 12,
+        fontWeight: 600
+      },
+      z: 10
+    });
+
+    return {
+      color: PALETTE,
+      tooltip: Object.assign({}, baseTooltip, {
+        trigger: 'item',
+        formatter: function (p) {
+          if (p.seriesName === '新品目标') {
+            return '<b>新品目标</b><br/>目标定价：$59.99<br/>月销量：—<br/>月销售额：—';
+          }
+          var v = p.value;
+          return '<b>' + p.seriesName + '</b>'
+            + '<br/>加权均价：$' + Number(v[0]).toFixed(2)
+            + '<br/>月销量：' + num(v[1])
+            + '<br/>月销售额：$' + num(v[2])
+            + '<br/>样本数：' + v[3];
+        }
+      }),
+      legend: {
+        top: 0, left: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10,
+        textStyle: { color: '#4a4a68', fontSize: 12 }
+      },
+      grid: { left: 20, right: 40, top: 56, bottom: 30, containLabel: true },
+      xAxis: {
+        type: 'value',
+        name: '加权均价($)',
+        nameLocation: 'middle',
+        nameGap: 32,
+        nameTextStyle: { color: '#5a6472', fontSize: 12 },
+        min: 30,
+        max: 180,
+        axisLine: { show: true, lineStyle: { color: '#D9DEE4' } },
+        axisTick: { show: false },
+        axisLabel: { color: '#5a6472', fontSize: 11, formatter: '${value}' },
+        splitLine: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        name: '月销量',
+        nameTextStyle: { color: '#5a6472', fontSize: 12 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#5a6472', fontSize: 11, formatter: shortNum },
+        splitLine: { show: true, lineStyle: { color: '#E9ECEF', type: 'dashed' } }
+      },
+      series: series
+    };
+  })();
+
+  /* ---------- (3) 产品属性销量占比 - 无数据 ---------- */
+  chartOpts[2] = emptyOption();
+
+  /* ---------- (4) 产品属性销量占比 - 无数据 ---------- */
+  chartOpts[3] = emptyOption();
+
+  /* ---------- (5) 关键词搜索量趋势 - 多系列折线图 ---------- */
+  (function () {
+    var dataBinoculars = [
+      226841,254690,292516,335001,319607,332830,336929,274218,336117,381617,253964,213842,
+      186014,195105,184875,135596,172663,141426,222430,304472,322681,316429,252690,236639,
+      195946,217719,385428,324853,355299,335457,349011,305424,311473,332180,312793,408237,
+      308396,210438,259836,271040,306429,296856,301927,274376,280485,359344,344107,421122,
+      180256,203187,262706,241211,260373,287975,262023,240322,230117
+    ];
+    var dataGoggles = [
+      118770,128264,147241,145063,129372,105251,122458,124864,132963,142718,175006,158117,
+      138755,135379,118561,107494,82756,122945,118465,152932,161483,171258,221789,235325,
+      213434,181657,156726,145548,142014,149703,140288,138804,163771,179510,218889,221445,
+      136389,140569,126106,98914,97038,122164,107189,106523,125126,128162,174901,178519,
+      120197,110606,111238,84635,82324,76189,86674,110101,98762
+    ];
+    var dataNvBinoculars = [
+      42039,43651,44358,34084,35766,38796,35801,30344,36931,37243,56493,66482,
+      39210,34140,27511,28126,14193,15519,27563,48570,62644,77170,124661,136060,
+      54400,47981,52975,50501,46648,51323,52891,56111,65814,86636,152413,168150,
+      70443,55616,53504,56992,51522,52196,45602,49913,59787,76497,121969,132165,
+      71208,58105,63583,47052,43497,46445,43215,63670,68146
+    ];
+
+    var kwList = [
+      { name: 'binoculars',               data: dataBinoculars },
+      { name: 'night vision goggles',     data: dataGoggles },
+      { name: 'night vision binoculars',  data: dataNvBinoculars }
+    ];
+
+    chartOpts[4] = {
+      color: PALETTE,
+      tooltip: Object.assign({}, baseTooltip, {
+        trigger: 'axis',
+        axisPointer: { type: 'line', lineStyle: { color: '#c8ced8', type: 'dashed' } },
+        formatter: function (params) {
+          var s = '<b>' + params[0].axisValue + '</b>';
+          params.forEach(function (p) {
+            s += '<br/>' + p.marker + ' ' + p.seriesName + '：' + num(p.value);
+          });
+          return s;
+        }
+      }),
+      legend: {
+        top: 0, left: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10,
+        textStyle: { color: '#4a4a68', fontSize: 12 }
+      },
+      grid: { left: 10, right: 24, top: 50, bottom: 10, containLabel: true },
+      xAxis: Object.assign({}, catAxisBase, {
+        data: MONTHS,
+        boundaryGap: false,
+        axisLabel: { color: '#5a6472', fontSize: 11, interval: 5 }
+      }),
+      yAxis: Object.assign({}, valAxisBase, {
+        name: '月搜索量',
+        nameTextStyle: { color: '#5a6472', fontSize: 12 },
+        axisLabel: { color: '#5a6472', fontSize: 11, formatter: shortNum }
+      }),
+      series: kwList.map(function (k, i) {
+        return {
+          name: k.name,
+          type: 'line',
+          data: k.data,
+          smooth: true,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 5,
+          lineStyle: { width: 2 },
+          itemStyle: { color: PALETTE[i % PALETTE.length] },
+          emphasis: { focus: 'series' }
+        };
+      })
+    };
+  })();
+
+  /* ---------- (6) 关键词ABA排名趋势 - 多系列折线图（排名轴反向） ---------- */
+  (function () {
+    var dataBinoculars = [
+      2241,1854,1444,1217,1313,1237,1213,1681,1218,971,1812,2417,
+      3157,2628,2998,4605,3211,4343,2237,1394,1200,1273,1867,2018,
+      3296,2650,1307,1763,1493,1642,1524,1856,1804,1668,1551,966,
+      1589,2688,2153,1977,1556,1630,1633,1880,1828,1268,1344,1006,
+      3399,2972,2046,2264,2021,1796,2105,2379,2484
+    ];
+    var dataGoggles = [
+      5842,5380,4179,4505,5415,6198,5542,5121,4808,4008,3274,3544,
+      4271,4493,5239,5917,8110,5502,5975,5849,4937,4379,2515,2004,
+      2798,3745,4948,5949,6679,5947,6271,6083,4861,4049,2754,2600,
+      4864,5594,7459,9368,9749,8035,8818,8726,6987,5833,3817,3508,
+      7846,8824,8812,12346,12786,14830,11920,9011,9286
+    ];
+    var dataNvBinoculars = [
+      18332,17577,16999,22820,21363,19504,21632,25277,20673,20700,12943,10711,
+      19423,22239,28068,28539,60412,51403,29518,28264,19995,15068,7940,7399,
+      23876,28710,28545,30814,34164,29784,28902,26466,21140,14211,4437,3872,
+      16913,23525,24539,22647,26164,25889,30305,27403,21802,14514,7463,5727,
+      16684,22241,19875,29239,32691,30866,33241,19363,17433
+    ];
+
+    var kwList = [
+      { name: 'binoculars',               data: dataBinoculars },
+      { name: 'night vision goggles',     data: dataGoggles },
+      { name: 'night vision binoculars',  data: dataNvBinoculars }
+    ];
+
+    chartOpts[5] = {
+      color: PALETTE,
+      tooltip: Object.assign({}, baseTooltip, {
+        trigger: 'axis',
+        axisPointer: { type: 'line', lineStyle: { color: '#c8ced8', type: 'dashed' } },
+        formatter: function (params) {
+          var s = '<b>' + params[0].axisValue + '</b>';
+          params.forEach(function (p) {
+            s += '<br/>' + p.marker + ' ' + p.seriesName + '：No.' + num(p.value);
+          });
+          return s;
+        }
+      }),
+      legend: {
+        top: 0, left: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10,
+        textStyle: { color: '#4a4a68', fontSize: 12 }
+      },
+      grid: { left: 10, right: 24, top: 50, bottom: 10, containLabel: true },
+      xAxis: Object.assign({}, catAxisBase, {
+        data: MONTHS,
+        boundaryGap: false,
+        axisLabel: { color: '#5a6472', fontSize: 11, interval: 5 }
+      }),
+      yAxis: Object.assign({}, valAxisBase, {
+        name: 'ABA排名',
+        inverse: true,
+        nameTextStyle: { color: '#5a6472', fontSize: 12 },
+        axisLabel: { color: '#5a6472', fontSize: 11, formatter: function (v) { return shortNum(v); } }
+      }),
+      series: kwList.map(function (k, i) {
+        return {
+          name: k.name,
+          type: 'line',
+          data: k.data,
+          smooth: true,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 5,
+          lineStyle: { width: 2 },
+          itemStyle: { color: PALETTE[i % PALETTE.length] },
+          emphasis: { focus: 'series' }
+        };
+      })
+    };
+  })();
+
+  /* ---------- (7) 历史销量趋势 - 堆积柱 + 折线复合图 ---------- */
+  (function () {
+    var months7 = ['2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07',
+                   '2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05',
+                   '2026-06','2026-07','2026-08','2026-09','2026-10*'];
+
+    var sampleTotal = [60902,75938,147472,56656,52901,59070,69505,75105,58589,92695,87653,75644,91649,116662,219899,
+                       67034,64283,75851,86645,104020,119450,104858,130104,93110,81499];
+    var teleSales   = [53195,62837,130469,53268,49660,55727,66497,71957,54153,87859,83939,70856,83844,97713,178288,
+                       59562,58051,67632,79466,96232,109666,97495,120453,80352,68603];
+    var nvSales     = [7707,13101,17003,3388,3241,3343,3008,3148,4436,4836,3714,4788,7805,18949,41611,
+                       7472,6232,8219,7179,7788,9784,7363,9651,12758,12896];
+    var sampleRev   = [6109035.37,7742070.54,14047184.63,5001072.03,4971750.71,4908186.00,5468042.26,5893268.48,
+                       4941462.00,6963884.35,6581499.79,6295779.28,7490904.00,10142449.57,18616255.31,5007069.02,
+                       5262970.46,5994727.41,6718257.95,8147989.40,9035116.76,8208117.78,10110053.05,7838811.26,7375163.24];
+    var teleRev     = [4943980.70,5904088.56,11730015.64,4487459.57,4469411.70,4459194.00,5069050.93,5470200.46,
+                       4385615.00,6274308.45,6086358.34,5638210.63,6556926.00,8111371.45,14641439.10,4157484.31,
+                       4571020.84,5013608.47,5834793.47,7202294.20,7800449.73,7433157.89,9045757.96,6550492.25,6118922.63];
+    var nvRev       = [1165054.67,1837981.98,2317168.99,513612.46,502339.01,448992.00,398991.33,423068.02,555847.00,
+                       689575.90,495141.45,657568.65,933978.00,2031078.12,3974816.21,849584.71,691949.62,981118.94,
+                       883464.48,945695.20,1234667.03,774959.89,1064295.09,1288319.01,1256240.61];
+
+    chartOpts[6] = {
+      color: PALETTE,
+      tooltip: Object.assign({}, baseTooltip, {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,0,0,0.04)' } },
+        formatter: function (params) {
+          var i = params[0].dataIndex;
+          return '<b>' + months7[i] + '</b>'
+            + '<br/>望远镜总销量：' + num(teleSales[i])
+            + '<br/>夜视仪总销量：' + num(nvSales[i])
+            + '<br/>样本总销量：' + num(sampleTotal[i])
+            + '<br/>望远镜总销售额：$' + num2(teleRev[i])
+            + '<br/>夜视仪总销售额：$' + num2(nvRev[i])
+            + '<br/>样本总销售额：$' + num2(sampleRev[i]);
+        }
+      }),
+      legend: {
+        top: 0, left: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10,
+        textStyle: { color: '#4a4a68', fontSize: 12 }
+      },
+      grid: { left: 10, right: 20, top: 56, bottom: 10, containLabel: true },
+      xAxis: Object.assign({}, catAxisBase, {
+        data: months7,
+        axisLabel: { color: '#5a6472', fontSize: 11, rotate: 35, interval: 0 }
+      }),
+      yAxis: [
+        Object.assign({}, valAxisBase, {
+          name: '销量',
+          nameTextStyle: { color: '#5a6472', fontSize: 12 },
+          axisLabel: { color: '#5a6472', fontSize: 11, formatter: shortNum }
+        }),
+        {
+          type: 'value',
+          name: '销售额($)',
+          nameTextStyle: { color: '#5a6472', fontSize: 12 },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: {
+            color: '#5a6472',
+            fontSize: 11,
+            formatter: function (v) {
+              if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(0) + 'M';
+              if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'K';
+              return v;
+            }
+          }
+        }
+      ],
+      series: [
+        {
+          name: '望远镜总销量',
+          type: 'bar',
+          stack: 'sales',
+          barMaxWidth: 30,
+          itemStyle: { color: PALETTE[0] },
+          emphasis: { focus: 'series' },
+          data: teleSales
+        },
+        {
+          name: '夜视仪总销量',
+          type: 'bar',
+          stack: 'sales',
+          barMaxWidth: 30,
+          itemStyle: { color: PALETTE[1] },
+          emphasis: { focus: 'series' },
+          data: nvSales
+        },
+        {
+          name: '望远镜总销售额',
+          type: 'line',
+          yAxisIndex: 1,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: { width: 2 },
+          itemStyle: { color: PALETTE[2] },
+          data: teleRev
+        },
+        {
+          name: '夜视仪总销售额',
+          type: 'line',
+          yAxisIndex: 1,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: { width: 2 },
+          itemStyle: { color: PALETTE[3] },
+          data: nvRev
+        }
+      ]
+    };
+  })();
+
+  /* ---------- (8) 夜视仪品牌集中度 - 饼图（11类 > 8，隐藏图例，标签带圆点） ---------- */
+  chartOpts[7] = makePie([
+    { name: 'Vtiisamao', value: 2601 },
+    { name: 'VISIOGEAR', value: 1147 },
+    { name: 'WOSPORTS',  value: 1140 },
+    { name: 'ROQIOO',    value: 712 },
+    { name: 'Mossy Oak', value: 562 },
+    { name: 'VOOPEAK',   value: 501 },
+    { name: 'XOOIOOY',   value: 408 },
+    { name: 'HOTPEAK',   value: 362 },
+    { name: 'sxjyicam',  value: 342 },
+    { name: 'WISHBETY',  value: 294 },
+    { name: '其他',      value: 4875 }
+  ]);
+
+  /* ---------- (9) 望远镜品牌集中度 - 饼图（11类 > 8，隐藏图例，标签带圆点） ---------- */
+  chartOpts[8] = makePie([
+    { name: 'occer',    value: 12706 },
+    { name: 'Vortex',   value: 12694 },
+    { name: 'FLYANT',   value: 7979 },
+    { name: 'Hontry',   value: 5189 },
+    { name: 'Nikon',    value: 4514 },
+    { name: 'POLDR',    value: 3537 },
+    { name: 'Celestron',value: 3292 },
+    { name: 'Bushnell', value: 2786 },
+    { name: 'Dranbol',  value: 1774 },
+    { name: 'AHFLRITO', value: 1747 },
+    { name: '其他',     value: 26095 }
+  ]);
+
+  /* ---------- (10) 排名垄断 - 无数据 ---------- */
+  chartOpts[9] = emptyOption();
+
+  /* ---------- (11) 卖家类型与竞争格局 - 无数据 ---------- */
+  chartOpts[10] = emptyOption();
+
+  /* ---------- (12) 卖家类型与竞争格局 - 无数据 ---------- */
+  chartOpts[11] = emptyOption();
+
+  /* ---------- (13) 新品销量占比 - 饼图 ---------- */
+  chartOpts[12] = makePie([
+    { name: '老品', value: 86623 },
+    { name: '新品', value: 8634 }
+  ]);
+
+  /* ---------- (14) Review数分析 - 无数据 ---------- */
+  chartOpts[13] = emptyOption();
+
+  /* ---------- (15) 分款价格分布 - 堆积柱状图 ---------- */
+  chartOpts[14] = makeStackedBar(
+    ['$0-29.99', '$30-59.99', '$60-99.99', '$100-199.99', '$200以上'],
+    [
+      { name: '光学望远镜',   data: [36990, 16168, 14387, 7194, 7517] },
+      { name: '数码夜视双目', data: [57, 2792, 6474, 2157, 490] },
+      { name: '头戴夜视仪',   data: [0, 0, 60, 914, 0] },
+      { name: '数码拍照双筒', data: [0, 0, 0, 57, 0] }
+    ],
+    '月销量'
+  );
+
+  /* ---------- (16) 价格-质量联动分析 - 无数据 ---------- */
+  chartOpts[15] = emptyOption();
+
+  /* ---------- (17) 品牌价格分布 - 无数据 ---------- */
+  chartOpts[16] = emptyOption();
+
+  /* ---------- (18) 新老品价格分布 - 无数据 ---------- */
+  chartOpts[17] = emptyOption();
+
+  /* ---------- (19) 分款星级分布 - 堆积柱状图 ---------- */
+  chartOpts[18] = makeStackedBar(
+    ['五星', '四星半', '四星', '三星半', '三星及以下'],
+    [
+      { name: '光学望远镜',   data: [18, 73, 18, 0, 0] },
+      { name: '数码夜视双目', data: [5, 27, 25, 3, 1] },
+      { name: '头戴夜视仪',   data: [1, 3, 5, 0, 0] },
+      { name: '数码拍照双筒', data: [0, 0, 0, 1, 0] }
+    ],
+    '样本数'
+  );
+
+  /* ---------- (20) 评分销量趋势 - 无数据 ---------- */
+  chartOpts[19] = emptyOption();
+
+  /* ========================= 渲染逻辑 ========================= */
+  var params = new URLSearchParams(window.location.search);
+  var id = parseInt(params.get('id'), 10);
+  if (!id || isNaN(id) || id < 1 || id > 20) id = 1;
+
+  document.title = chartTitles[id - 1];
+  document.getElementById('chartTitle').textContent = chartTitles[id - 1];
+
+  var dom = document.getElementById('singleChart');
+  var chart = echarts.init(dom);
+  chart.setOption(chartOpts[id - 1]);
+
+  setTimeout(function () { chart.resize(); }, 100);
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { chart.resize(); }, 100);
+  });
+})();
+</script>
+</body>
+</html>
